@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/*
+ * Champagne Rose brand skin — sprint-0-brief.md §5:
+ * Warm White / Soft Rose / Champagne Gold / Charcoal Black. Luxury, warm, not cartoonish.
+ * Tailwind v4 auto-generates utilities (bg-rose-500, text-charcoal, ...) from these tokens.
+ */
+@theme {
+  --color-warm-white: #faf6f2;
+  --color-surface: #ffffff;
+
+  --color-rose-50: #fbf0f1;
+  --color-rose-100: #f3dee0;
+  --color-rose-200: #eaccd0;
+  --color-rose-300: #dfb2b7;
+  --color-rose-400: #d29ba1;
+  --color-rose-500: #c98a93;
+  --color-rose-600: #b06e78;
+  --color-rose-700: #8f5760;
+
+  --color-gold-100: #f6ecd3;
+  --color-gold-200: #ecdcae;
+  --color-gold-300: #ddbe84;
+  --color-gold-400: #d0ac68;
+  --color-gold-500: #c6a15b;
+  --color-gold-600: #a9803f;
+
+  --color-charcoal: #2b2320;
+  --color-charcoal-muted: #766a63;
+  --color-border: #ece3dc;
+
+  --font-sans: var(--font-vazirmatn), Tahoma, Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-warm-white);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+}
