@@ -372,3 +372,65 @@ node_modules bundle is ~71MB / 27 top-level packages, a large reduction from a f
 branch, and setting the `NEXT_PUBLIC_SITE_URL` repository variable — both need the account
 holder's access to the cPanel panel and the GitHub repo settings respectively. `docs/README.md`
 §5 documents exactly what to set.
+
+---
+
+## 2026-09-09 — confirmed live: the 5432 block breaks the running app too, not just migrations
+
+### 16. Runtime queries go through Neon's serverless driver on the deploy host — `DATABASE_DRIVER` switch
+**Decision:** `lib/prisma.ts` now picks which driver adapter `PrismaClient` uses based on a new
+`DATABASE_DRIVER` env var — `"pg"` (`@prisma/adapter-pg`, direct TCP, port 5432, default,
+unchanged behavior) or `"neon"` (`@prisma/adapter-neon` + `@neondatabase/serverless`, tunnelled
+over WebSocket/HTTPS, port 443). Both adapters are imported unconditionally at the top of the
+file; only which one gets *instantiated* is conditional, so the module stays a plain synchronous
+singleton — no call site anywhere else in the app changed. `neonConfig.webSocketConstructor =
+ws` is set unconditionally too (harmless when unused — it only configures the neondatabase
+package, which does nothing unless a Neon adapter is actually built) rather than gated behind
+the driver check, since Node.js versions before 22 have no built-in `WebSocket` global and this
+project's stated minimum is 20.9+ (see `docs/README.md` §6).
+**Why now, confirmed rather than anticipated:** the earlier Neon conversation (the session note
+right before ADR 14) flagged that the deploy host's firewall blocking port 5432 would eventually
+also break the *running app's* queries, not just `prisma migrate deploy` — this is that
+prediction landing for real. Confirmed report: `POST /api/auth/otp/request` was returning
+`ERR_EMPTY_RESPONSE` in production, because the request handler's attempt to open a direct
+Postgres connection on 5432 was being silently dropped by the same firewall ADR 14 first hit
+during migrations.
+**Why an env-switched adapter instead of just replacing `@prisma/adapter-pg` outright:** local
+dev (and any future host that *can* reach Postgres directly) has no reason to pay for an extra
+WebSocket hop to a proxy when a plain TCP connection works and is simpler to reason about
+locally (no `ws` dependency in the request path, ordinary `pg` error messages). This also
+follows the same pattern already established for `SMSProvider`/`StorageProvider`/
+`PaymentProvider` (ADR 3): one small, explicit env-driven switch, not a silent runtime
+auto-detect based on e.g. sniffing the `DATABASE_URL` hostname for `neon.tech`.
+**Pooled vs. direct Neon connection string for `DATABASE_URL` here:** use the **pooled** one for
+this (the live, per-request query path — exactly Neon's pooler's purpose), not the **direct**
+one ADR 14 uses for `prisma migrate deploy`. They're different connection strings for different
+jobs; `docs/README.md` §5 spells out which goes where so this isn't lost.
+**Verified against the real Neon database, from this same network-restricted environment (which
+blocks outbound 5432 exactly like the deploy host does, confirmed in the earlier Neon
+conversation):**
+- A raw `$queryRaw` round-trip through `PrismaNeon` succeeded (~1.8s, first-connection
+  WebSocket handshake cost) where a direct `pg`/TCP connection to the same database from this
+  same environment had already been proven to fail outright.
+- A full ORM-level nested write (`prisma.category.create` with a nested `children: { create:
+  [...] }` sub-record, the same shape `/api/checkout` uses for `Order` + `OrderItem`) succeeded
+  and was cleaned up afterward — confirms the adapter handles Prisma's implicit-transaction
+  nested writes, not just single flat queries.
+- Ran the actual `.next/standalone/server.js` (the exact artifact the `deploy` branch ships)
+  with `DATABASE_DRIVER=neon` and the pooled `DATABASE_URL`, and called the real, previously-
+  failing endpoint end to end: `POST /api/auth/otp/request` returned `200 {"ok":true,...}`,
+  meaning it wrote a live `OtpCode` row to the real database over the WebSocket path. The test
+  row was deleted afterward.
+**A concern raised and then resolved during verification, not swept past:** `@prisma/adapter-
+neon`, `@neondatabase/serverless`, and `ws` are all *absent* from `.next/standalone/
+node_modules` even after a full rebuild — worth checking rather than assuming ADR 15's tracing
+was broken by this change, since the whole point of that ADR was a working standalone bundle.
+Investigated: unlike `pg` (which has dynamic/conditional `require()`s inside its own code for
+optional native/Cloudflare paths, so Turbopack must leave it as a real external `require()` that
+needs the actual files present at runtime), the Neon packages have no such dynamic requires, so
+Turbopack inlines their code directly into the compiled server chunks — confirmed by finding
+`@neondatabase/serverless`'s own error-message strings baked into `.next/server/chunks/ssr/
+*.js`. The standalone-server test above proves this conclusively in practice: it ran the real
+Neon query path successfully with those `node_modules` entries entirely missing. Nothing to fix
+here — recorded so a future "why isn't neon in node_modules" investigation doesn't restart from
+scratch.

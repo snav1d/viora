@@ -74,6 +74,7 @@ of being sent by real SMS — see ADR 3.
 |---|---|---|
 | SMS / storage / payment provider selection | `.env` (`SMS_PROVIDER`, `STORAGE_PROVIDER`, `PAYMENT_PROVIDER`) | Implementations live in `lib/providers/*.ts`. Only the mock/local implementation exists today; add a new class + one line in the relevant `get*Provider()` factory to go live. See ADR 3. |
 | Session signing secret | `.env` (`AUTH_SESSION_SECRET`) | |
+| Database driver | `.env` (`DATABASE_DRIVER`) | `"pg"` (default, direct TCP/5432) or `"neon"` (Neon's serverless driver over WebSocket/HTTPS, port 443). See §5 — only the deploy host needs `"neon"`. See ADR 16. |
 | Active cities / categories (phase gating) | Database (`City.isActive`, `Category.isActive`) | No admin UI yet — edit via `npm run db:studio` or a seed script until the admin panel (out of scope for Sprint 0) exists. |
 | AI extractor for the party wizard (future) | Database, `AiSettings` singleton row | Schema-only placeholder; nothing reads it yet. See ADR 4. |
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
@@ -116,6 +117,23 @@ back to the same `http://localhost:3000` default local dev uses.
 | Application URL | the domain/subdomain for Viora |
 | Application mode | Production (cPanel sets `PORT`; the generated `server.js` sets its own `NODE_ENV`) |
 | Node.js version | any recent one — `deploy`'s `node_modules` are pre-built for Linux x64, not compiled on the host |
+
+**Database driver — this host cannot reach Postgres on port 5432 either (see ADR 16):**
+the same outbound firewall that blocks the host from *building* also blocks it from making
+outbound TCP connections at *runtime* — so beyond the `DATABASE_URL`/`AUTH_SESSION_SECRET`/etc.
+env vars already needed, the cPanel Node.js App panel must also set:
+
+```
+DATABASE_DRIVER=neon
+DATABASE_URL=<the Neon *pooled* connection string>
+```
+
+`DATABASE_DRIVER` defaults to `"pg"` (direct TCP, port 5432) everywhere else, including local
+dev — only set it to `"neon"` on hosts that specifically can't reach 5432. Use Neon's **pooled**
+connection string here (not the direct one) — this is the live query path handling regular
+request traffic, which is exactly what Neon's pooler is for; the *direct* string is what
+`prisma migrate deploy` should use instead, for the advisory-lock reasons in ADR 14, run from
+somewhere that can actually reach 5432, never from this host.
 
 **On the host, after a new `deploy` branch build lands:** pull it, then just restart the app
 from the Node.js Selector UI (or touch `tmp/restart.txt` if Passenger is configured for that
