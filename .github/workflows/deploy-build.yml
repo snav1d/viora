@@ -1,0 +1,72 @@
+name: Build deploy artifact
+
+# The cPanel host this project deploys to has a glibc too old for Next.js's build tooling
+# (native bindings AND their WASM fallback both fail) - see docs/decisions.md for the ADR.
+# This builds on a normal GitHub-hosted runner instead and publishes the result (Next's
+# `output: "standalone"` bundle - a pruned node_modules, no build tools) to the `deploy`
+# branch, rewritten from scratch each run. The host only ever needs to pull that branch and
+# run `node server.js` - it never builds or runs `npm install` itself.
+
+on:
+  push:
+    branches:
+      - claude/new-session-917ve0 # update if/when this project settles on a stable main branch
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        # A live database is never actually contacted here - `prisma generate` only reads
+        # the schema - but prisma.config.ts requires DATABASE_URL to be resolvable just to
+        # load (see ADR 13), so a placeholder value is enough.
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://build:build@localhost:5432/build"
+
+      - name: Build (produces .next/standalone)
+        run: npm run build
+        env:
+          # None of Sprint 0's statically-prerendered pages touch the database or read
+          # AUTH_SESSION_SECRET, so these placeholders never need to be real. The one value
+          # that IS meaningful at build time is NEXT_PUBLIC_SITE_URL (inlined into metadata/
+          # sitemap output) - set it as a repository variable once the real domain is known;
+          # it falls back to the same http://localhost:3000 default local dev uses.
+          DATABASE_URL: "postgresql://build:build@localhost:5432/build"
+          AUTH_SESSION_SECRET: "ci-build-placeholder-unused-at-runtime-32-characters"
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+
+      - name: Publish .next/standalone to the deploy branch
+        run: |
+          set -e
+
+          mkdir -p /tmp/deploy-artifact
+          cp -r .next/standalone/. /tmp/deploy-artifact/
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout --orphan deploy-build
+          git rm -rf . > /dev/null
+
+          cp -r /tmp/deploy-artifact/. .
+          git add -A
+          git commit -m "Deploy build from ${{ github.sha }}"
+
+          git push origin deploy-build:deploy --force

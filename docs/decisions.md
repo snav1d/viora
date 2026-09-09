@@ -281,3 +281,94 @@ reported a `cwd` problem for those, and unlike `postinstall` they're run manuall
 session or cPanel terminal already sitting in the project directory), not by npm's own
 lifecycle-script machinery — so there's no reason to believe they hit the same wrapper-induced
 `cwd` remapping. If one of them ever does, the fix is the same one-line pattern.
+
+---
+
+## 2026-09-09 — the host can't build at all; build elsewhere, ship the artifact
+
+### 15. `output: "standalone"` + a CI-built `deploy` branch; ADR 11's custom `server.js` retired
+**Decision:**
+1. `next.config.ts` sets `output: "standalone"`. `next build` now produces `.next/standalone` —
+   a pruned bundle containing only the runtime dependencies actually used, plus a Next-generated
+   `server.js` that already reads `PORT`/`HOSTNAME` from the environment.
+2. `server.js` at the repo root (ADR 11) is deleted. It existed for exactly one reason — making
+   a production server honor Passenger's `PORT` — and the standalone bundle's own generated
+   `server.js` already does that natively, so keeping a second, parallel "how do we serve this
+   app in production" mechanism around would just be confusing dead weight.
+3. `scripts/prepare-standalone.sh` (wired up as the `postbuild` npm script, so `npm run build`
+   always leaves a ready-to-run bundle) copies `public/` and `.next/static/` into
+   `.next/standalone` — standalone mode deliberately omits them, expecting a CDN in front — and
+   strips any `.env*` file Next's tracer copied in (see the security note below).
+4. `.github/workflows/deploy-build.yml` runs this whole build on a normal GitHub-hosted runner
+   on every push, and force-pushes the resulting `.next/standalone` as the entire history of a
+   `deploy` branch (an orphan commit each run, not accumulated — keeps that branch's size
+   bounded instead of growing forever).
+5. `docs/README.md` §5's cPanel instructions now point at deploying a checkout of the `deploy`
+   branch, with `npm install`/`npm run build` removed from the host-side steps entirely.
+**Why:** the cPanel host's OS glibc is old enough that Next.js's build tooling fails two ways in
+a row — the platform-specific native bindings (SWC, lightningcss, Tailwind v4's Oxide engine)
+fail to load, *and* Next's own WASM fallback for the same tooling also crashes (reported
+symptom: a `Cannot read properties of null (reading 'useContext')` crash while prerendering
+Next's internal `/_global-error` page). This is unambiguously a **build-time** failure in
+Rust-based compiler tooling, not a runtime problem — once code is compiled to plain JS, running
+it needs nothing but Node.js itself, which already works fine on this host today (it's running
+the current Passenger-managed app). So the fix is to never let this host build at all, and ship
+it something that's already fully compiled.
+**Why `output: "standalone"` specifically, not "commit the raw `.next` folder + still run `npm
+install` on the host"** (the literal shape of what was asked for): a raw `.next` folder still
+needs the *full* `node_modules` tree installed on the host to run (`next start`'s own
+documented requirement before Output File Tracing existed) — meaning `npm install` would still
+pull in the same native-binary-bearing build tools (Tailwind's Oxide engine, `@next/swc-*`,
+etc.) that caused the original problem, just shifted from "fails during build" to "maybe fails
+during install, or ships dead risk if it doesn't." Standalone's traced bundle only contains
+what the compiled server code actually `require()`s at runtime, which the driver-adapter model
+already made pointedly small for this project — see the next paragraph. Committing a full
+`.next` folder as regular ongoing history is also just bad git hygiene (large, binary-ish,
+churns every deploy, doesn't diff or compress meaningfully) — standalone's *pruned* bundle on
+its own dedicated, rewritten-not-accumulated branch avoids that too.
+**A confirmed nice side effect of ADR 3's driver-adapter choice:** the traced `node_modules`
+does still include `sharp` (Next bundles it defensively for `next/image`'s optimizer, whether or
+not a project uses it) and its native `@img/sharp-linux-x64` binding — but this project's own
+code has zero `next/image` usage (checked: `grep -rn "next/image" app components lib` — no
+matches), and Node never loads a native addon file that nothing `require()`s, so that binding
+just sits there unused rather than becoming the exact same class of failure one level down. If
+`next/image` usage is ever added, this is worth re-checking on the actual host, or set
+`images.unoptimized = true` to remove the concern outright. Separately: Prisma 7's driver
+adapters (ADR 3) mean `@prisma/client`'s generated code has **no native or WASM query engine at
+all** in its runtime path — the entire original class of problem (native bindings vs. old
+glibc) that this ADR is about doesn't even apply to Prisma at request-handling time, only to
+Next's own build compiler. That was a pre-existing choice, not made for this reason, but it
+matters here.
+**Security note — `.env` gets traced into `.next/standalone` by Next itself:** verified by
+building locally: whatever `.env` exists in the project root at build time is copied verbatim
+into `.next/standalone/.env`, regardless of whether anything in it is actually read by traced
+code. Left alone, this would silently ship whoever's machine (or CI run) produced the build's
+own `DATABASE_URL`/`AUTH_SESSION_SECRET` into a public, force-pushed git branch. This is why
+`prepare-standalone.sh` explicitly deletes `.next/standalone/.env*` after copying static assets
+— every build strips it, not just a one-time manual cleanup.
+**Why a CI-built `deploy` branch over other artifact-transport options considered:**
+- *Commit `.next`/standalone output to the same branch as source, as literally asked* — rejected
+  per the git-hygiene point above; a dedicated, rewritten branch keeps build output out of the
+  project's real history entirely.
+- *A GitHub Release tarball instead of a branch* — arguably even better git hygiene (release
+  assets are explicitly for binary artifacts and never touch any branch's object history at
+  all), and worth switching to later. Not chosen now because it needs an extra
+  download/extract step on the host that a plain `git pull`/checkout doesn't, for a project
+  that's still finding its deployment footing — the branch approach was the smaller change for
+  the immediate need.
+- *A GitHub Actions step that `rsync`/`scp`s straight to the host* — the actually ideal
+  end-state (fully automated, nothing for a human to manually pull), and explicitly worth doing
+  once cPanel SSH/deploy-key access is available to wire into repository secrets. Not set up
+  here because it needs credentials only the account holder can provide — this ADR's approach
+  needs none beyond the workflow's own default `GITHUB_TOKEN`.
+**Verified:** built locally with `output: "standalone"` and ran the exact `npm run build && npm
+run start` flow — `postbuild` correctly produced and populated `.next/standalone` (public
+assets, static chunks, `.env` absent from the result), and the resulting `node .next/standalone/
+server.js` served `/`, `/home`, `/shop`, `/shop/product/[slug]`, `/wizard`, `/profile`,
+`/robots.txt`, and a static asset — all `200` — while honoring a non-default `PORT`, matching
+(and replacing) the coverage ADR 11 verified for the retired custom server. Also confirmed the
+node_modules bundle is ~71MB / 27 top-level packages, a large reduction from a full install.
+**Not done here:** actually configuring cPanel to pull from `deploy` instead of the source
+branch, and setting the `NEXT_PUBLIC_SITE_URL` repository variable — both need the account
+holder's access to the cPanel panel and the GitHub repo settings respectively. `docs/README.md`
+§5 documents exactly what to set.

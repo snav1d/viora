@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "postbuild": "sh scripts/prepare-standalone.sh",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "postinstall": "cd \"$INIT_CWD\" && prisma generate",
     "db:migrate": "prisma migrate dev",
