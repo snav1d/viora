@@ -173,3 +173,58 @@ connection).
 /home/user/viora/prisma.config.ts` from `/tmp` as the working directory (reproducing the
 symlinked-cwd scenario) — both succeeded and correctly loaded `.env` and the schema from the
 real project root rather than failing or reading from `/tmp`.
+
+---
+
+## 2026-09-09 — postinstall still failed on cPanel after ADR 12; explicit `--schema` + loud config errors
+
+### 13. `postinstall` passes `--schema` explicitly; `prisma.config.ts` fails loudly instead of silently
+**Decision:**
+1. `postinstall` is now `prisma generate --schema=./prisma/schema.prisma` instead of bare
+   `prisma generate` — the schema path no longer depends on `prisma.config.ts` being
+   successfully auto-detected and loaded for this one command.
+2. `prisma.config.ts` no longer calls `loadEnv(...)` and `env("DATABASE_URL")` bare. It checks
+   `loadEnv(...)`'s result and `console.warn`s if `.env` couldn't be read (distinguishing a
+   merely-missing file, which is fine — see below — from a real read failure), and wraps
+   `env("DATABASE_URL")` in a try/catch that `console.error`s a specific, actionable message
+   before re-throwing.
+**Why:** After ADR 12's `__dirname`-based fix, `npx prisma generate` run directly in a terminal
+on the cPanel host loaded the config and worked correctly — but the identical binary, run as
+`postinstall` through npm's own lifecycle-script wrapper (`sh -c "prisma generate"`), still
+failed with "Could not find Prisma Schema". Confirmed both invocations use the same
+`node_modules/.bin/prisma`, so this is not the cwd/symlink issue ADR 12 fixed (that already
+proved cwd-independent from a terminal). The remaining plausible explanation: something about
+npm's lifecycle-script execution environment makes `prisma.config.ts` itself fail to load in
+that context specifically, and Prisma's CLI falls back to its own legacy schema-discovery (which
+*is* cwd-relative) when config loading fails — reproducing exactly this symptom. `generate`
+doesn't need `datasource.url`, only the schema location, so giving `--schema` explicitly lets it
+succeed regardless of whether config loading works in that environment. This doesn't fix
+`prisma.config.ts` loading itself (still needed by `migrate deploy`, `db seed`, `studio`, which
+all need `datasource.url` and can't take a `--schema`-only shortcut around that) — hence the
+second change: if config loading breaks the same way for one of *those* commands on this host
+one day, the failure should say so plainly instead of resurfacing as an unrelated-looking
+schema error someone has to re-diagnose from scratch.
+**Why warn (not throw) on a merely-missing `.env`, but throw on a missing `DATABASE_URL`:** a
+missing `.env` file is an expected, healthy state on a deployed host where the environment
+variables are set directly in the hosting panel (cPanel's "Setup Node.js App" supports this)
+rather than committed to a file. Throwing there would fail deployments that are configured
+correctly. `DATABASE_URL` actually being unresolved, from either source, is unrecoverable for
+every Prisma command this config file serves, so that's the one condition worth failing loudly
+and immediately on.
+**Verified:**
+- `npm run postinstall` (exercises npm's own `sh -c` lifecycle wrapper, not a direct `prisma`
+  invocation) regenerates the client correctly.
+- `DATABASE_URL="" prisma generate --config prisma.config.ts` prints the new clear
+  `[prisma.config.ts] DATABASE_URL is not set...` message ahead of Prisma's own generic error,
+  and exits `1`.
+- Temporarily moving `.env` aside and supplying `DATABASE_URL` only via the process environment
+  logs the "No .env file... relying on process.env only" warning and still succeeds (`prisma
+  validate` exits `0`) — confirms the panel-injected-env-vars deployment shape isn't broken by
+  this change.
+- Full `npm run build` + `npm run lint` + `prisma migrate status` still pass clean after both
+  changes.
+**Open question, flagged rather than guessed at:** *why* `prisma.config.ts` loading itself
+would behave differently under npm's lifecycle-script wrapper versus a direct terminal
+invocation of the same binary was not root-caused here — only worked around for `generate`
+specifically and made loud for everything else. If the loud error from change 2 ever actually
+fires on the cPanel host, that log is the next debugging lead.
