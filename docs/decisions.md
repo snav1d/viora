@@ -111,3 +111,40 @@ onward, say so and this will change.
 **Why:** Keeps Sprint 0 minimal; the brief only asks for "اتصال به PostgreSQL محلی (برای تست)".
 A `docker-compose.yml` for Postgres can be added on request if local Postgres installs are
 inconvenient for the team.
+
+---
+
+## 2026-09-09 — cPanel Passenger custom server
+
+### 11. `server.js` custom server for production, `next start` dropped
+**Decision:** Added `server.js` at the repo root — a plain CommonJS custom Next.js server
+(`next({ dev })` + `http.createServer`) that listens on `process.env.PORT`, falling back to
+`3000` when unset. `npm run start` now runs `NODE_ENV=production node server.js` instead of
+`next start`. `npm run dev` is unchanged (`next dev`, for Fast Refresh).
+**Why:** cPanel's Node.js Selector runs on Phusion Passenger, which starts the configured
+"Application startup file" directly and assigns the app a port through the `PORT` env var at
+launch — a different port each time, not necessarily `3000`. `next start` always binds to a
+fixed `-p` value (`3000` by default) and has no supported way to read `PORT` itself, so it
+can't be pointed at whatever port Passenger hands out. A custom server that explicitly reads
+`process.env.PORT` is the documented Next.js pattern for exactly this ("Custom Server" guide,
+`node_modules/next/dist/docs/01-app/02-guides/custom-server.md`).
+**Why plain CommonJS (`require`), not the ESM `import` the Next.js docs example shows:**
+`package.json` has no `"type": "module"`, so a `.js` file run directly by Node (unbundled,
+unlike everything under `app/`/`lib/`, which Next's own compiler handles regardless of that
+field) defaults to CommonJS. Making `server.js` the one ESM file in the project would need
+either renaming it to `.mjs` or flipping `"type": "module"` for the whole package — a global
+change with a wider blast radius than this one entry file needed. `require('next')` /
+`require('node:http')` work identically to the ESM example and needed no other change, so that
+was the smaller diff. `server.js` is also excluded from `eslint.config.mjs`'s lint targets
+(alongside `.next/`, `out/`, etc.) since `@typescript-eslint/no-require-imports` otherwise
+flags exactly this pattern — it's a root infra script, not application source.
+**Verified:** built with `npm run build`, then ran `PORT=3005 NODE_ENV=production node
+server.js` and confirmed it served `/`, `/home`, `/shop`, and `/wizard` (a static page, a
+dynamic page, and two DB-backed dynamic pages) on that non-default port.
+**Rejected:** `next start -p $PORT` wrapped in a shell script — `next start`'s `-p` flag does
+take a value, but there is no built-in flag that reads `PORT` from the environment on its own;
+some shape of wrapper reading `process.env.PORT` was unavoidable either way, and the officially
+documented path is a custom server, not a shell wrapper around the CLI.
+**Follow-up:** the cPanel "Setup Node.js App" panel itself (Application startup file, mode,
+Node version) is outside this repo and must be set by whoever has panel access — the exact
+values to use are documented in `docs/README.md` §5.

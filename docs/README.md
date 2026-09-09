@@ -83,10 +83,37 @@ of being sent by real SMS — see ADR 3.
 
 ## 5. Deployment target
 
-cPanel with Node.js Selector (per `docs/00-START-HERE.md` §2) — a single Next.js process, no
-Vercel-only features used. Standard flow: `npm install`, `npx prisma migrate deploy`,
-`npm run build`, `npm run start` (or however the Node.js Selector app is configured to launch
-`next start`).
+cPanel with Node.js Selector / Phusion Passenger (per `docs/00-START-HERE.md` §2) — a single
+Next.js process, no Vercel-only features used.
+
+Passenger starts the app itself (not through an npm script) and tells it which port to listen
+on via the `PORT` environment variable — `next start` has no way to honor that, so the app
+uses `server.js` at the repo root as a custom Next.js server (see `docs/decisions.md`) instead
+of `next start` in production. Locally, `npm run dev` still uses plain `next dev` for Fast
+Refresh; only the production path changed.
+
+**cPanel "Setup Node.js App" settings:**
+
+| Field | Value |
+|---|---|
+| Application root | the repo's checkout path |
+| Application startup file | `server.js` |
+| Application URL | the domain/subdomain for Viora |
+| Application mode | Production (cPanel sets `NODE_ENV=production` and `PORT` itself) |
+| Node.js version | 20.9+ (matches the Next.js 16 minimum, see `docs/README.md` §6) |
+
+Deploy flow after pulling new code, run from the cPanel "Run NPM Install" button or its
+terminal (which uses the Node version selected above):
+
+```bash
+npm install                  # postinstall runs `prisma generate`
+npx prisma migrate deploy    # applies prisma/migrations, no dev prompts
+npm run build
+```
+
+Then restart the app from the Node.js Selector UI (or touch `tmp/restart.txt` if Passenger is
+configured for that convention) so it picks up the new build. `npm run start` runs the same
+`server.js` locally for testing production mode — it's just not what Passenger itself calls.
 
 ## 6. Conventions
 
