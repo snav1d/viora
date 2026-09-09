@@ -228,3 +228,56 @@ would behave differently under npm's lifecycle-script wrapper versus a direct te
 invocation of the same binary was not root-caused here — only worked around for `generate`
 specifically and made loud for everything else. If the loud error from change 2 ever actually
 fires on the cPanel host, that log is the next debugging lead.
+
+---
+
+## 2026-09-09 — actual root cause found: `postinstall` runs with the wrong `cwd` on this host
+
+### 14. `postinstall` restores the real project directory via `$INIT_CWD` before running `prisma generate`
+**Decision:** `postinstall` is now `cd "$INIT_CWD" && prisma generate` — no `--schema` flag
+(reverting ADR 13's workaround, now unnecessary — see below).
+**Why — the actual root cause, confirmed on the host:** on this cPanel deployment
+(CloudLinux's Node.js Selector), `node_modules` is a symlink into
+`~/nodevenv/<app>/<version>/lib/node_modules`. When npm runs the `postinstall` lifecycle
+script, the shell subprocess's `cwd` ends up as `~/nodevenv/.../lib` — **not** the real project
+root — even though the project root is where `npm install` was actually invoked from. That one
+fact explains everything ADR 12 and ADR 13 were reacting to without being able to fully
+explain: Prisma's own discovery of `prisma.config.ts` (an upward directory search starting from
+`cwd`) never finds it, because that symlinked venv path isn't an ancestor of the real project
+directory in the filesystem at all — so Prisma falls back to its legacy schema search, which is
+also `cwd`-relative, and fails the same way. This is *not* a Prisma bug and *not* fixable from
+inside `prisma.config.ts` (ADR 12's `__dirname` fix only helps once the config file is already
+found and loaded — it does nothing for Prisma's own search step that has to locate that file in
+the first place). ADR 13's explicit `--schema=./prisma/schema.prisma` didn't fix this either,
+for the identical reason: that path is also resolved against the same wrong `cwd`.
+**Why `$INIT_CWD` is the right fix:** npm sets the `INIT_CWD` environment variable for every
+script it runs to the directory `npm install` (or `npm run ...`) was originally invoked from —
+captured once at npm's own startup, before any internal directory changes npm or its
+environment wrapper make afterward. `cd "$INIT_CWD"` before invoking `prisma` restores the real
+project root as `cwd` for that command specifically, which fixes Prisma's own config-discovery
+search directly rather than working around it — so the plain `--schema`-less `prisma generate`
+(and, implicitly, its normal `prisma.config.ts`-driven behavior) now runs exactly as if invoked
+from a terminal in the project root, which is what ADR 13 observed already worked correctly.
+**Why ADR 13's `--schema` flag is no longer needed:** it was solving a narrower version of this
+same problem for `generate` alone (which doesn't need `datasource.url`). Fixing `cwd` itself is
+strictly more complete — it also fixes `prisma.config.ts` discovery for any other Prisma command
+that might ever run in this same lifecycle-script context and *does* need `datasource.url`
+(`migrate deploy`, `db seed`, etc.), which the `--schema` workaround never could.
+**Verified:** reproduced the exact failure and the fix locally by simulating the reported
+environment — ran, from a throwaway directory standing in for `~/nodevenv/.../lib`, with
+`INIT_CWD` set to the real project root and `PATH` including its `node_modules/.bin` (matching
+what npm sets up for a lifecycle script):
+- `INIT_CWD=/home/user/viora PATH=.../node_modules/.bin:$PATH sh -c 'prisma generate
+  --schema=./prisma/schema.prisma'` (ADR 13's form) → failed: `Could not load --schema from
+  provided path 'prisma/schema.prisma': file or directory not found` — confirming that
+  workaround genuinely breaks under a wrong `cwd`, not just in theory.
+- The same setup with `sh -c 'cd "$INIT_CWD" && prisma generate'` (this ADR's form) →
+  succeeded: config and schema both loaded from the real project root, client generated.
+- `npm run postinstall`, `npm run build`, `npm run lint`, and `prisma migrate status` from the
+  normal project root all still pass clean (`INIT_CWD` equals the project root in the ordinary
+  case, so the added `cd` is a no-op there).
+**Not changed:** `db:migrate`, `db:seed`, `db:studio`, and `start` are untouched. Nothing
+reported a `cwd` problem for those, and unlike `postinstall` they're run manually (from an SSH
+session or cPanel terminal already sitting in the project directory), not by npm's own
+lifecycle-script machinery — so there's no reason to believe they hit the same wrapper-induced
+`cwd` remapping. If one of them ever does, the fix is the same one-line pattern.
