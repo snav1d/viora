@@ -30,25 +30,34 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
+        # `npm ci` runs the postinstall script itself (cd "$INIT_CWD" && prisma generate,
+        # ADR 14), so prisma.config.ts's eager DATABASE_URL check (ADR 13) already fires here
+        # - not just in the explicit "Generate Prisma client" step below. Needs DATABASE_URL
+        # set in *this* step's env too, or it fails before that step ever runs.
         run: npm ci
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Generate Prisma client
-        # A live database is never actually contacted here - `prisma generate` only reads
-        # the schema - but prisma.config.ts requires DATABASE_URL to be resolvable just to
-        # load (see ADR 13), so a placeholder value is enough.
+        # Redundant with postinstall above in the common case, but kept as its own named step
+        # for a clear, individually-diagnosable checkpoint in the log rather than relying on
+        # postinstall succeeding silently. A live database is never actually contacted by
+        # `prisma generate` either way - it only reads the schema.
         run: npx prisma generate
         env:
-          DATABASE_URL: "postgresql://build:build@localhost:5432/build"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Build (produces .next/standalone)
         run: npm run build
         env:
           # None of Sprint 0's statically-prerendered pages touch the database or read
-          # AUTH_SESSION_SECRET, so these placeholders never need to be real. The one value
-          # that IS meaningful at build time is NEXT_PUBLIC_SITE_URL (inlined into metadata/
-          # sitemap output) - set it as a repository variable once the real domain is known;
-          # it falls back to the same http://localhost:3000 default local dev uses.
-          DATABASE_URL: "postgresql://build:build@localhost:5432/build"
+          # AUTH_SESSION_SECRET, so this placeholder never needs to be real (DATABASE_URL is
+          # the real secret here only for consistency with the steps above - `next build`
+          # itself never touches prisma.config.ts at all, only the `prisma` CLI does). The one
+          # value that IS meaningful at build time is NEXT_PUBLIC_SITE_URL (inlined into
+          # metadata/sitemap output) - set it as a repository variable once the real domain is
+          # known; it falls back to the same http://localhost:3000 default local dev uses.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AUTH_SESSION_SECRET: "ci-build-placeholder-unused-at-runtime-32-characters"
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
 

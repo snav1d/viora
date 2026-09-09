@@ -434,3 +434,33 @@ Turbopack inlines their code directly into the compiled server chunks — confir
 Neon query path successfully with those `node_modules` entries entirely missing. Nothing to fix
 here — recorded so a future "why isn't neon in node_modules" investigation doesn't restart from
 scratch.
+
+---
+
+## 2026-09-09 — CI hit the same "Cannot resolve environment variable: DATABASE_URL" once for real
+
+### 17. `DATABASE_URL` secret set on the `npm ci` step too, not just the explicit `prisma generate` step
+**Decision:** `.github/workflows/deploy-build.yml`'s "Install dependencies" step (`npm ci`) now
+also sets `DATABASE_URL: ${{ secrets.DATABASE_URL }}` in its own `env:` block, using a real
+GitHub Actions secret rather than the placeholder string that step's sibling steps used before.
+**Why:** `npm ci` runs the project's own `postinstall` script automatically as part of install -
+that script is `cd "$INIT_CWD" && prisma generate` (ADR 14), which means `prisma.config.ts`'s
+eager `DATABASE_URL` check (ADR 13) was already firing *inside the "Install dependencies" step*,
+before the workflow ever reached its separate, explicit "Generate Prisma client" step further
+down - which is the step that actually had a `DATABASE_URL` value set. The install step had
+none, so it failed with exactly the error ADR 13 was written to make loud and specific:
+"Cannot resolve environment variable: DATABASE_URL" - now surfacing in CI instead of on the
+cPanel host, for the identical underlying reason (a Prisma command running with no resolvable
+`DATABASE_URL` in its environment). The explicit "Generate Prisma client" step was kept
+alongside the now-redundant postinstall run rather than removed - a second `prisma generate` is
+a harmless no-op, and a separately named CI step gives a clear, individually-diagnosable
+checkpoint in the log rather than relying on a lifecycle script's success being noticed only
+via a later step's failure, which is exactly the confusion that led to this ADR.
+**Why the real secret instead of another placeholder:** the account holder added a `DATABASE_URL`
+repository secret specifically for this. Using it everywhere `prisma.config.ts` gets loaded in
+this workflow (install, explicit generate, and the build step, which never actually touches
+`prisma.config.ts` itself but is set for consistency) is simpler than maintaining a separate
+"this one's intentionally fake" placeholder alongside it, and carries no downside: `prisma
+generate` never opens a real connection regardless of which string it's given, and GitHub's
+hosted runners (unlike this project's own build-time constraints) have no trouble reaching
+Postgres on port 5432 even if something eventually did.
