@@ -50,17 +50,26 @@ export async function POST(request: Request) {
       paymentStatus: "PENDING",
       totalAmount,
       shippingAddress: parsed.data.shippingAddress,
-      items: {
-        create: lines.map((line) => ({
-          productId: line.productId,
-          sellerId: line.sellerId,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          splitAmount: line.splitAmount,
-        })),
-      },
     },
   });
+
+  // Not a nested write inside the Order create above: that compiles to an implicit transaction,
+  // which the "neon-http" DATABASE_DRIVER can't do at all (see docs/decisions.md ADR 18), and
+  // checkout is a real user-facing path that has to work under every driver mode, not just be
+  // documented-broken on one of them. Trades nested-write atomicity (a crash between this loop's
+  // iterations would leave an Order with fewer OrderItems than it should have) for that.
+  for (const line of lines) {
+    await prisma.orderItem.create({
+      data: {
+        orderId: order.id,
+        productId: line.productId,
+        sellerId: line.sellerId,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        splitAmount: line.splitAmount,
+      },
+    });
+  }
 
   const charge = await getPaymentProvider().charge({ orderId: order.id, amount: totalAmount });
 

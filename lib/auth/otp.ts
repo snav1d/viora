@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 import { getSmsProvider } from "@/lib/providers/sms";
 
 const OTP_LENGTH = 5;
@@ -54,11 +55,32 @@ export async function verifyOtp(phone: string, code: string): Promise<{ userId: 
     data: { consumedAt: new Date() },
   });
 
-  const user = await prisma.user.upsert({
-    where: { phone },
-    update: {},
-    create: { phone, roles: ["CUSTOMER"] },
-  });
+  const user = await findOrCreateUserByPhone(phone);
 
   return { userId: user.id };
+}
+
+/**
+ * Not prisma.user.upsert(): that compiles to an implicit transaction, which the "neon-http"
+ * DATABASE_DRIVER can't do at all (see docs/decisions.md ADR 18) - this is on the login-
+ * completing path, so it has to work under every driver mode. find-then-create loses upsert's
+ * single-round-trip atomicity, so a genuine race (two concurrent first-ever verifies for the
+ * same brand-new phone number) is handled explicitly below instead of relying on the DB to
+ * make it atomic.
+ */
+async function findOrCreateUserByPhone(phone: string) {
+  const existing = await prisma.user.findUnique({ where: { phone } });
+  if (existing) return existing;
+
+  try {
+    return await prisma.user.create({ data: { phone, roles: ["CUSTOMER"] } });
+  } catch (error) {
+    const isUniqueConstraintRace =
+      error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+    if (!isUniqueConstraintRace) throw error;
+
+    const user = await prisma.user.findUnique({ where: { phone } });
+    if (!user) throw error;
+    return user;
+  }
 }

@@ -464,3 +464,78 @@ this workflow (install, explicit generate, and the build step, which never actua
 generate` never opens a real connection regardless of which string it's given, and GitHub's
 hosted runners (unlike this project's own build-time constraints) have no trouble reaching
 Postgres on port 5432 even if something eventually did.
+
+---
+
+## 2026-09-09 — the host blocks WebSocket too; ADR 16's "neon" mode doesn't reach it either
+
+### 18. `"neon-http"` driver added; `verifyOtp` and checkout rewritten to not need a transaction
+**Decision:**
+1. `lib/prisma.ts` gains a third `DATABASE_DRIVER` option, `"neon-http"`, using
+   `PrismaNeonHttp` (also exported by `@prisma/adapter-neon`, alongside the `PrismaNeon` ADR 16
+   already uses) — plain HTTPS POST requests via `@neondatabase/serverless`'s `neon()` function,
+   no WebSocket Upgrade at all.
+2. `lib/auth/otp.ts`'s `verifyOtp` no longer calls `prisma.user.upsert()` — it now calls a new
+   `findOrCreateUserByPhone` helper that does a plain `findUnique`, then `create` on a miss,
+   with a `P2002`-unique-constraint-race fallback that re-reads instead of assuming failure.
+3. `app/api/checkout/route.ts` no longer creates `Order` and its `OrderItem`s as one nested
+   write — it creates the `Order` first, then each `OrderItem` in a sequential loop.
+**Why:** ADR 16 verified `PrismaNeon` (WebSocket mode) worked from a sandbox that blocks TCP
+port 5432 but allows a WebSocket Upgrade. The actual cPanel deploy host is more restrictive
+than that sandbox: it blocks the Upgrade too, confirmed by a live failure there —
+`AggregateError { code: 'ETIMEDOUT', _url: 'wss://…/v2' }` — while plain HTTPS from the same
+host works fine (that's how its own `npm install` reaches the npm registry). So the firewall
+isn't blocking "port 5432" or even "port 443 to Neon" as such - it's specifically filtering the
+WebSocket Upgrade handshake, a common pattern for restrictive outbound firewalls/proxies that
+allow ordinary request/response HTTPS but not long-lived bidirectional connections. `neon-http`
+is genuinely indistinguishable from any other HTTPS POST to that kind of filter, which is
+exactly why it was worth adding as its own mode rather than trying to coax the WebSocket path
+through some other transport.
+**Why `verifyOtp` and checkout needed real code changes, not just a driver swap:** `PrismaNeonHttp`
+implements Prisma's transaction interface as `startTransaction() { return Promise.reject(new
+Error("Transactions are not supported in HTTP mode")) }` — a hard, unconditional rejection, not
+a degraded-but-working mode. Both `prisma.X.upsert()` and a nested `create` (`items: { create:
+[...] }`) compile to an implicit transaction under Prisma's current query engine regardless of
+which model or how simple the write looks, so both broke immediately under `neon-http` — this
+was *not* obvious from either operation's own shape and is recorded here so nobody has to
+rediscover it by trial and error:
+- `prisma.user.upsert({ where: { phone }, update: {}, create: {...} })` — a single-model,
+  single-row operation with no visible relations — still requires a transaction internally.
+  Verified directly: an isolated call to just this line, under `neon-http`, throws the same
+  "Transactions are not supported in HTTP mode" error a nested multi-table write does.
+- A nested `Order` + `items: { create: [...] }` write behaves the same way, as expected.
+**The fixes, and what each one costs:**
+- `findOrCreateUserByPhone` trades `upsert`'s single-round-trip atomicity for two round trips in
+  the common case (existing user) and up to three on the rare race (`findUnique` → `create` →
+  P2002 → `findUnique` again). This is the account-login path, called once per OTP verification,
+  so the extra latency is a non-issue; a genuine race requires two concurrent first-ever
+  verifications for the exact same brand-new phone number, handled explicitly rather than
+  assumed away.
+- The checkout rewrite trades the nested write's atomicity for working under every driver mode:
+  a crash between the `Order` create and the `OrderItem` loop finishing would now leave an Order
+  with fewer items than it should have, where the nested-write version couldn't do that (the DB
+  would reject the whole write). No compensating fix was added for this (no raw-SQL
+  `sql.transaction()` bypass of Prisma to restore atomicity under `neon-http` specifically) -
+  checkout in Sprint 0 is explicitly a skeleton with a fully mocked payment step (see the
+  Sprint 0 docs and `docs/README.md` §2), not a real-money path yet, so this was judged an
+  acceptable, clearly-documented trade-off for now rather than a case for hand-written
+  transaction-batching SQL. Revisit if/when checkout becomes a real-money flow.
+**Verified against the real Neon database, through the actual compiled `.next/standalone/
+server.js` artifact with `DATABASE_DRIVER=neon-http`** (not just unit-style calls against the
+adapter directly):
+- Full login round trip end to end: `POST /api/auth/otp/request` → `POST /api/auth/otp/verify`
+  → the returned session cookie → `GET /profile` rendered the correct phone number, proving a
+  real session was issued for a real (fixed) user lookup/creation, not just that the request
+  didn't 500.
+- Full checkout round trip: seeded a throwaway City/Category/Seller/Product directly against
+  Neon, called the real `/api/checkout` endpoint with the authenticated session from the step
+  above, got `200 { ok: true, orderId }`, and confirmed via `/profile`'s order history that the
+  order showed the correct total (2 × a 150,000 Toman product = 300,000) and status - meaning
+  the sequential `OrderItem` creation actually produced correct data, not just a non-error.
+  All seeded/test rows deleted afterward; the Neon database's row counts confirmed back at zero.
+- Regression-checked `DATABASE_DRIVER=pg` (local Postgres) still completes the same OTP
+  request→verify round trip correctly after the `findOrCreateUserByPhone` rewrite.
+**Not investigated further:** *why* this specific host's firewall distinguishes a WebSocket
+Upgrade from other HTTPS traffic wasn't root-caused (deep packet inspection, a proxy that
+strips `Upgrade` headers, and an explicit protocol allowlist are all plausible and behave
+identically from the outside) - `neon-http`'s success is the operationally relevant fact.

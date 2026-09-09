@@ -74,7 +74,7 @@ of being sent by real SMS — see ADR 3.
 |---|---|---|
 | SMS / storage / payment provider selection | `.env` (`SMS_PROVIDER`, `STORAGE_PROVIDER`, `PAYMENT_PROVIDER`) | Implementations live in `lib/providers/*.ts`. Only the mock/local implementation exists today; add a new class + one line in the relevant `get*Provider()` factory to go live. See ADR 3. |
 | Session signing secret | `.env` (`AUTH_SESSION_SECRET`) | |
-| Database driver | `.env` (`DATABASE_DRIVER`) | `"pg"` (default, direct TCP/5432) or `"neon"` (Neon's serverless driver over WebSocket/HTTPS, port 443). See §5 — only the deploy host needs `"neon"`. See ADR 16. |
+| Database driver | `.env` (`DATABASE_DRIVER`) | `"pg"` (default, direct TCP/5432), `"neon"` (Neon over WebSocket/443), or `"neon-http"` (Neon over plain HTTPS, no transactions). See §5 — the deploy host needs `"neon-http"` specifically. See ADR 16, 18. |
 | Active cities / categories (phase gating) | Database (`City.isActive`, `Category.isActive`) | No admin UI yet — edit via `npm run db:studio` or a seed script until the admin panel (out of scope for Sprint 0) exists. |
 | AI extractor for the party wizard (future) | Database, `AiSettings` singleton row | Schema-only placeholder; nothing reads it yet. See ADR 4. |
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
@@ -118,22 +118,35 @@ back to the same `http://localhost:3000` default local dev uses.
 | Application mode | Production (cPanel sets `PORT`; the generated `server.js` sets its own `NODE_ENV`) |
 | Node.js version | any recent one — `deploy`'s `node_modules` are pre-built for Linux x64, not compiled on the host |
 
-**Database driver — this host cannot reach Postgres on port 5432 either (see ADR 16):**
+**Database driver — this host blocks port 5432 *and* WebSocket Upgrades (see ADR 16, 18):**
 the same outbound firewall that blocks the host from *building* also blocks it from making
-outbound TCP connections at *runtime* — so beyond the `DATABASE_URL`/`AUTH_SESSION_SECRET`/etc.
-env vars already needed, the cPanel Node.js App panel must also set:
+outbound TCP connections at runtime, and — confirmed the hard way, via a live `wss://…
+ETIMEDOUT` — it blocks WebSocket Upgrade requests too, even though they ride on port 443
+alongside ordinary HTTPS (which does work — that's how `npm install` itself reaches the npm
+registry). So beyond the `DATABASE_URL`/`AUTH_SESSION_SECRET`/etc. env vars already needed, the
+cPanel Node.js App panel must set:
 
 ```
-DATABASE_DRIVER=neon
+DATABASE_DRIVER=neon-http
 DATABASE_URL=<the Neon *pooled* connection string>
 ```
 
 `DATABASE_DRIVER` defaults to `"pg"` (direct TCP, port 5432) everywhere else, including local
-dev — only set it to `"neon"` on hosts that specifically can't reach 5432. Use Neon's **pooled**
-connection string here (not the direct one) — this is the live query path handling regular
-request traffic, which is exactly what Neon's pooler is for; the *direct* string is what
-`prisma migrate deploy` should use instead, for the advisory-lock reasons in ADR 14, run from
-somewhere that can actually reach 5432, never from this host.
+dev. `"neon"` (WebSocket) is a real option for some *other* host that allows a WebSocket
+Upgrade but not raw TCP — just not this one. `"neon-http"` is plain HTTPS POST requests, no
+protocol upgrade at all, so it's the one this specific host's firewall can't distinguish from
+any other HTTPS call. Use Neon's **pooled** connection string here (not the direct one) — this
+is the live query path handling regular request traffic, which is exactly what Neon's pooler is
+for; the *direct* string is what `prisma migrate deploy` should use instead, for the advisory-
+lock reasons in ADR 14, run from somewhere that can actually reach 5432, never from this host.
+
+**`"neon-http"` cannot run Prisma transactions at all** — Neon's HTTP endpoint has no
+session/interactive-transaction support, so any nested write or `$transaction()` call throws
+outright. The two spots in this codebase that would otherwise hit that (`verifyOtp`'s user
+lookup, `/api/checkout`'s Order+OrderItem write) were rewritten to not need one — see ADR 18 for
+what that trade-off costs and where. Any *new* code added later that uses `$transaction()` or a
+nested `create`/`update` will need the same treatment, or it will work everywhere except this
+host and then fail specifically here.
 
 **On the host, after a new `deploy` branch build lands:** pull it, then just restart the app
 from the Node.js Selector UI (or touch `tmp/restart.txt` if Passenger is configured for that
