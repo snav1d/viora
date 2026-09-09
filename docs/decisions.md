@@ -148,3 +148,28 @@ documented path is a custom server, not a shell wrapper around the CLI.
 **Follow-up:** the cPanel "Setup Node.js App" panel itself (Application startup file, mode,
 Node version) is outside this repo and must be set by whoever has panel access — the exact
 values to use are documented in `docs/README.md` §5.
+
+### 12. `prisma.config.ts` paths resolved from `__dirname`, not `process.cwd()`
+**Decision:** `schema`, `migrations.path`, and the `seed` command in `prisma.config.ts` are all
+built with `path.join(__dirname, ...)`. The `.env` load also switched from the cwd-relative
+`import "dotenv/config"` to `dotenv`'s `config()` function called with an explicit
+`path.join(__dirname, ".env")`.
+**Why:** On cPanel's Node.js Selector (CloudLinux), `node_modules` is a symlink into
+`~/nodevenv/<app>/<version>/lib/node_modules`, and running `npm install` through that
+environment leaves `process.cwd()` pointed under the symlinked venv path rather than the real
+project root by the time the `postinstall` script (`prisma generate`) runs. Plain relative
+paths (`"prisma/schema.prisma"`) resolve against that wrong cwd and `prisma generate` fails
+with "Could not find Prisma Schema". `__dirname` always points at the directory containing
+`prisma.config.ts` itself (the real project root), independent of `process.cwd()`, which is
+exactly the pattern Prisma's own monorepo docs use for the same reason (see
+`.agents/skills/prisma-upgrade-v7/references/prisma-config.md`, "Monorepo Configuration").
+**Also fixed the `.env` load for the same reason:** the original `import "dotenv/config"` loads
+`.env` relative to `process.cwd()` too, so even after fixing the schema path, config loading
+still failed under the same symlinked-cwd scenario with "Cannot resolve environment variable:
+DATABASE_URL" (that env lookup happens while the config module loads, before any Prisma command
+touches the datasource — so it broke `prisma generate` too, not just commands that need a live
+connection).
+**Verified:** ran `prisma validate` and `prisma generate` with `--config
+/home/user/viora/prisma.config.ts` from `/tmp` as the working directory (reproducing the
+symlinked-cwd scenario) — both succeeded and correctly loaded `.env` and the schema from the
+real project root rather than failing or reading from `/tmp`.
