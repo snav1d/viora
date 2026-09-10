@@ -715,3 +715,80 @@ they won't fail either way, but the secret should still match reality), and (4) 
 `npx prisma migrate deploy` against the real `DATABASE_URL` to create the tables - and, unlike
 every prior ADR's migration story, this can now be run from the host itself if that's more
 convenient, since there's no more firewall in the way of anything.
+
+## 2026-09-10 — reported live: session cookie not recognized after a real login (profile, wizard, checkout all affected)
+
+### 21. Diagnostic logging added to `lib/auth/session.ts`; no session-logic bug found in the code itself
+**Decision:** `lib/auth/session.ts` now (1) logs a short, non-reversible SHA-256 fingerprint
+(first 8 hex chars) of `AUTH_SESSION_SECRET` every time `getSecretKey()` runs, and (2) replaces
+`getSession()`'s silent `catch { return null }` with one that logs the actual failure reason
+(`error.name: error.message` from `jose`, e.g. `JWSSignatureVerificationFailed: signature
+verification failed`) and separately logs when a request simply carries no cookie at all. No
+behavior changed for a correctly-signed, correctly-verified session - this is diagnostics only,
+following the same pattern ADR 19 used for `DATABASE_DRIVER`.
+**Why:** Reported live on `https://violive.tavaloda.com`: after a successful OTP login, every
+auth-gated feature (profile, the wizard's submit step, checkout) behaves as if the user is still
+logged out - the profile page keeps showing the "ورود / ثبت‌نام" button, and the wizard/checkout
+flows bounce the user back to `/auth` again immediately after a login that itself reported
+success. Re-audited the three things asked about specifically:
+1. **Cookie attributes (`secure`/`sameSite`/`domain`/`path`):** unchanged, and confirmed correct.
+   `secure: process.env.NODE_ENV === "production"` is **guaranteed** true in this deployment -
+   Next's own generated `.next/standalone/server.js` hardcodes `process.env.NODE_ENV =
+   "production"` unconditionally as literally its first executable line, before any app code or
+   host-provided env var can affect it (read directly from the built artifact - not an
+   assumption). A `Secure` cookie over a genuinely-HTTPS site (confirmed: `https://…`) is sent
+   and stored normally by the browser regardless of what the *backend* Node process itself
+   perceives behind a reverse proxy - `Secure` only restricts the browser↔origin leg, which is
+   HTTPS here either way. No `domain` override is set (correct: defaults to the exact host, no
+   cross-subdomain requirement exists), `path: "/"` and `sameSite: "lax"` are both correct for an
+   entirely same-origin app with no cross-site posting into it.
+2. **Server-side session-detection logic** (`getSession()`, called from Server Components and
+   Route Handlers, and the cookie-setting side in `createSession()`): matches Next.js's own
+   documented pattern for Route Handlers exactly (`node_modules/next/dist/docs/01-app/03-api-
+   reference/04-functions/cookies.md`: "You can use `cookieStore.set(...)` in a Server Function or
+   Route Handler to set a cookie" - mutations are automatically merged into whatever response the
+   handler returns). This is not a code pattern being assumed correct - it is the same code that
+   was verified end to end against the real compiled standalone server earlier in this same
+   session (ADR 20's verification: full OTP → verify → cookie → `/profile` round trip via real
+   HTTP requests, correct phone number rendered). The wizard's and checkout's "redirect to
+   `/auth`, come back, still logged out" behavior was traced through
+   `components/wizard/WizardFlow.tsx` and `components/cart/CartView.tsx` - both simply retry the
+   same authenticated request after the redirect completes (the wizard auto-resubmits a
+   `sessionStorage`-persisted draft on remount; checkout requires a manual re-click). Neither has
+   its own bug; both are straightforward, correct amplifications of whatever `getSession()`
+   actually returns on that retry - so the loop is a symptom of the session check failing
+   *again*, not a separate client-side defect.
+3. **Whether the `AUTH_SESSION_SECRET` used to sign matches the one used to verify:** this is the
+   one thing that cannot be confirmed or ruled out from source review alone, and is the most
+   likely explanation given (1) and (2) check out and the exact same code was independently
+   proven working end to end against a real server earlier in this session. A JWT signed with one
+   secret value will *always* fail `jwtVerify` against a different one - there is no code fix for
+   that, only making sure the value is actually identical everywhere it's read. This project's
+   deploy host already had one confirmed incident of an env-var value going stale on some but not
+   all running processes (ADR 19's `DATABASE_DRIVER` investigation, on cPanel's Node.js Selector /
+   Passenger) - `AUTH_SESSION_SECRET` reaches the running process through the exact same
+   mechanism (cPanel's "Setup Node.js App" panel → `process.env`, no `.env` file shipped in
+   `deploy` per ADR 15), so it is exposed to the identical class of risk: a Passenger worker
+   process that was already running before the panel's `AUTH_SESSION_SECRET` value was last
+   set/changed keeps signing or verifying with whatever it started with until it is actually
+   restarted, not just re-deployed.
+**Verified:**
+- Locally, with a single consistent `AUTH_SESSION_SECRET`, against the real local MariaDB and the
+  actual compiled `.next/standalone/server.js`: a full `POST /api/auth/otp/request` → `POST
+  /api/auth/otp/verify` → `GET /profile` → `POST /api/party-profile` (the wizard's own endpoint)
+  round trip all succeeded, and the new log lines showed the *same* secret fingerprint on every
+  call - confirming the logging itself works and doesn't misfire on the healthy case.
+- A standalone script reproduced the failure signature directly: signing a token with one secret
+  and verifying it with a different one throws exactly `JWSSignatureVerificationFailed: signature
+  verification failed` - confirming that's precisely the line to look for in the host's logs if
+  this is in fact what's happening there.
+- `tsc --noEmit` and `eslint .` clean after the change; full `npm run build` still succeeds.
+**Not fixable from this repo:** if the fingerprints in the host's own logs turn out to differ
+between a `createSession` call and a later `getSession` call for the same login, the fix is
+operational - a full app restart from the cPanel Node.js Selector UI (or its
+`tmp/restart.txt` convention, per ADR 15/`docs/README.md` §5) after confirming the panel's
+`AUTH_SESSION_SECRET` value is what it's meant to be, not a further code change. If the
+fingerprints match and verification still fails, or the log shows "no session cookie on this
+request" for a browser that just logged in, that points somewhere else entirely (a reverse
+proxy/CDN in front of this host stripping or not forwarding the `Set-Cookie` header) and is the
+next thing to check with the actual log output in hand, rather than guessed at further here.
