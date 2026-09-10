@@ -582,3 +582,136 @@ from an earlier manual step). None of these are visible from source review; the 
 startup log (`[lib/prisma] DATABASE_DRIVER raw=... resolved=... using ...`) is what turns "is the
 code wrong" into "what did this specific process actually see", by putting the answer directly in
 the host's own process log rather than requiring another round of guessing.
+
+## 2026-09-10 — root cause of the whole ADR 16/18/19 saga found: AWS itself is unreachable from Iran
+
+### 20. Dropped Postgres/Neon entirely; moved to the deploy host's own local MySQL
+**Decision:**
+1. `prisma/schema.prisma`'s `datasource` switches from `provider = "postgresql"` to
+   `provider = "mysql"`.
+2. `lib/prisma.ts` and `prisma/seed.ts` drop `@prisma/adapter-pg`, `@prisma/adapter-neon`,
+   `@neondatabase/serverless`, and `ws` entirely, replacing them with a single
+   `@prisma/adapter-mariadb` (`mariadb` npm driver) adapter - no more `DATABASE_DRIVER`
+   env var, no more branching in `createAdapter()`. `lib/prisma.ts` is back to the plain
+   single-adapter singleton shape.
+3. `User.roles` and `Product.images` change from native array columns (`Role[]`, `String[]`) to
+   `Json` (`@default("[\"CUSTOMER\"]")` / `@default("[]")`) - MySQL has no scalar-list column
+   type. This supersedes ADR 7's reasoning (which was specifically about *why a Postgres array*
+   was fine); the "why not a join table" argument in ADR 7 still holds, it just now resolves to
+   Json instead of a native array.
+4. Several `String?`/`String` fields that hold real free text gain `@db.Text`:
+   `Product.description`, `ServiceOffering.description`, `SellerProfile.rejectionReason`,
+   `ServiceProviderProfile.rejectionReason`, `PartyProfile.rawInputText`, `Order.shippingAddress`,
+   `Review.comment`, `TicketMessage.body`.
+5. `lib/auth/otp.ts`'s `verifyOtp` goes back to a plain `prisma.user.upsert()` (the
+   `findOrCreateUserByPhone` workaround from ADR 18 is removed), and `/api/checkout` goes back to
+   one atomic `prisma.order.create()` with a nested `items: { create: [...] } }` (the sequential
+   `OrderItem` loop from ADR 18 is removed).
+6. The old `prisma/migrations/20260908211643_init` (Postgres-flavored SQL) is deleted and
+   replaced with a fresh `mysql`-flavored initial migration, generated and applied against a real
+   local MariaDB instance for this change (see Verified below) - there is no meaningful way to
+   "port" a migration history across database engines, so this is a clean restart of migration
+   history, not a converted one.
+7. `DATABASE_DRIVER` is removed from `.env`/`.env.example`/`docs/README.md` entirely.
+   `DATABASE_URL` becomes a single `mysql://` connection string everywhere (local dev, CI,
+   the deploy host) - no per-environment driver choice needed anymore.
+
+**Why:** ADR 16, 18, and 19 were three consecutive attempts to route around the deploy host's
+firewall (TCP 5432 blocked, then WebSocket Upgrades also blocked) by changing *how* Postgres was
+reached, each confirmed working from this sandbox and each still failing identically once
+actually deployed. The account holder tested directly against two different Neon regions
+(ap-southeast-1/Singapore - the one already in use - and a Frankfurt/eu-central region) and got
+the exact same timeout on *both* raw TCP (5432) and the HTTP driver, on both regions. Two
+different regions failing identically rules out "wrong region" or "this one Neon endpoint has an
+outage" - the common factor is AWS itself (Neon is AWS-hosted), which is consistent with AWS
+being unreachable for Iran-based traffic due to US sanctions, not a Neon-specific or
+protocol-specific block as ADR 16/18/19 each assumed in turn. No further attempt to reach an
+AWS-hosted database from this host makes sense - the fix is to stop routing through AWS at all,
+not to find yet another protocol that might slip past a block that was never protocol-specific to
+begin with. cPanel hosts almost universally ship their own local MySQL server (via "MySQL
+Databases" in the panel) at no extra cost, reachable over `localhost` with zero international
+routing - eliminating the entire class of problem ADR 16/18/19 were fighting, not working around
+it again.
+
+**Why the schema needed real changes, not just a provider string flip:** MySQL and Postgres are
+not interchangeable at the type-system level, and Prisma does not paper over every difference:
+- MySQL (and MariaDB) have no native scalar-list column type - Postgres's `Role[]`/`String[]`
+  have no MySQL equivalent, so `prisma generate`/`migrate dev` would simply fail to produce valid
+  DDL for `User.roles`/`Product.images` without a schema change (verified by attempting the
+  provider flip alone first, locally, before deciding what to replace the arrays with).
+- MySQL's default column type for a bare `String` field is `VARCHAR(191)` (confirmed directly in
+  the generated migration SQL - see Verified below), unlike Postgres where an unqualified
+  `String` is effectively unbounded. That default is fine for ids/slugs/phone numbers/business
+  names, but would silently truncate anything closer to real prose - a product description, a
+  shipping address, a support ticket message - at 191 characters. Every field in this codebase
+  that plausibly holds real free text got `@db.Text` (MySQL's `TEXT`, up to 64KB) rather than
+  discovering the truncation later from a support ticket that got cut off mid-sentence.
+
+**Why `verifyOtp`/checkout were reverted, not left as they were:** both rewrites in ADR 18 existed
+*specifically* because Neon's HTTP driver could not run a Prisma transaction at all - a hard
+protocol limitation, not a general best practice. `@prisma/adapter-mariadb`'s
+`PrismaMariaDbAdapter.startTransaction()` is a real implementation (confirmed by reading the
+installed package's `dist/index.d.ts`), so MySQL via this adapter has no such limitation. Keeping
+the non-atomic workarounds after the constraint that required them is gone would mean carrying
+forward a real correctness downgrade (a crash mid-checkout could leave an `Order` with fewer
+`OrderItem`s than it should have, as ADR 18 itself flagged as an accepted-for-now gap) for no
+remaining reason, and leaving stale comments in the code blaming "neon-http" for behavior that no
+longer uses neon-http at all. Reverting both was verified end to end (see below), not assumed
+safe by inspection alone.
+
+**Verified**, all against a real MariaDB 10.11 instance installed directly in this environment for
+this change (not just a syntax check):
+- `prisma migrate dev` generated and applied a fresh migration cleanly on the first real attempt
+  after the schema changes - no key-length errors on any `@unique`/`@@index`'d `String` field
+  (all fit comfortably inside the default `VARCHAR(191)`), confirming the schema conversion was
+  actually complete rather than technically valid, and confirming
+  `@db.Text`/`Json`/`Decimal`/enum columns all generated the expected MySQL column types by
+  reading the generated `migration.sql` directly.
+- The `Json @default("[\"CUSTOMER\"]")` default is applied by Prisma's query engine when a
+  `create()` call omits the field, even though MySQL's DDL itself carries no `DEFAULT` clause for
+  `JSON` columns (confirmed directly: created a `User` row passing no `roles` at all, read back
+  `roles === ["CUSTOMER"]`).
+- Full `npm run build` succeeded (this is the same `output: "standalone"` artifact the `deploy`
+  branch ships), and the built `.next/standalone/server.js` was run directly against the local
+  MariaDB - not just `next dev`, the actual production artifact.
+- Real HTTP round trip through that running server: `POST /api/auth/otp/request` → the mock code
+  read from the server's own console log → `POST /api/auth/otp/verify` → the returned session
+  cookie → `GET /profile` rendered the correct phone number, proving the reverted `upsert()` path
+  works.
+- Real checkout round trip through the same server: `POST /api/checkout` against a real seeded
+  product returned `{ ok: true, orderId }`; the `Order` and `OrderItem` rows were then read back
+  directly from MySQL and confirmed correct (2× a 1,850,000 Toman product → `totalAmount
+  3,700,000`, matching `OrderItem.splitAmount`), proving the reverted nested-write `Order.create`
+  is both atomic and correct under MySQL.
+- `npm run db:seed` ran cleanly against the new schema/adapter.
+- All test rows created during verification (the throwaway `User`, `Order`, `OrderItem`, `OtpCode`
+  rows) were deleted afterward and row counts confirmed back to whatever the seed alone leaves.
+- `tsc --noEmit` and `eslint .` both clean after every code change in this ADR.
+
+**Rejected:**
+- Keeping Postgres and self-hosting it on the cPanel host too, instead of switching to MySQL -
+  not offered by this specific host's control panel (per the account holder, who has access to
+  it and confirmed only MySQL is available), and even if it were, it would mean maintaining a
+  second database engine's operational knowledge for no benefit over the MySQL this host already
+  provides natively.
+- A `UserRole` join table instead of `Json` for `User.roles` - would be the more conventional
+  relational shape and was seriously considered, but ADR 7's original reasoning (a user's role
+  set is small, read as a whole, never queried by "which users have role X" in Sprint 0) still
+  applies unchanged; `Json` keeps the same call-site shape (`roles: ["CUSTOMER"]`) that existed
+  under the Postgres array, where a join table would have touched every read/write site for a
+  feature Sprint 0 doesn't yet use for authorization decisions anyway.
+- Leaving `DATABASE_DRIVER` in place as a single-valued no-op "for future flexibility" - nothing
+  in this project's actual roadmap calls for supporting more than one database engine
+  simultaneously, and a switch that always evaluates the same way is a place for a future reader
+  to wonder what the other branches were for; deleting it entirely was more honest about the
+  current architecture than keeping unused optionality.
+**Follow-up required outside this repo (cannot be done from here):** the account holder needs
+to (1) create a MySQL database + user via cPanel's "MySQL Databases" panel, (2) set the new
+`mysql://` `DATABASE_URL` in cPanel's "Setup Node.js App" env vars (replacing the old
+`DATABASE_DRIVER`/Neon `DATABASE_URL` pair entirely - `DATABASE_DRIVER` should be deleted from
+that panel, not just left unread), (3) update the `DATABASE_URL` GitHub Actions secret to the
+same value (CI's `prisma generate`/`next build` steps don't actually connect to the database, so
+they won't fail either way, but the secret should still match reality), and (4) run
+`npx prisma migrate deploy` against the real `DATABASE_URL` to create the tables - and, unlike
+every prior ADR's migration story, this can now be run from the host itself if that's more
+convenient, since there's no more firewall in the way of anything.

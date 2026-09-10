@@ -16,7 +16,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,9 @@ model User {
   phone     String    @unique
   name      String?
   /// A user can hold more than one role at once (e.g. a customer who is also a seller).
-  roles     Role[]    @default([CUSTOMER])
+  /// A JSON array of Role values, not a native list column - see docs/decisions.md ADR 20
+  /// (supersedes ADR 7's Postgres-array reasoning; MySQL has no native scalar-list column type).
+  roles     Json      @default("[\"CUSTOMER\"]")
   /// Optional; collected once on the account profile for future birthday marketing SMS.
   /// See party-wizard-engine-spec.md §5 — not used for anything yet in Sprint 0.
   birthDate DateTime?
@@ -132,7 +134,7 @@ model SellerProfile {
   cityId          String?
   city            City?          @relation(fields: [cityId], references: [id])
   status          ApprovalStatus @default(PENDING)
-  rejectionReason String?
+  rejectionReason String?        @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,7 +158,7 @@ model ServiceProviderProfile {
   /// Percentage, e.g. 12.50 for 12.5%.
   commissionRate  Decimal        @db.Decimal(5, 2)
   status          ApprovalStatus @default(PENDING)
-  rejectionReason String?
+  rejectionReason String?        @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -182,11 +184,13 @@ model Product {
   city        City     @relation(fields: [cityId], references: [id])
   title       String
   slug        String   @unique
-  description String?
+  /// @db.Text: MySQL's default VARCHAR(191) truncates real product descriptions - see ADR 20.
+  description String?  @db.Text
   /// Toman, whole numbers only.
   price       Decimal  @db.Decimal(12, 0)
   stock       Int      @default(0)
-  images      String[] @default([])
+  /// A JSON array of image URLs, not a native list column - see docs/decisions.md ADR 20.
+  images      Json     @default("[]")
   isActive    Boolean  @default(true)
 
   createdAt DateTime @default(now())
@@ -210,7 +214,7 @@ model ServiceOffering {
   city        City                    @relation(fields: [cityId], references: [id])
   title       String
   slug        String                  @unique
-  description String?
+  description String?                 @db.Text
   basePrice   Decimal                 @db.Decimal(12, 0)
   /// Per-service custom order fields (e.g. balloon print: design upload, run size, colors).
   /// Shape is defined by the service category, not fixed here — see
@@ -248,7 +252,7 @@ model PartyProfile {
   theme      String
 
   /// Raw free-text input, once the AI-assisted entry point exists (party-wizard-engine-spec.md §1).
-  rawInputText         String?
+  rawInputText         String?  @db.Text
   extractedFields      Json?
   wasManuallyCorrected Boolean?
   suggestedBundle      Json?
@@ -306,7 +310,7 @@ model Order {
   paymentStatus  PaymentStatus @default(PENDING)
   /// Toman, whole numbers only.
   totalAmount     Decimal      @db.Decimal(12, 0)
-  shippingAddress String?
+  shippingAddress String?       @db.Text
   /// Used for the hub's minimum-lead-time rule on multi-seller orders (configurable via
   /// PlatformSetting, not hardcoded — panels-and-operations-spec.md §1).
   eventDate DateTime?
@@ -412,7 +416,7 @@ model Review {
   orderItemId       String?          @unique
   orderItem         OrderItem?       @relation(fields: [orderItemId], references: [id])
   rating            Int
-  comment           String?
+  comment           String?          @db.Text
 
   createdAt DateTime @default(now())
 
@@ -453,7 +457,7 @@ model TicketMessage {
   ticket   SupportTicket @relation(fields: [ticketId], references: [id])
   /// The id of whoever wrote it — the ticket's own customer, or an admin user.
   authorId String
-  body     String
+  body     String        @db.Text
 
   createdAt DateTime @default(now())
 

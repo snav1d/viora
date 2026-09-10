@@ -27,7 +27,7 @@ This file is the entry point for any human or AI picking up this project without
 
 A Next.js (App Router, TypeScript) skeleton with:
 
-- Marketplace database schema (Prisma + PostgreSQL) covering users/roles, cities, categories,
+- Marketplace database schema (Prisma + MySQL) covering users/roles, cities, categories,
   sellers, service providers, products, service offerings, party profiles, orders/order items
   (single- and multi-vendor), subscriptions, settlements, reviews, support tickets, and
   admin-editable settings — see `prisma/schema.prisma`. Every model is commented with which
@@ -59,7 +59,7 @@ npm run db:seed              # City/Category/Product/ServiceOffering fake data
 npm run dev
 ```
 
-Requires a running PostgreSQL instance reachable at `DATABASE_URL`. Generate a real
+Requires a running MySQL/MariaDB instance reachable at `DATABASE_URL`. Generate a real
 `AUTH_SESSION_SECRET` for anything beyond local dev (`openssl rand -base64 32`).
 
 Other scripts: `npm run build` / `npm run start` (production), `npm run lint`,
@@ -74,7 +74,7 @@ of being sent by real SMS — see ADR 3.
 |---|---|---|
 | SMS / storage / payment provider selection | `.env` (`SMS_PROVIDER`, `STORAGE_PROVIDER`, `PAYMENT_PROVIDER`) | Implementations live in `lib/providers/*.ts`. Only the mock/local implementation exists today; add a new class + one line in the relevant `get*Provider()` factory to go live. See ADR 3. |
 | Session signing secret | `.env` (`AUTH_SESSION_SECRET`) | |
-| Database driver | `.env` (`DATABASE_DRIVER`) | `"pg"` (default, direct TCP/5432), `"neon"` (Neon over WebSocket/443), or `"neon-http"` (Neon over plain HTTPS, no transactions). See §5 — the deploy host needs `"neon-http"` specifically. See ADR 16, 18. |
+| Database connection | `.env` (`DATABASE_URL`) | A single `mysql://` connection string, both locally and on the deploy host — no driver-selection variable needed (see ADR 20; superseded the Postgres/Neon setup ADR 7, 16, and 18 described). |
 | Active cities / categories (phase gating) | Database (`City.isActive`, `Category.isActive`) | No admin UI yet — edit via `npm run db:studio` or a seed script until the admin panel (out of scope for Sprint 0) exists. |
 | AI extractor for the party wizard (future) | Database, `AiSettings` singleton row | Schema-only placeholder; nothing reads it yet. See ADR 4. |
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
@@ -118,43 +118,30 @@ back to the same `http://localhost:3000` default local dev uses.
 | Application mode | Production (cPanel sets `PORT`; the generated `server.js` sets its own `NODE_ENV`) |
 | Node.js version | any recent one — `deploy`'s `node_modules` are pre-built for Linux x64, not compiled on the host |
 
-**Database driver — this host blocks port 5432 *and* WebSocket Upgrades (see ADR 16, 18):**
-the same outbound firewall that blocks the host from *building* also blocks it from making
-outbound TCP connections at runtime, and — confirmed the hard way, via a live `wss://…
-ETIMEDOUT` — it blocks WebSocket Upgrade requests too, even though they ride on port 443
-alongside ordinary HTTPS (which does work — that's how `npm install` itself reaches the npm
-registry). So beyond the `DATABASE_URL`/`AUTH_SESSION_SECRET`/etc. env vars already needed, the
-cPanel Node.js App panel must set:
+**Database — the host's own cPanel-provided MySQL (see ADR 20):** the whole Postgres/Neon setup
+described in earlier ADRs (7, 16, 18 — a WebSocket driver, then an HTTP-only driver, to route
+around this host's firewall blocking any international connection to AWS) is gone. cPanel's own
+MySQL runs on the same machine as the app, so there's no firewall to route around and no
+driver-selection variable to set — just point `DATABASE_URL` at it directly:
 
 ```
-DATABASE_DRIVER=neon-http
-DATABASE_URL=<the Neon *pooled* connection string>
+DATABASE_URL=mysql://<cpanel-db-user>:<password>@localhost:3306/<cpanel-db-name>
 ```
 
-`DATABASE_DRIVER` defaults to `"pg"` (direct TCP, port 5432) everywhere else, including local
-dev. `"neon"` (WebSocket) is a real option for some *other* host that allows a WebSocket
-Upgrade but not raw TCP — just not this one. `"neon-http"` is plain HTTPS POST requests, no
-protocol upgrade at all, so it's the one this specific host's firewall can't distinguish from
-any other HTTPS call. Use Neon's **pooled** connection string here (not the direct one) — this
-is the live query path handling regular request traffic, which is exactly what Neon's pooler is
-for; the *direct* string is what `prisma migrate deploy` should use instead, for the advisory-
-lock reasons in ADR 14, run from somewhere that can actually reach 5432, never from this host.
-
-**`"neon-http"` cannot run Prisma transactions at all** — Neon's HTTP endpoint has no
-session/interactive-transaction support, so any nested write or `$transaction()` call throws
-outright. The two spots in this codebase that would otherwise hit that (`verifyOtp`'s user
-lookup, `/api/checkout`'s Order+OrderItem write) were rewritten to not need one — see ADR 18 for
-what that trade-off costs and where. Any *new* code added later that uses `$transaction()` or a
-nested `create`/`update` will need the same treatment, or it will work everywhere except this
-host and then fail specifically here.
+cPanel's "MySQL Databases" panel is where that user/database/password are created (cPanel
+usually prefixes both the database name and the username with the cPanel account's own
+username, e.g. `cpaneluser_viora`) — grant that user "ALL PRIVILEGES" on that one database.
+`localhost:3306` is standard for a same-host MySQL; only change it if cPanel's panel says
+otherwise for this specific host.
 
 **On the host, after a new `deploy` branch build lands:** pull it, then just restart the app
 from the Node.js Selector UI (or touch `tmp/restart.txt` if Passenger is configured for that
 convention). No `npm install`, no `npm run build` — those already happened in CI. Database
-migrations are a separate step, run from wherever can actually reach the database (see ADR 14
-for why the host itself often can't) — `npx prisma migrate deploy` against the real
-`DATABASE_URL`, from a developer machine or CI, never from the `deploy` branch's own stripped-
-down bundle (it has no `prisma` CLI in it — see below).
+migrations are a separate step — `npx prisma migrate deploy` against the real `DATABASE_URL`.
+Unlike the Postgres/Neon setup this replaced, there's no reason this can't be run **from the
+host itself** now (no cross-border connection needed) as well as from a developer machine or CI
+— either works; the `deploy` branch's own stripped-down bundle still has no `prisma` CLI in it
+either way (see below), so run it from a full checkout of the source branch, not from `deploy`.
 
 **Locally, for testing production mode end to end:**
 
