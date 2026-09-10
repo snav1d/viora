@@ -539,3 +539,46 @@ adapter directly):
 Upgrade from other HTTPS traffic wasn't root-caused (deep packet inspection, a proxy that
 strips `Upgrade` headers, and an explicit protocol allowlist are all plausible and behave
 identically from the outside) - `neon-http`'s success is the operationally relevant fact.
+
+## 2026-09-09 — same `wss://…/v2 ETIMEDOUT` reported again with `DATABASE_DRIVER=neon-http` set
+
+### 19. Startup logging + defensive `.trim()` added to `lib/prisma.ts`'s driver selection
+**Decision:** `createAdapter()` now (1) trims `process.env.DATABASE_DRIVER` before comparing it
+against `"pg"`/`"neon"`/`"neon-http"`, and (2) unconditionally `console.log`s both the raw and
+trimmed value, plus which adapter class it picked, before returning it. No behavior changed for
+a correctly-set env var - this is diagnostics plus one tolerance fix.
+**Why:** After ADR 18 shipped (commit `0ef810a` on `deploy`), the exact same live
+`wss://…/v2 ETIMEDOUT` was reported again, this time with `DATABASE_DRIVER=neon-http` reportedly
+set explicitly for the `node server.js` process. Re-audited everything that could cause this:
+- `driver === "neon-http"` in `lib/prisma.ts`: compared correctly, no case/typo bug.
+- `PrismaNeonHttpAdapterFactory.connect()`, read directly from the installed
+  `node_modules/@prisma/adapter-neon/dist/index.js` (v7.10.0): calls only
+  `neon.neon(this.connectionString, this.options)` - the plain-HTTP function. It never
+  constructs `Pool`/`Client` or touches `neonConfig.webSocketConstructor`. Only
+  `PrismaNeonAdapterFactory.connect()` (the `"neon"` driver, a different code path entirely)
+  calls `new neon.Pool(...)`, which is what actually opens the WebSocket.
+- Repo-wide grep for `neonConfig`, `@neondatabase/serverless`, `PrismaNeon`, `new Pool`,
+  `webSocketConstructor`, `wss:` outside `lib/prisma.ts`: no hits in any app code. No
+  `proxy.ts`/`middleware.ts`/`instrumentation.ts` exists that could run this at the edge or
+  build a second client.
+- Empirically re-verified locally (`tsx`, no build step): setting `DATABASE_DRIVER=neon-http`
+  and importing `lib/prisma.ts` logs `using PrismaNeonHttp (plain HTTPS, no WebSocket)` and
+  constructs the client with no WebSocket involved, exactly as the source predicts.
+So the driver-selection code itself is not the bug. One real gap was found and fixed: a value
+with trailing whitespace (a stray `\r` from a CRLF paste into a config field is the realistic
+case) fell through every `===` branch silently-ish before this change, throwing a confusing
+"Unknown DATABASE_DRIVER" *if construction ran at all* - `.trim()` now tolerates that. Verified:
+`DATABASE_DRIVER="neon-http\r"` now resolves and logs as `neon-http`, where it previously would
+not have matched any branch.
+**What this doesn't rule out, and why logging (not a silent guess) was the right fix:** with the
+code itself clean, the remaining explanations are operational, not something readable from this
+repo - a Passenger worker process still running from *before* the ADR 18 deploy (Passenger
+reuses spawned processes; a code+env change needs an actual restart, not just a new request), a
+persistent `DATABASE_DRIVER=neon` left over from ADR 16 in cPanel's own "Setup Node.js App" env
+var panel (which governs the *live* Passenger-served process regardless of what a manual SSH
+`node server.js` test showed), or a `.env` file on the host itself still carrying the old value
+(the `deploy` branch never ships one - see ADR 15 - but nothing stops one existing on the host
+from an earlier manual step). None of these are visible from source review; the new unconditional
+startup log (`[lib/prisma] DATABASE_DRIVER raw=... resolved=... using ...`) is what turns "is the
+code wrong" into "what did this specific process actually see", by putting the answer directly in
+the host's own process log rather than requiring another round of guessing.
