@@ -34,20 +34,25 @@ A Next.js (App Router, TypeScript) skeleton with:
   spec section it comes from.
 - Phone + OTP auth (mock SMS via `console.log`), session cookie, no passwords.
 - All Sprint 0 pages, mobile-first, RTL, in Persian: splash/onboarding, auth, home, shop
-  (category grid → product list → product detail), Build My Party wizard (5 steps + a
-  placeholder result screen), cart/checkout (mock payment), profile + order history.
+  (category grid → product list → product detail), Build My Party wizard (5 steps + a real
+  suggested bundle), cart/checkout (mock payment), profile + order history.
 - A real (if minimal) checkout: adding a product to cart and completing checkout creates an
   actual `Order`/`OrderItem` row and shows up in the profile's order history. This is the one
   piece of Sprint 0 that's more than a pure UI skeleton — it exists to prove the schema, auth,
   and provider abstractions actually work together end to end.
+- Build My Party's phase-1 suggestion engine (`lib/wizard/engine.ts`): rule-based, no AI —
+  reads `config/party-wizard/budget-allocation.json`, filters active products/services in the
+  chosen city, and returns a real suggested bundle with an "add all to cart" action. See
+  `docs/decisions.md` ADR 22.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
 
 **Not built yet** (intentionally, per `docs/sprint-0-brief.md` §1): real payment/split-payment,
-the actual rule-based (or AI-assisted) suggestion logic for Build My Party, the balloon-printing
-order form, and the seller/print-partner/admin panels. The database has placeholders for all of
-this (see `docs/decisions.md` ADR 4–6) so building them later doesn't require a schema rewrite.
+the AI free-text entry point for Build My Party (the plain multi-step form + rule-based engine is
+the whole of phase 1 — see ADR 22), the balloon-printing order form, and the seller/print-partner/
+admin panels. The database has placeholders for all of this (see `docs/decisions.md` ADR 4, 6) so
+building them later doesn't require a schema rewrite.
 
 ## 3. Running it locally
 

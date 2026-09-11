@@ -792,3 +792,118 @@ fingerprints match and verification still fails, or the log shows "no session co
 request" for a browser that just logged in, that points somewhere else entirely (a reverse
 proxy/CDN in front of this host stripping or not forwarding the `Set-Cookie` header) and is the
 next thing to check with the actual log output in hand, rather than guessed at further here.
+
+## 2026-09-11 — Build My Party phase 1: the rule-based suggestion engine
+
+### 22. `lib/wizard/engine.ts` — rule-based bundle suggestion, no AI, wired to the existing form
+**Decision:**
+1. New `lib/wizard/engine.ts` exports `suggestBundle({ cityId, theme, budget, guestCount,
+   ageGroup, partyType })`, implementing `docs/party-wizard-engine-spec.md` §1 step 4-5 (the
+   rule-based half of the engine) against the *existing* multi-step form's answers — no AI
+   extraction layer (§2's step 1-3, the free-text entry point) is built, matching §6's own
+   design: "اگر این تنظیمات [AiSettings] خالی باشه، سیستم خودکار به همون فرم چندمرحله‌ای قبلی
+   سوییچ می‌کنه" (empty `AiSettings` → the plain multi-step form is the whole flow, not a
+   degraded fallback bolted onto something else). This fulfills ADR 5's "seeded but not wired"
+   status for `config/party-wizard/budget-allocation.json`, `themes.json`, and
+   `result-template.txt` — all three are now genuinely read by this engine, not just transcribed
+   reference data.
+2. For each category in `budget-allocation.json` (after applying its own low-budget overflow
+   rule), the engine queries active `Product`s (or, for the one `"auxiliary-services"` slot,
+   active `ServiceOffering`s) in the requested city and picks one, scored by a simple
+   theme-keyword/color substring match against title+description, falling back to the cheapest
+   option when nothing matches the theme.
+3. `app/api/party-profile/route.ts` now calls this engine before creating the `PartyProfile`,
+   stores the result directly in the already-existing `suggestedBundle` `Json?` column, and
+   returns it in the response.
+4. `components/wizard/WizardFlow.tsx`'s result screen renders the real bundle (per-category
+   line items, quantities, the filled-in `result-template.txt` summary, grand total) instead of
+   the old "به‌زودی فعال می‌شود" placeholder, with an "افزودن همه به سبد خرید" button that adds
+   every *product* line to the existing cart (`lib/cart/CartContext.tsx`) and navigates to
+   `/cart` — reusing the checkout path ADR 9/18/20 already built and verified, not a new one.
+**Why product categories always resolve to something, but the auxiliary-services slot doesn't:**
+the five product categories (decor, tableware, cake, gifts, costume) are core to any birthday
+bundle per the spec's own table - if nothing fits the category's budget slice, the engine falls
+back to the cheapest active option in that city/category rather than silently dropping an
+essential line. `auxiliary-services` is explicitly framed as optional in the spec ("فقط اگر
+بودجه اجازه بده و در آن شهر/فاز فعال باشد") - the engine skips it outright when nothing fits,
+never forcing an over-budget "extra."
+**Why `auxiliary-services` matches *any* active `SERVICE`-type category, not one fixed slug:**
+unlike the five product categories (each maps 1:1 to a real seeded `Category.slug` - see the fix
+below), "خدمات جانبی (عکاس، دی‌جی و…)" is a conceptual bucket, not one category. Sprint 0's
+catalog only ever seeds a single `SERVICE`-type category (promotional balloon printing, a B2B
+print service, not a birthday-party extra) - hardcoding that one slug into a "party wizard
+auxiliary service" slot would be actively wrong once a real photographer/DJ category gets added
+later, and matching the whole `SERVICE` type instead needs no further code change when it does.
+**A pre-existing data bug fixed along the way:** `config/party-wizard/budget-allocation.json`'s
+category ids (`decor-balloons`, etc.) never matched the real seeded `Category.slug` values
+(`balloons-decor`, etc. - see `prisma/seed.ts`) - harmless while nothing read the file (ADR 5),
+but would have made every product-category lookup silently return nothing the moment code
+started consuming it. Corrected the ids to the real slugs as part of wiring this up, and added a
+comment to the file's own `$comment` explaining the id-must-match-a-real-slug constraint (and the
+one exception) for whoever edits it next.
+**Why theme matching is keyword/substring-based, not a new schema field:** `Product` and
+`ServiceOffering` have no structured "theme" column, and the spec doesn't ask for one - adding
+one now would be schema churn for a feature this phase-1 pass doesn't need. `themes.json`'s
+`label` field is often compound (`"یونیکورن/رنگین‌کمان"`) - split on `/`/whitespace into
+keywords rather than requiring the whole compound string verbatim in a product's title, or a
+product titled just "بک‌دراپ تم یونیکورن" would never match at all. Verified this mattered: an
+early version of this check used the raw compound label and, empirically, matched nothing; the
+keyword-split version correctly matched that exact product in testing (see Verified below).
+**Why `guest-gifts` scales quantity by `guestCount` but every other category doesn't:** a gift is
+inherently "one per attendee." Every other seeded product is already a party-sized unit (a
+100-balloon pack, a 32-person tableware set, a 1kg cake) - multiplying those by `guestCount` too
+would wildly overshoot both the budget and what a customer would actually order. No attempt was
+made to parse a "covers N guests" capacity out of product titles/descriptions (e.g. the tableware
+set's own "۳۲ نفره" claim) to scale non-gift quantities more precisely - that's a real
+refinement, deliberately left for when there's enough real catalog/order data to justify a
+structured capacity field instead of guessing from title text.
+**Why `result-template.txt` needed a runtime `fs.readFileSync`, and what that required
+elsewhere:** unlike the two JSON config files (which Next's compiler bundles directly wherever
+they're `import`ed - already true for `themes.json` in `wizard/page.tsx` before this ADR), a
+plain `.txt` file has no such loader, so honoring the file's own stated purpose ("فقط یه فایل
+متنیه" - edit the text, no code change) meant reading it from disk at request time instead. That
+only works if the file is actually next to `server.js` at runtime, which `output: "standalone"`
+does not do automatically for anything outside `public/`/`.next/static/` (ADR 15) -
+`scripts/prepare-standalone.sh` now also copies the whole `config/` directory into
+`.next/standalone/`. A hardcoded fallback string (identical to the current file's content) is
+used if the read ever fails, so a future deploy-shape change that forgets this copy step degrades
+to a fixed default summary text rather than a hard crash on every wizard submission.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`
+(confirmed `config/` was physically present in the built bundle first):
+- A full wizard submission (Tehran, تm "یونیکورن/رنگین‌کمان", ۲۰ guests, ۵,۰۰۰,۰۰۰ Toman budget)
+  through the real `/api/party-profile` endpoint returned a 6-item bundle: the theme-matched
+  unicorn backdrop for decor (proving the keyword-split theme match works, not just falls back to
+  "cheapest"), a correctly `guestCount`-scaled guest-gift line (20 × 85,000 = 1,700,000), and the
+  one seeded service offering for the auxiliary slot - `totalAmount` matched the manually-summed
+  line totals exactly.
+- The row's `suggestedBundle` column, read back directly from MySQL, held the same 6-item
+  structure the API returned - not just an in-memory response.
+- The low-budget overflow path (۲,۰۰۰,۰۰۰ Toman, same city/theme) correctly dropped the
+  `auxiliary-services` line entirely and visibly boosted the decor/tableware categories' resolved
+  budgets from the redistributed percentage.
+- Fed the bundle's five *product* line items (its one *service* line deliberately excluded, per
+  the point above) into the real `/api/checkout` endpoint exactly as the new "افزودن همه به سبد
+  خرید" button would - it succeeded and the resulting `Order.totalAmount` matched the summed
+  product lines precisely, confirming the suggested bundle is actually purchasable through the
+  existing checkout path, not just a rendered preview.
+- All test rows (`User`, `OtpCode`, `PartyProfile`, `Order`, `OrderItem`) deleted afterward,
+  counts confirmed back to zero.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds.
+**Rejected:**
+- Letting "افزودن همه به سبد خرید" add the auxiliary service line to the same product cart -
+  `/api/checkout` only ever looks up `Product` rows (ADR 9's original single-seller design,
+  unchanged through ADR 18/20); a `ServiceOffering` id passed as a `productId` would simply fail
+  the "برخی محصولات دیگر موجود نیستند" check. Service checkout is a real, separate piece of work
+  (`panels-and-operations-spec.md`'s balloon-print order form, explicitly out of scope per
+  `docs/sprint-0-brief.md` §1) - the UI shows that line as informational only ("این خدمت جداگانه
+  هماهنگ می‌شود") rather than silently breaking checkout the first time a bundle happens to
+  include one.
+- A `UserRole`-style join table or new relational "theme" model instead of text matching - not
+  justified yet at Sprint 0's catalog size (ten products, one theme-specific title), and the spec
+  itself frames the budget/theme tables as hand-editable JSON precisely so this kind of tuning
+  happens by editing data, not schema.
+**Not done here (explicitly out of scope for this phase, per the request and `docs/sprint-0-brief.md` §1):**
+the AI free-text extraction entry point (§1 steps 1-3, `AIExtractorProvider`, ADR 4's deferred
+scope - unchanged), the party-wizard data-flywheel admin dashboard (§7), and review/rating UI
+(§8). `PartyProfile.finalBundle` (what the customer actually bought, vs. what was suggested) also
+stays unwritten - worth revisiting once there's a reason to compare the two, not invented now.

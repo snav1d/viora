@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
+import { suggestBundle } from "@/lib/wizard/engine";
+
+const PARTY_TYPE = "تولد"; // Sprint 0's only supported party type - see docs/README.md §2.
 
 const bodySchema = z.object({
   ageGroup: z.string().min(1),
@@ -27,17 +30,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "شهر انتخاب‌شده معتبر نیست." }, { status: 400 });
   }
 
+  const bundle = await suggestBundle({
+    cityId: city.id,
+    theme: parsed.data.theme,
+    budget: parsed.data.budget,
+    guestCount: parsed.data.guestCount,
+    ageGroup: parsed.data.ageGroup,
+    partyType: PARTY_TYPE,
+  });
+
   const partyProfile = await prisma.partyProfile.create({
     data: {
       userId: session.userId,
-      partyType: "تولد",
+      partyType: PARTY_TYPE,
       ageGroup: parsed.data.ageGroup,
       guestCount: parsed.data.guestCount,
       budget: parsed.data.budget,
       cityId: city.id,
       theme: parsed.data.theme,
+      suggestedBundle: bundle,
     },
   });
 
-  return NextResponse.json({ ok: true, partyProfileId: partyProfile.id });
+  return NextResponse.json({ ok: true, partyProfileId: partyProfile.id, bundle });
 }

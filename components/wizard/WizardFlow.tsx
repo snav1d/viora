@@ -6,6 +6,8 @@ import { ChevronRight, Sparkles } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { useCart } from "@/lib/cart/CartContext";
+import type { SuggestedBundle } from "@/lib/wizard/engine";
 import {
   AGE_BUCKETS,
   BUDGET_PRESETS,
@@ -55,13 +57,14 @@ function Chip({
 export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: ThemeOption[] }) {
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<WizardAnswers>(EMPTY_ANSWERS);
-  const [resultId, setResultId] = useState<string | null>(null);
+  const [bundle, setBundle] = useState<SuggestedBundle | null>(null);
   const [customGuestCount, setCustomGuestCount] = useState("");
   const [customBudget, setCustomBudget] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoSubmitAttempted = useRef(false);
   const router = useRouter();
+  const { addItem } = useCart();
 
   useEffect(() => {
     if (autoSubmitAttempted.current) return;
@@ -122,7 +125,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
       }
 
       persist(finalAnswers, false);
-      setResultId(data.partyProfileId);
+      setBundle(data.bundle);
     } catch {
       setError("ارتباط با سرور برقرار نشد. دوباره تلاش کنید.");
     } finally {
@@ -143,27 +146,96 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
     setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   }
 
-  if (resultId) {
+  if (bundle) {
+    const productItems = bundle.items.filter((item) => item.kind === "product");
+    const serviceItems = bundle.items.filter((item) => item.kind === "service");
+
+    function addBundleToCart() {
+      for (const item of productItems) {
+        addItem(
+          { productId: item.id, slug: item.slug, title: item.title, price: item.unitPrice },
+          item.quantity,
+        );
+      }
+      router.push("/cart");
+    }
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-16 text-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gold-100 text-gold-600">
-          <Sparkles className="h-7 w-7" strokeWidth={1.5} />
-        </span>
-        <div className="space-y-2">
-          <h1 className="text-lg font-semibold text-charcoal">پیشنهاد شما در راه است!</h1>
-          <p className="mx-auto max-w-xs text-sm leading-6 text-charcoal-muted">
-            جشن {answers.ageGroup} با تم «{answers.theme}» برای{" "}
-            {answers.guestCount?.toLocaleString("fa-IR")} مهمان در{" "}
-            {answers.cityName}، با بودجه‌ی {answers.budget?.toLocaleString("fa-IR")} تومان ثبت شد.
-          </p>
-          <p className="mx-auto max-w-xs text-sm leading-6 text-charcoal-muted">
-            موتور پیشنهاد هوشمند ویورا به‌زودی فعال می‌شود؛ فعلاً این اطلاعات ذخیره شد تا در
-            ساخت سبد پیشنهادی بعدی استفاده شود.
+      <div className="flex flex-1 flex-col gap-5 px-6 py-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-100 text-gold-600">
+            <Sparkles className="h-6 w-6" strokeWidth={1.5} />
+          </span>
+          <h1 className="text-lg font-semibold text-charcoal">سبد پیشنهادی شما</h1>
+          <p className="mx-auto max-w-xs whitespace-pre-line text-sm leading-6 text-charcoal-muted">
+            {bundle.summaryText}
           </p>
         </div>
-        <ButtonLink href="/shop" size="lg" className="w-full">
-          مشاهده‌ی فروشگاه
-        </ButtonLink>
+
+        {bundle.items.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-10 text-center">
+            <p className="max-w-xs text-sm text-charcoal-muted">
+              فعلاً محصول فعالی در {answers.cityName} برای این ترکیب پیدا نشد. می‌توانید خودتان از
+              فروشگاه انتخاب کنید.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {productItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3 text-sm"
+              >
+                <div className="space-y-0.5">
+                  <p className="text-xs text-charcoal-muted">{item.categoryLabel}</p>
+                  <p className="font-medium text-charcoal">{item.title}</p>
+                  {item.quantity > 1 && (
+                    <p className="text-xs text-charcoal-muted">
+                      {item.quantity.toLocaleString("fa-IR")} عدد
+                    </p>
+                  )}
+                </div>
+                <p className="font-semibold text-rose-700">
+                  {item.lineTotal.toLocaleString("fa-IR")} تومان
+                </p>
+              </div>
+            ))}
+
+            {serviceItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-2xl border border-dashed border-border p-3 text-sm"
+              >
+                <div className="space-y-0.5">
+                  <p className="text-xs text-charcoal-muted">{item.categoryLabel}</p>
+                  <p className="font-medium text-charcoal">{item.title}</p>
+                  <p className="text-xs text-charcoal-muted">
+                    این خدمت جداگانه هماهنگ می‌شود، به سبد خرید اضافه نمی‌شود.
+                  </p>
+                </div>
+                <p className="font-semibold text-rose-700">
+                  {item.lineTotal.toLocaleString("fa-IR")} تومان
+                </p>
+              </div>
+            ))}
+
+            <div className="flex items-center justify-between border-t border-border pt-3 text-sm font-semibold text-charcoal">
+              <span>جمع کل</span>
+              <span>{bundle.totalAmount.toLocaleString("fa-IR")} تومان</span>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-auto space-y-2">
+          {productItems.length > 0 && (
+            <Button size="lg" className="w-full" onClick={addBundleToCart}>
+              افزودن همه به سبد خرید
+            </Button>
+          )}
+          <ButtonLink href="/shop" size="lg" variant="secondary" className="w-full">
+            مشاهده‌ی فروشگاه
+          </ButtonLink>
+        </div>
       </div>
     );
   }

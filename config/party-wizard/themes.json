@@ -1,5 +1,5 @@
 {
-  "$comment": "Transcribed from docs/party-wizard-engine-spec.md §2. Hand-editable — add/remove a row, no code changes needed. Not consumed by any code yet in Sprint 0 (docs/decisions.md ADR 5); the rule-based suggestion engine sprint reads this.",
+  "$comment": "Transcribed from docs/party-wizard-engine-spec.md §2. Hand-editable — add/remove a row, no code changes needed. `label` and `colors` are also read by lib/wizard/engine.ts as a lightweight theme-match signal against product titles/descriptions (see docs/decisions.md ADR 22) — keep them consistent with how sellers actually name products.",
   "themes": [
     { "id": "barbie", "label": "باربی", "audience": "girl", "ageRange": [4, 12], "colors": ["صورتی", "طلایی"], "note": "بسیار پرتقاضا، هم ایران هم اروپا" },
     { "id": "unicorn", "label": "یونیکورن/رنگین‌کمان", "audience": "girl", "ageRange": [1, 10], "colors": ["پاستلی", "بنفش"], "note": "همه‌سنی، فروش بالا" },

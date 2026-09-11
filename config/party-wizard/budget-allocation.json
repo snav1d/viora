@@ -1,7 +1,7 @@
 {
-  "$comment": "Transcribed from docs/party-wizard-engine-spec.md §3. Starting point only, to be corrected against real order data. Not consumed by any code yet in Sprint 0 (docs/decisions.md ADR 5).",
+  "$comment": "Transcribed from docs/party-wizard-engine-spec.md §3. Starting point only, to be corrected against real order data. `id` must match a real Category.slug (see prisma/seed.ts) for every category except \"auxiliary-services\", which lib/wizard/engine.ts treats specially (any active SERVICE-type category in the city, not one fixed slug) - see docs/decisions.md ADR 22.",
   "categories": [
-    { "id": "decor-balloons", "label": "بادکنک‌آرایی و دکور", "percent": 30, "note": "معمولاً بیشترین سهم بصری جشن" },
+    { "id": "balloons-decor", "label": "بادکنک‌آرایی و دکور", "percent": 30, "note": "معمولاً بیشترین سهم بصری جشن" },
     { "id": "disposable-tableware", "label": "ظروف و لوازم یک‌بارمصرف هماهنگ با تم", "percent": 15, "note": "بشقاب، لیوان، کارد و چنگال، سفره" },
     { "id": "cake-sweets", "label": "کیک و شیرینی", "percent": 20, "note": "شامل تاپر و شمع" },
     { "id": "guest-gifts", "label": "گیفت/هدیه‌ی مهمانان", "percent": 10, "note": "متناسب با تعداد مهمان" },
@@ -10,6 +10,6 @@
   ],
   "overflowRule": {
     "minBudgetTomans": 3000000,
-    "description": "اگر بودجه‌ی کل زیر این عدد باشد، auxiliary-services حذف و درصدش بین decor-balloons و disposable-tableware تقسیم می‌شود."
+    "description": "اگر بودجه‌ی کل زیر این عدد باشد، auxiliary-services حذف و درصدش متناسب با نسبت فعلی‌شان بین balloons-decor و disposable-tableware تقسیم می‌شود."
   }
 }

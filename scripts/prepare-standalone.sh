@@ -16,6 +16,11 @@ fi
 
 cp -r public .next/standalone/
 cp -r .next/static .next/standalone/.next/
+# config/*.json is already bundled by Next's compiler wherever it's `import`ed, but
+# result-template.txt is plain text with no such loader - lib/wizard/engine.ts reads it via
+# fs.readFileSync(process.cwd() + ...) at runtime, so the whole directory needs to physically
+# exist next to server.js. See docs/decisions.md ADR 22.
+cp -r config .next/standalone/
 rm -f .next/standalone/.env .next/standalone/.env.*
 
 echo "prepare-standalone: .next/standalone is ready to deploy."
