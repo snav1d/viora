@@ -1,0 +1,29 @@
+{
+  "$comment": "Transcribed from docs/party-wizard-engine-spec.md §2. Hand-editable — add/remove a row, no code changes needed. `label` and `colors` are also read by lib/wizard/engine.ts as a lightweight theme-match signal against product titles/descriptions (see docs/decisions.md ADR 22) — keep them consistent with how sellers actually name products.",
+  "themes": [
+    { "id": "barbie", "label": "باربی", "audience": "girl", "ageRange": [4, 12], "colors": ["صورتی", "طلایی"], "note": "بسیار پرتقاضا، هم ایران هم اروپا" },
+    { "id": "unicorn", "label": "یونیکورن/رنگین‌کمان", "audience": "girl", "ageRange": [1, 10], "colors": ["پاستلی", "بنفش"], "note": "همه‌سنی، فروش بالا" },
+    { "id": "frozen", "label": "فروزن/السا", "audience": "girl", "ageRange": [3, 10], "colors": ["آبی یخی", "نقره‌ای"], "note": "کلاسیک، همیشه‌سبز" },
+    { "id": "lol", "label": "ال‌اُال (LOL)", "audience": "girl", "ageRange": [4, 10], "colors": ["رنگارنگ", "نئون"], "note": "ترند جدید در ایران" },
+    { "id": "chrome", "label": "کرومی (Chrome)", "audience": "girl", "ageRange": [5, 12], "colors": ["مشکی", "بنفش تیره"], "note": "ترند جدید در ایران" },
+    { "id": "wednesday", "label": "ونزدی (Wednesday)", "audience": "girl", "ageRange": [6, 14], "colors": ["مشکی", "بنفش"], "note": "ترند مشترک ایران/جهانی" },
+    { "id": "princess", "label": "پرنسس/سفید برفی", "audience": "girl", "ageRange": [3, 9], "colors": ["صورتی", "طلایی"], "note": "کلاسیک همیشگی" },
+    { "id": "butterfly-garden", "label": "پروانه/باغ بهاری", "audience": "girl", "ageRange": [2, 8], "colors": ["پاستلی", "سبز"], "note": "ترند اروپایی رو به رشد" },
+
+    { "id": "spiderman-superhero", "label": "مرد عنکبوتی/سوپرهیرو", "audience": "boy", "ageRange": [3, 12], "colors": ["قرمز", "آبی"], "note": "پرفروش ثابت" },
+    { "id": "cars-racing", "label": "ماشین/مسابقه‌ای", "audience": "boy", "ageRange": [2, 10], "colors": ["قرمز", "مشکی", "زرد"], "note": "ترند رو به رشد" },
+    { "id": "dinosaur", "label": "دایناسور", "audience": "boy", "ageRange": [2, 10], "colors": ["سبز", "قهوه‌ای"], "note": "همه‌سنی" },
+    { "id": "space-astronaut", "label": "فضا/فضانورد", "audience": "boy", "ageRange": [3, 10], "colors": ["آبی سرمه‌ای", "نقره‌ای"], "note": "مشترک ایران/جهانی" },
+    { "id": "minecraft-gaming", "label": "ماینکرفت/گیمینگ", "audience": "boy", "ageRange": [6, 14], "colors": ["سبز", "خاکستری پیکسلی"], "note": "رو به رشد، مناسب پیش‌نوجوان" },
+    { "id": "teddy-bear", "label": "تدی/خرس کوچولو", "audience": "boy", "ageRange": [0, 3], "colors": ["آبی آسمانی", "کرم"], "note": "مخصوص جشن تولد ۱ سالگی" },
+
+    { "id": "first-tooth", "label": "دندونی", "audience": "baby", "ageRange": [0, 1], "colors": [], "note": "مناسبت خاص ایرانی، خارج از رده‌ی سنی معمول" },
+    { "id": "baby", "label": "بی‌بی/Baby", "audience": "baby", "ageRange": [0, 3], "colors": ["رنگ‌های ملایم"], "note": "" },
+
+    { "id": "unicorn-neutral", "label": "یک‌شاخ", "audience": "unisex", "ageRange": [1, 12], "colors": [], "note": "" },
+    { "id": "rainbow", "label": "رنگین‌کمان", "audience": "unisex", "ageRange": [1, 12], "colors": [], "note": "" },
+    { "id": "circus", "label": "سیرک", "audience": "unisex", "ageRange": [1, 12], "colors": [], "note": "" },
+    { "id": "under-the-sea", "label": "زیر دریا", "audience": "unisex", "ageRange": [1, 12], "colors": [], "note": "" },
+    { "id": "safari-jungle", "label": "سافاری/جنگل", "audience": "unisex", "ageRange": [1, 12], "colors": [], "note": "" }
+  ]
+}

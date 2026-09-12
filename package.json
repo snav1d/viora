@@ -1,0 +1,42 @@
+{
+  "name": "viora",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "postbuild": "sh scripts/prepare-standalone.sh",
+    "start": "node .next/standalone/server.js",
+    "lint": "eslint",
+    "postinstall": "cd \"$INIT_CWD\" && prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "clsx": "^2.1.1",
+    "jose": "^6.2.12",
+    "lucide-react": "^1.43.0",
+    "mariadb": "^3.5.4",
+    "next": "16.3.4",
+    "prisma": "^7.10.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}
