@@ -87,15 +87,22 @@ function themeKeywords(themeLabel: string): string[] {
   return themeLabel.split(/[/\s]+/).filter(Boolean);
 }
 
-function themeMatchScore(text: string, theme: string, colors: string[]): number {
-  let score = 0;
+/** Split into keyword vs. color signal, not one combined number: a color word alone
+ * ("طلایی"/gold) is common enough across unrelated products that treating it as equally
+ * "themed" as an actual keyword match ("باربی") lets a coincidentally-gold-colored, otherwise
+ * generic product outrank - or worse, stand in for - a genuinely theme-matched one. See
+ * docs/decisions.md ADR 24 for the live example this was caught from (a "طلایی کلاسیک" gift
+ * outranking real Barbie-themed gifts purely because Barbie's color list includes "طلایی"). */
+function themeMatchScore(text: string, theme: string, colors: string[]): { keywordScore: number; colorScore: number } {
+  let keywordScore = 0;
   for (const keyword of themeKeywords(theme)) {
-    if (text.includes(keyword)) score += 2;
+    if (text.includes(keyword)) keywordScore += 2;
   }
+  let colorScore = 0;
   for (const color of colors) {
-    if (color && text.includes(color)) score += 1;
+    if (color && text.includes(color)) colorScore += 1;
   }
-  return score;
+  return { keywordScore, colorScore };
 }
 
 async function pickProduct(
@@ -116,19 +123,37 @@ async function pickProduct(
 
   const scored = products.map((product) => {
     const unitPrice = toNumber(product.price);
+    const { keywordScore, colorScore } = themeMatchScore(
+      `${product.title} ${product.description ?? ""}`,
+      theme,
+      colors,
+    );
     return {
       product,
       unitPrice,
       lineTotal: unitPrice * quantity,
-      score: themeMatchScore(`${product.title} ${product.description ?? ""}`, theme, colors),
+      score: keywordScore + colorScore,
+      isThemed: keywordScore > 0,
     };
   });
 
-  const withinBudget = scored.filter((s) => s.lineTotal <= tomansBudget);
+  // Theme match takes priority over strict budget-fit, not the other way around - see
+  // docs/decisions.md ADR 24. Filtering to "within this category's budget slice" *before* ranking
+  // by theme would silently throw away every theme-matched candidate whenever all of them happen
+  // to price above that slice (routine for a per-guest-scaled category like guest-gifts, where a
+  // themed item costing a bit more than a generic one gets multiplied by guestCount) - the result
+  // looks like "no themed product exists" even when one clearly does. Restrict to theme-matched
+  // candidates first when any exist (gated on an actual keyword match, not a color coincidence -
+  // see themeMatchScore); only fall through to the full set (ranked by price alone) when nothing
+  // in the category matches the theme's keywords at all.
+  const themed = scored.filter((s) => s.isThemed);
+  const pool = themed.length > 0 ? themed : scored;
+
+  const withinBudget = pool.filter((s) => s.lineTotal <= tomansBudget);
   const chosen =
     withinBudget.length > 0
       ? withinBudget.sort((a, b) => b.score - a.score || b.lineTotal - a.lineTotal)[0]
-      : [...scored].sort((a, b) => a.lineTotal - b.lineTotal)[0];
+      : [...pool].sort((a, b) => b.score - a.score || a.lineTotal - b.lineTotal)[0];
 
   return chosen;
 }
@@ -148,11 +173,12 @@ async function pickAuxiliaryService(cityId: string, tomansBudget: number, theme:
 
   const scored = offerings.map((offering) => {
     const unitPrice = toNumber(offering.basePrice);
-    return {
-      offering,
-      unitPrice,
-      score: themeMatchScore(`${offering.title} ${offering.description ?? ""}`, theme, colors),
-    };
+    const { keywordScore, colorScore } = themeMatchScore(
+      `${offering.title} ${offering.description ?? ""}`,
+      theme,
+      colors,
+    );
+    return { offering, unitPrice, score: keywordScore + colorScore };
   });
 
   const withinBudget = scored.filter((s) => s.unitPrice <= tomansBudget);

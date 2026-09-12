@@ -988,3 +988,86 @@ unexercised here) reasoning alone.
 Barbie above by inventing new products - that's a real, reportable gap in the supplied catalog
 data, not something to paper over by fabricating inventory that doesn't reflect any real
 seller's actual stock.
+
+## 2026-09-12 — ADR 23's "real data gap" conclusion was wrong: two real engine bugs found instead
+
+### 24. Fixed: a hard budget filter, and a color-coincidence, both silently discarding real theme matches
+**Correction to the record, not a silent edit of it:** ADR 23 reported that Minecraft- and
+Barbie-themed `guest-gifts` products didn't exist in the supplied catalog, based on a `mysql`
+CLI query (`WHERE title LIKE '%ماینکرفت%' ...`) that returned zero rows. The account holder
+checked the source JSON directly and found four matching products for each theme
+(`guest-gifts-minecraft-1..4`, `guest-gifts-barbie-1..4`) and asked for this to be re-investigated
+before accepting "data gap" as the explanation. They were right to push back - both products
+existed in the database the whole time (confirmed with `SELECT slug, title, price FROM Product
+WHERE slug LIKE 'guest-gifts-minecraft%' ...` - a slug-based, ASCII-only query, sidestepping
+whatever made the earlier Persian-literal `LIKE` query unreliable, most likely a client charset
+default in that one ad-hoc `mysql -e` invocation rather than anything about the stored data
+itself; the terminal's own `?????` rendering of Persian text in that session was a second, later
+sign of the same display/encoding wrinkle). ADR 23's conclusion stands corrected here, not edited
+there, per this log's own append-only discipline.
+**The two real bugs, found by testing `lib/wizard/engine.ts`'s actual logic directly (not the CLI)
+against the real data:**
+1. `pickProduct()` filtered every candidate to "fits this category's budget slice" *before*
+   ranking by theme match. `guest-gifts`' cost scales by `quantity = guestCount` (ADR 22), so a
+   themed item priced only slightly above a generic one routinely blows the slice once multiplied
+   by 15-20 guests - and the filter discarded it outright, with no path back, even though three or
+   four other themed candidates existed at only a modest premium. The result read exactly like "no
+   themed product exists," which is what ADR 23 wrongly concluded from watching the symptom rather
+   than the cause.
+2. After fixing (1) to prioritize any theme-matched candidate over budget, Barbie's `guest-gifts`
+   *still* picked "پاکت هدیه تم طلایی کلاسیک" (a generic "gold classic" gift) instead of an
+   actual Barbie item. Cause: `themeMatchScore()` added color words (from `themes.json`'s
+   `colors` array - Barbie's are `["صورتی", "طلایی"]`, pink/gold) into the *same* score as
+   keyword matches. "طلایی" (gold) appears in the generic item's own title, giving it `score: 1`
+   - enough to land it in the "themed" pool being prioritized over budget, where its
+   comparatively low price then let it win over every real (but pricier) Barbie item, none of
+   which fit the slice either. A color word is real evidence when picking among several
+   plausible candidates, but it is not the same claim as an actual theme keyword match, and
+   treating them as one number let a coincidence stand in for the real thing.
+**The fix:**
+- `themeMatchScore()` now returns `{ keywordScore, colorScore }` separately instead of one
+  combined number.
+- `pickProduct()`'s "should this category prioritize theme over its budget slice" gate now checks
+  `keywordScore > 0` specifically (`isThemed`), not `score > 0` - a color-only match no longer
+  qualifies a product to bypass the budget filter, though it still contributes to `score` for
+  ranking *within* whichever pool (themed or not) actually gets used.
+- `pickAuxiliaryService()` (which never had bug 1 - it already only offers the optional slot when
+  something fits, per ADR 22 - and wasn't exposed to bug 2 in testing either) now combines
+  `keywordScore + colorScore` into the same `score` it always used; unaffected in behavior.
+**Why color words stay in the model at all, rather than being dropped:** they're a legitimate
+secondary signal for *ranking among already-plausible candidates* (e.g. choosing between two
+otherwise-equal decor items, or nudging a themed-but-ambiguous product up), which is the role
+`colorScore` still plays via `score`. The bug was specifically letting that secondary signal
+promote a product into the "genuinely on-theme, worth exceeding budget for" tier it was never
+meant to qualify for on its own.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`
+(both bugs reproduced and then confirmed fixed against the *exact* data in dispute, not a
+synthetic example):
+- Direct query confirmed the 8 disputed rows (4 Minecraft, 4 Barbie `guest-gifts` products) exist
+  in `Product` exactly as the source file specifies.
+- A standalone script replicating the engine's own scoring against these exact rows reproduced
+  bug 1 precisely: all 4 Minecraft items scored correctly (`keywordScore: 2`) but none fit the
+  600,000-Toman category slice at 15 guests (lineTotals 705,000-1,005,000), so the pre-fix
+  algorithm's budget-first filter excluded all of them before scoring ever mattered.
+- After fixing bug 1 alone: Minecraft's `guest-gifts` correctly picked the cheapest Minecraft
+  item (47,000 × 15). Barbie's did not - still picked the gold-classic item - reproducing bug 2
+  specifically, isolating it from bug 1.
+- After fixing bug 2: re-ran all three originally-requested scenarios (Minecraft, Barbie,
+  Dinosaur) through the real `/api/party-profile` endpoint - all three now return a full 5-of-5
+  theme-matched bundle across every core category, not 4-of-5 or a silent fallback.
+- Spot-checked four more themes not in the original request (Frozen, Space, Safari, Spider-Man -
+  all compound labels like Minecraft's own "ماینکرفت/گیمینگ") the same way - 20 of 20
+  core-category picks matched their theme by name, confirming the fix generalizes rather than
+  being a narrow patch for the two themes that happened to be reported.
+- Fed the corrected Barbie bundle's product lines into the real `/api/checkout` endpoint -
+  succeeded with a correct order total, confirming the fix didn't disturb the
+  checkout-compatibility work from ADR 22.
+- All test rows from this round deleted afterward. `tsc --noEmit` and `eslint .` clean;
+  `npm run build` succeeds.
+**Lesson for future verification in this repo, recorded because it nearly produced a wrong
+conclusion in the log:** an ad-hoc `mysql -e "... LIKE '%<Persian text>%' ..."` query is not a
+reliable way to check whether Persian data exists - a slug/ASCII-keyed query, or better, a script
+that goes through the actual Prisma client (the same driver path the app itself uses, as this
+ADR's reproduction script did), is the trustworthy check. A CLI text-literal match failing is
+evidence about the CLI invocation, not about the data, and should have been treated that way
+before ADR 23 was written.
