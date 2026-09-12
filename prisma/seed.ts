@@ -8,6 +8,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import productsSeedData from "./seed-data/products.json";
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -119,37 +120,41 @@ async function main() {
     },
   });
 
-  const products: Array<{ slug: string; title: string; price: number; categorySlug: string }> = [
-    { slug: "balloon-arch-gold-rose", title: "آرک بادکنک طلایی-رزگلد", price: 1850000, categorySlug: "balloons-decor" },
-    { slug: "latex-balloon-pack-100", title: "بسته ۱۰۰ عددی بادکنک لاتکس", price: 220000, categorySlug: "balloons-decor" },
-    { slug: "foil-number-balloon", title: "بادکنک فویلی عدد تولد", price: 95000, categorySlug: "balloons-decor" },
-    { slug: "party-backdrop-unicorn", title: "بک‌دراپ تم یونیکورن", price: 690000, categorySlug: "balloons-decor" },
-    { slug: "disposable-set-32pc", title: "ست ظروف یک‌بارمصرف ۳۲ نفره", price: 480000, categorySlug: "disposable-tableware" },
-    { slug: "paper-cups-theme-pack", title: "بسته لیوان کاغذی تم‌دار", price: 120000, categorySlug: "disposable-tableware" },
-    { slug: "birthday-cake-1kg", title: "کیک تولد ۱ کیلویی", price: 950000, categorySlug: "cake-sweets" },
-    { slug: "cake-topper-candle-set", title: "ست تاپر و شمع کیک", price: 165000, categorySlug: "cake-sweets" },
-    { slug: "guest-gift-box-small", title: "جعبه کادو مهمان (کوچک)", price: 85000, categorySlug: "guest-gifts" },
-    { slug: "party-hat-mask-set", title: "ست کلاه و نقاب جشن", price: 140000, categorySlug: "costume-accessories" },
-  ];
+  // Deleting first (rather than upserting each row) is what makes this re-runnable as the real
+  // catalog changes shape over time: the original Sprint 0 sample set (10 generic products, no
+  // theme/category realism) is entirely superseded by prisma/seed-data/products.json's 500 real
+  // titles, and re-running this script should never leave both around side by side. Safe against
+  // existing OrderItem rows referencing these products - see the schema's generated migration:
+  // `OrderItem_productId_fkey ... ON DELETE SET NULL` (Prisma's default for this optional
+  // relation), so deleting a Product nulls out the FK on any OrderItem instead of failing or
+  // cascading the delete into order history.
+  await prisma.product.deleteMany({ where: { sellerId: sellerProfile.id } });
 
-  for (const product of products) {
-    await prisma.product.upsert({
-      where: { slug: product.slug },
-      update: {},
-      create: {
-        sellerId: sellerProfile.id,
-        categoryId: productCategories[product.categorySlug].id,
-        cityId: tehran.id,
-        title: product.title,
-        slug: product.slug,
-        description: `${product.title} — مناسب برای جشن تولد، ارسال به سراسر تهران.`,
-        price: product.price,
-        stock: 25,
-        images: [],
-        isActive: true,
-      },
-    });
-  }
+  // themeSlug in the source file isn't a Product column (see docs/decisions.md ADR 22 - no
+  // structured theme field exists, matching is text-based against title/description, which
+  // already names the theme in Persian) - only the four real Product fields are used here.
+  await prisma.product.createMany({
+    data: (
+      productsSeedData as Array<{
+        title: string;
+        categorySlug: string;
+        price: number;
+        description: string;
+        slug: string;
+      }>
+    ).map((product) => ({
+      sellerId: sellerProfile.id,
+      categoryId: productCategories[product.categorySlug].id,
+      cityId: tehran.id,
+      title: product.title,
+      slug: product.slug,
+      description: product.description,
+      price: product.price,
+      stock: 25,
+      images: [],
+      isActive: true,
+    })),
+  });
 
   await prisma.serviceOffering.upsert({
     where: { slug: "promo-balloon-print-standard" },

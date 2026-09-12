@@ -907,3 +907,84 @@ the AI free-text extraction entry point (§1 steps 1-3, `AIExtractorProvider`, A
 scope - unchanged), the party-wizard data-flywheel admin dashboard (§7), and review/rating UI
 (§8). `PartyProfile.finalBundle` (what the customer actually bought, vs. what was suggested) also
 stays unwritten - worth revisiting once there's a reason to compare the two, not invented now.
+
+## 2026-09-12 — real catalog data: 500 products, replacing the 10-item Sprint 0 sample set
+
+### 23. `prisma/seed-data/products.json` — a real, theme-tagged catalog for ADR 22's engine to work with
+**Decision:**
+1. New `prisma/seed-data/products.json` (500 entries: `title`, `categorySlug`, `price`,
+   `description`, `themeSlug`, `slug`) replaces the original Sprint 0 sample list of ten generic
+   products in `prisma/seed.ts`.
+2. `main()` now does `prisma.product.deleteMany({ where: { sellerId: sellerProfile.id } })`
+   before a single `prisma.product.createMany(...)` bulk insert from the new file - not a
+   per-row `upsert` loop like the old ten-item list used. This makes reseeding fully
+   re-runnable (verified: ran `prisma db seed` twice back to back, second run left the same 500
+   rows, no duplicates or errors) and means the old sample products are actually gone after
+   reseeding, not just superseded by new rows sitting alongside them.
+3. `themeSlug` from the source file is read but not written to any column - `Product` has no
+   structured theme field (ADR 22's own decision, unchanged) and this field exists in the source
+   data only as the curator's own bookkeeping. What actually drives theme matching is that every
+   entry's `description` already spells the theme out in Persian ("مناسب جشن‌های با تم
+   ماینکرفت..."), which is exactly the text ADR 22's engine already searches.
+**Why deleting by `sellerId` rather than by a hardcoded list of the ten old slugs:** the old
+approach (`prisma.product.upsert({ where: { slug }, ... })` for each of ten fixed items) has no
+way to *remove* a product that a future edit of the seed data drops - it only ever adds or
+updates. Scoping the delete to "everything under the one sample seller" instead means the seed
+script's output is always exactly what `products.json` currently says, regardless of what used to
+be there - the correct property for something meant to be rerun as the real catalog evolves.
+**Foreign-key safety, checked rather than assumed:** the account holder flagged that this session
+had created real `Order`/`OrderItem` rows against the old sample products during ADR 20/22's own
+verification work, and asked whether deleting those products would fail on the FK. Confirmed
+directly from the generated migration SQL (not from memory of what was intended when the schema
+was written): `` `OrderItem` ADD CONSTRAINT `OrderItem_productId_fkey` ... ON DELETE SET NULL ``
+- Prisma's own default for this nullable relation. Deleting a `Product` nulls out any
+`OrderItem.productId` that pointed at it rather than failing or cascading further; `OrderItem`
+already stores `unitPrice`/`quantity`/`splitAmount` at order time and no code anywhere reads
+`orderItem.product.*` (checked: `grep -rn "\.product\." app components lib`), so nothing in the
+UI depends on the row surviving. In the event, this was moot anyway - all of this session's own
+test orders had already been deleted as part of each ADR's own cleanup step before this ADR
+started, so `deleteMany` ran with zero referencing `OrderItem` rows in practice; the FK behavior
+was verified as a fact about the schema either way, not asserted from the (accurate, but
+unexercised here) reasoning alone.
+**Verified**, against the real local MariaDB (the same instance used throughout ADR 20-22):
+- All 500 rows validated before touching the seed script: every `categorySlug` in the file
+  matches one of the five real seeded `Category.slug` values exactly (`balloons-decor`,
+  `disposable-tableware`, `cake-sweets`, `guest-gifts`, `costume-accessories` - the same fix ADR
+  22 already made), all 500 `slug`s are unique, all required fields present and well-typed.
+- `npx prisma db seed` (`tsx prisma/seed.ts`) ran clean; the database held exactly 500 `Product`
+  rows afterward with the expected per-category split (150/90/100/80/80, matching the source
+  file), all 500 slugs distinct, and the ten old sample slugs (`party-backdrop-unicorn`, etc.)
+  confirmed gone. Ran the seed a second time immediately after - still exactly 500 rows, no
+  duplicate-key errors.
+- `npx prisma migrate reset --force` also exercised end to end against this same local database
+  (drop, recreate, reapply the migration) - Prisma's own AI-safety guard for this specific command
+  required explicit user consent threaded through `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION`
+  before it would run at all; the account holder's own message had already explicitly requested
+  this exact command, scoped explicitly to "محیط محلی/تست" (the local/test environment) - not
+  the real deployed database, which lives on the cPanel host's own MySQL and was never touched by
+  this. `migrate reset` does not auto-run the seed step in this Prisma version - `prisma db seed`
+  was run as an explicit second step, confirmed necessary by checking row counts came back `0`
+  immediately after the reset and `500` only after the explicit seed run.
+- Rebuilt the actual `.next/standalone/server.js` artifact against the freshly reseeded database
+  and ran three real wizard scenarios through the live HTTP endpoint per the account holder's own
+  request - Minecraft, Barbie, Dinosaur (all previously untestable with any real precision, since
+  the old ten-product catalog had exactly one theme-specific item total):
+  - Dinosaur: all five core categories matched a dinosaur-specific product by name
+    (`بک‌دراپ تم دایناسور`, `... تم دایناسور` for tableware/cake/gift/costume) - a full 5/5
+    theme-matched bundle, not a fallback.
+  - Minecraft and Barbie: 4/5 categories matched their theme by name; the `guest-gifts` slot fell
+    back to a generic "طلایی کلاسیک" item in both. Checked *why* directly against the database
+    rather than assuming a matching bug: `SELECT ... WHERE categorySlug='guest-gifts' AND title
+    LIKE '%ماینکرفت%'` (and the Barbie equivalent) returned zero rows - the source data simply
+    has no Minecraft- or Barbie-themed `guest-gifts` product to find. The engine's fallback
+    behavior (cheapest available, per ADR 22) is working exactly as designed here; the gap is in
+    the source catalog, not the matching logic.
+  - Fed the Dinosaur bundle's product lines into the real `/api/checkout` endpoint - succeeded,
+    `Order.totalAmount` (2,236,000) matched the summed line totals exactly.
+  - All test rows (`User`, `OtpCode`, `PartyProfile`, `Order`, `OrderItem`) from this round of
+    testing deleted afterward.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds.
+**Not done here:** no attempt was made to backfill the `guest-gifts` gap found for Minecraft/
+Barbie above by inventing new products - that's a real, reportable gap in the supplied catalog
+data, not something to paper over by fabricating inventory that doesn't reflect any real
+seller's actual stock.
