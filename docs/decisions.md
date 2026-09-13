@@ -1071,3 +1071,62 @@ that goes through the actual Prisma client (the same driver path the app itself 
 ADR's reproduction script did), is the trustworthy check. A CLI text-literal match failing is
 evidence about the CLI invocation, not about the data, and should have been treated that way
 before ADR 23 was written.
+
+## 2026-09-13 — reported live: the host's process-count quota (200/200) hit overnight, no code change
+
+### 25. Audited for a process/connection leak; found none - not fixable from this repo
+**What was reported:** the cPanel account's "Number of Processes" resource hit its 200/200 cap
+and locked the whole account, discovered around noon, with no manual host interaction since the
+previous night - only the deployed app was running. Asked to check whether this codebase (DB
+connections, a queue, a timer/interval, an unbounded retry) could leak OS processes or connections
+that accumulate over time, fix it if so, and say plainly if not.
+**What was checked, and found clean:**
+- **Process/thread spawning:** repo-wide search for `child_process`, `spawn(`, `exec(`,
+  `execSync`, `fork(`, `worker_threads`, `new Worker` - zero matches in application code (the only
+  hits anywhere in the repo are inside `.agents/skills/*/references/*.md`, static documentation
+  files, and `package-lock.json` metadata, neither of which executes). Nothing in this codebase
+  spawns an OS process or thread, ever.
+- **Timers/intervals:** exactly one `setTimeout` in the whole app
+  (`components/shop/AddToCartButton.tsx`, resetting a button's "added" label after 1.5s) - a
+  `"use client"` component, so it runs in the visitor's browser, not on the server, and cannot
+  affect the host's process count under any circumstance. No `setInterval` anywhere. No
+  `instrumentation.ts` (Next's server-startup hook file) exists in this project at all.
+- **Queues:** there is no queue/background-job system in this codebase - Sprint 0 has no cron-like
+  scheduled task, no message queue, nothing that runs outside a request's own lifecycle. The
+  question's premise (a queue that could leak) doesn't apply; nothing here to check further.
+- **Database connections:** `lib/prisma.ts` is a proper singleton - one `PrismaClient`/one
+  `PrismaMariaDb` adapter instance per Node process, matching Prisma's own documented pattern for
+  a long-lived server (as opposed to a serverless/lambda-per-request shape, which is what the
+  `global`-caching half of that pattern actually guards against - see the file itself). The
+  underlying `mariadb` driver defaults `connectionLimit` to `10` when unspecified (confirmed by
+  reading `node_modules/mariadb/lib/config/pool-options.js` directly, not from memory) - a bounded
+  pool of at most 10 real MySQL connections for the process's entire lifetime, not one created per
+  request. Nothing in this app ever calls `prisma.$disconnect()` at runtime (only
+  `prisma/seed.ts`, a one-off CLI script, does - correctly, since it's short-lived), which is the
+  *correct* behavior for a persistent server, not a leak. In any case, MySQL connections are TCP
+  sockets/threads inside `mysqld`, not separate OS processes under the cPanel account's own NPROC
+  quota - even a genuine connection leak here would show up as a MySQL-side limit, not this one.
+- **Fire-and-forget / unhandled rejections:** the one `void submit(draft.answers)` in
+  `components/wizard/WizardFlow.tsx` is also client-side, and `submit()` itself wraps its body in
+  try/catch/finally, so it can't reject unhandled even in the browser. No server-side code calls
+  an async function without awaiting or otherwise handling its result. No global
+  `uncaughtException`/`unhandledRejection` handler exists (none was needed - there's nothing here
+  that would produce one).
+**Conclusion, stated plainly as asked:** nothing in this repository can account for an
+accumulating OS-level process leak. This looks like a hosting/Passenger-side issue, not an
+application-code one - consistent with CloudLinux's account-wide NPROC quota counting *every*
+process under the account (not just this app: cron jobs, mail, other subdomains sharing the same
+cPanel account, and Passenger's own worker-process pool for this app all count against the same
+200). A single Node app cannot exhaust a 200-process quota through its own JavaScript logic
+without spawning processes, which this codebase never does - the plausible causes from here are
+Passenger's own process-pool sizing/recycling behavior on this host (e.g. crashed-and-respawned
+workers not being fully reaped, or a concurrency setting sized without the LVE's NPROC budget in
+mind) or something else entirely on the same account, neither of which is visible or fixable from
+this repository.
+**Suggested next step (operational, not a code change):** ask the hosting provider for a process
+list/snapshot from the time of the lockout (`ps` output or CloudLinux's own LVE stats), or check
+whether cPanel offers a process-history graph - that would show what was actually running when the
+quota was hit, which is the only way to distinguish "this app's Passenger workers" from "something
+else on the account" from here on.
+**Not done here:** no code was changed - there was nothing to fix, and the account holder
+explicitly asked for an honest "not a code issue" rather than a speculative change.
