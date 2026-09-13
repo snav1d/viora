@@ -1130,3 +1130,101 @@ quota was hit, which is the only way to distinguish "this app's Passenger worker
 else on the account" from here on.
 **Not done here:** no code was changed - there was nothing to fix, and the account holder
 explicitly asked for an honest "not a code issue" rather than a speculative change.
+
+## 2026-09-13 — three wizard usability/correctness requests
+
+### 26. Formatted budget input, adult age brackets, and capacity-aware bundle quantities
+**Decision:**
+1. **Budget input formatting.** The custom-budget field in `components/wizard/WizardFlow.tsx`
+   (step 3) is now `type="text"` instead of `type="number"`, storing the raw digit string in
+   `customBudget` state and deriving the *displayed* value on every render via
+   `Number(customBudget).toLocaleString("fa-IR")` - so it shows `۱۵٬۰۰۰٬۰۰۰` while the user types,
+   while `answers.budget` (and everything downstream: the request payload, `PartyProfile.budget`)
+   stays the plain number it always was. Along the way, added `toEnglishDigits()`/`digitsOnly()`
+   helpers so a Persian-keyboard `۰-۹` digit (common on Iranian mobile keyboards) is normalized
+   before parsing - `Number("۱۵")` alone returns `NaN`, which would have made the field silently
+   stop working the moment someone typed with a Persian numeral keyboard, a real risk for this
+   audience even though it wasn't the reported bug.
+2. **Adult age brackets.** `lib/wizard/types.ts`'s `AGE_BUCKETS` went from five child-only options
+   ending in a single "۱۳ سال به بالا" catch-all to eight: the same four child brackets, then
+   "۱۳ تا ۱۷ سال", "۱۸ تا ۳۰ سال", "۳۰ تا ۵۰ سال", "بالای ۵۰ سال". The old catch-all was replaced
+   rather than kept alongside the new brackets - "۱۳ سال به بالا" and "۱۸ تا ۳۰ سال" would
+   otherwise both be valid, overlapping answers to the same question, which is worse than not
+   having the option at all (a customer's stated age group becomes ambiguous data). Checked
+   whether any code branches on `ageGroup` before changing it: it doesn't - grepped every
+   `ageGroup`/`ageRange` reference in the repo and found `ageGroup` is only ever stored, echoed
+   into `PartyProfile`, and interpolated into the result-template summary text; `themes.json`'s
+   own `ageRange` field (a *different*, unrelated field, one entry per theme, not per party) is
+   never read by any code at all. So there was no "child party" filtering logic to find or fix -
+   changing the bucket list has zero effect on the suggestion engine's behavior.
+3. **Capacity-aware quantities (the real bug).** `lib/wizard/engine.ts` computed quantity per
+   category, not per product, and only ever special-cased `guest-gifts` (`quantity = guestCount`)
+   - every other category, including `disposable-tableware`, always used `quantity: 1` regardless
+   of what the chosen product's own title said about its capacity ("ست ظروف یک‌بارمصرف ۱۶ نفره" -
+   a 16-*person* set). A 50-guest party got exactly one 16-person tableware set, not four. Fixed
+   with two new functions: `parseGuestCapacity(title)` extracts a "serves N guests" number from a
+   product's own title (`\d+\s*(?:نفره|عددی)`, Persian digits normalized first - "۱۶ نفره" or a
+   "۱۰ عددی" cup/cupcake pack both mean "one unit covers N guests"), and
+   `requiredQuantity(categoryId, guestCount, capacity)` returns `guestCount` for `guest-gifts`
+   unconditionally (unchanged), `Math.ceil(guestCount / capacity)` when the product states a
+   capacity, or `1` otherwise (a backdrop, a costume set, a cake sold by weight - genuinely single
+   party-sized units, not something a real customer buys multiples of here). Quantity moved from
+   being computed once per category (`suggestBundle`, before knowing which product would be
+   picked) to once per *candidate product* inside `pickProduct`'s own scoring loop, since two
+   products in the same category can state different capacities (a 16- vs. a 32-person set) and
+   each needs its own unit count and `lineTotal` before the existing budget/theme ranking runs -
+   this is also what makes "prefer the product with a more precisely-fitting capacity" (the
+   request's second framing of the same ask) happen automatically: a better-fitting capacity means
+   less waste, which means a lower `lineTotal` for the same coverage, which the existing
+   budget-aware ranking already favors without any new logic for that specifically.
+**Why "عددی" (a pack of N units) counts as a capacity signal alongside "نفره" (serves N people),
+but "کیلویی" (a cake's weight, e.g. "۱ کیلویی") does not:** checked every numeric+unit-word
+pattern across all 500 seeded product titles (not guessed) - exactly three exist:
+`نفره` (46 products, `disposable-tableware` only), `عددی` (42 products, split between
+`disposable-tableware` cup packs and `cake-sweets` cupcake boxes), and `کیلویی` (40 products,
+`cake-sweets` only). A "بسته ۱۰ عددی" cup pack or a "باکس کاپ‌کیک ۶ عددی" box is the same shape
+of fact as a "۱۶ نفره" set - a discrete count of guest-servable units per pack - so both feed the
+same parser. A cake's weight is a fundamentally different kind of fact: there's no stated
+"serves N guests" number to divide by, and converting kilograms to a guest count would need an
+invented assumption (some guessed "servings per kilogram" constant) not present anywhere in the
+spec or the data - and this catalog doesn't model "buy two cakes for a bigger party" at all (each
+weight is already a separate SKU). Left alone rather than guessed at.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+and the actual browser UI (not just the API) for the two frontend changes - using Playwright
+against the pre-installed Chromium, per this environment's own testing guidance:
+- Loaded `/wizard` in a real headless browser: all eight age buckets render in the correct order,
+  including the three new adult brackets, with no visual or logical overlap.
+- Typed `15000000` into the real budget input field and read back `input.value` from the live
+  DOM: displayed as `۱۵٬۰۰۰٬۰۰۰`, confirming the formatting actually reaches the rendered input,
+  not just the code that's supposed to produce it.
+- Drove the entire wizard through a real browser session (logged in via the real OTP endpoints,
+  clicked through all five steps including typing into the formatted budget field) and captured
+  the actual outgoing `POST /api/party-profile` network request: `"budget":15000000` - a plain
+  number, proving the comma-formatted display never leaks into what's actually stored or sent.
+- Capacity math, via the real API: a 50-guest Barbie bundle correctly resolved the 16-person
+  tableware set to `quantity: 4` (`Math.ceil(50/16)`), while every non-capacity-bearing category
+  (decor, cake, costume) stayed at `quantity: 1` and `guest-gifts` stayed at `quantity: 50`,
+  exactly as before - confirming the fix is additive, not a regression for the categories that
+  were already correct.
+- Boundary-tested the ceiling math directly against a 32-person Unicorn tableware set: 32 guests
+  → 1 set, 33 → 2, 64 → 2, 65 → 3 - exact at every edge, not just the one number requested.
+- Fed the 50-guest Barbie bundle's product lines (including the new `quantity: 4` line) into the
+  real `/api/checkout` endpoint - succeeded, and `OrderItem.quantity`/`splitAmount` and the
+  resulting `Order.totalAmount` (5,270,000) all matched the expected math exactly, confirming the
+  capacity-aware quantity survives all the way through to a real, paid order, not just the
+  suggestion response.
+- All test rows (`User`, `OtpCode`, `PartyProfile`, `Order`, `OrderItem`) from this round deleted
+  afterward. `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds.
+**Not verified, and stated plainly:** the seeded catalog has no single theme with *two different*
+stated capacities in the same category (each theme's tableware sets are uniformly either all
+16-person or all 32-person - checked directly, not assumed), so "picks the more precisely-fitting
+capacity when more than one is available" couldn't be demonstrated against real data as its own
+scenario. The mechanism is the same computation validated above (`lineTotal` computed per
+candidate, ranked the same way regardless of source), not separate logic, so this isn't treated as
+an open risk - but it's recorded rather than silently claimed as separately tested.
+**Known minor UX limitation, not fixed:** the budget field re-renders its full formatted value on
+every keystroke without explicit caret-position preservation, so editing in the middle of an
+already-typed number (rather than typing left-to-right into an empty field) can reposition the
+cursor unexpectedly. Accepted rather than adding caret-tracking logic for a Sprint 0 field whose
+overwhelmingly common use is typing a fresh number, per this project's stated preference for
+standard patterns over cleverness (ADR 1).

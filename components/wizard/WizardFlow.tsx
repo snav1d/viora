@@ -29,6 +29,16 @@ const AUDIENCE_LABELS: Record<string, string> = {
   unisex: "تم‌های همه‌سنی",
 };
 
+// Persian-keyboard mobile input commonly types ۰-۹, which plain Number()/parseInt() don't
+// recognize - normalize to ASCII digits before parsing anything a user typed. See ADR 26.
+function toEnglishDigits(value: string): string {
+  return value.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+}
+
+function digitsOnly(value: string): string {
+  return toEnglishDigits(value).replace(/[^\d]/g, "");
+}
+
 function Chip({
   selected,
   onClick,
@@ -322,14 +332,18 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
               ))}
             </div>
             <input
-              type="number"
+              type="text"
               inputMode="numeric"
-              min={1}
               placeholder="بودجه‌ی دیگر (تومان)…"
-              value={customBudget}
+              // customBudget stores the raw digit string; the displayed value is formatted with
+              // thousands separators on every render, so the field always shows e.g. ۲۴٬۰۰۰٬۰۰۰
+              // while what's actually stored in answers.budget (and later sent to the server)
+              // stays a plain number. See ADR 26.
+              value={customBudget ? Number(customBudget).toLocaleString("fa-IR") : ""}
               onChange={(event) => {
-                setCustomBudget(event.target.value);
-                const value = Number(event.target.value);
+                const raw = digitsOnly(event.target.value);
+                setCustomBudget(raw);
+                const value = Number(raw);
                 setAnswers((a) => ({ ...a, budget: value > 0 ? value : null }));
               }}
               className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-charcoal focus:border-rose-400 focus:outline-none"

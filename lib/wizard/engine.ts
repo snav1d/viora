@@ -39,11 +39,28 @@ const CORE_DECOR_ID = "balloons-decor";
 const CORE_TABLEWARE_ID = "disposable-tableware";
 const GUEST_GIFTS_ID = "guest-gifts";
 
-// A per-guest item (one gift per attendee) - every other category's seeded products are already
-// party-sized units (a 100-balloon pack, a 32-person tableware set, a 1kg cake), not "1 per
-// guest", so they default to quantity 1. See docs/decisions.md ADR 22.
-function quantityForCategory(categoryId: string, guestCount: number): number {
-  return categoryId === GUEST_GIFTS_ID ? guestCount : 1;
+/** Extracts a "serves N guests" capacity from a product title - "ست ظروف یک‌بارمصرف ۱۶ نفره"
+ * -> 16, or "بسته ۱۰ عددی" -> 10 (a pack of N units, ~one per guest: cups, cupcakes). Persian
+ * digits are normalized to ASCII first. Returns null when the title states no such capacity - the
+ * product is a single party-sized unit regardless of guest count (a backdrop, a costume set, a
+ * cake sold by weight rather than a per-guest count), which is how a real customer actually buys
+ * those. See docs/decisions.md ADR 26. */
+function parseGuestCapacity(title: string): number | null {
+  const normalized = title.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+  const match = normalized.match(/(\d+)\s*(?:نفره|عددی)/);
+  return match ? Number(match[1]) : null;
+}
+
+/** How many units of one candidate product are needed to actually cover the party - see ADR 26.
+ * guest-gifts is always exactly one per guest, unconditionally (no gift product is ever sold in a
+ * multi-guest pack). Any other product whose title states a capacity ("۱۶ نفره") needs enough
+ * units, rounded up, to cover every guest - a 16-person tableware set for 50 guests needs 4, not
+ * 1. Anything else (a backdrop, a costume set, a cake) is a single party-sized unit regardless of
+ * guest count, as before. */
+function requiredQuantity(categoryId: string, guestCount: number, capacity: number | null): number {
+  if (categoryId === GUEST_GIFTS_ID) return guestCount;
+  if (capacity && capacity > 0) return Math.ceil(guestCount / capacity);
+  return 1;
 }
 
 /** Category budgets in Toman, after applying the JSON config's low-budget overflow rule. */
@@ -109,7 +126,7 @@ async function pickProduct(
   categorySlug: string,
   cityId: string,
   tomansBudget: number,
-  quantity: number,
+  guestCount: number,
   theme: string,
   colors: string[],
 ) {
@@ -121,8 +138,13 @@ async function pickProduct(
   });
   if (products.length === 0) return null;
 
+  // Quantity is computed per candidate, not once for the whole category: two products in the
+  // same category can state different capacities (a 16- vs. a 32-person tableware set), so each
+  // needs its own unit count and lineTotal before ranking - a more precisely-fitting capacity
+  // naturally wins on cost without any extra logic once this is right. See ADR 26.
   const scored = products.map((product) => {
     const unitPrice = toNumber(product.price);
+    const quantity = requiredQuantity(categorySlug, guestCount, parseGuestCapacity(product.title));
     const { keywordScore, colorScore } = themeMatchScore(
       `${product.title} ${product.description ?? ""}`,
       theme,
@@ -131,6 +153,7 @@ async function pickProduct(
     return {
       product,
       unitPrice,
+      quantity,
       lineTotal: unitPrice * quantity,
       score: keywordScore + colorScore,
       isThemed: keywordScore > 0,
@@ -248,12 +271,11 @@ export async function suggestBundle(input: EngineInput): Promise<SuggestedBundle
       continue;
     }
 
-    const quantity = quantityForCategory(category.id, input.guestCount);
     const picked = await pickProduct(
       category.id,
       input.cityId,
       category.tomans,
-      quantity,
+      input.guestCount,
       input.theme,
       colors,
     );
@@ -266,7 +288,7 @@ export async function suggestBundle(input: EngineInput): Promise<SuggestedBundle
         categoryId: category.id,
         categoryLabel: category.label,
         unitPrice: picked.unitPrice,
-        quantity,
+        quantity: picked.quantity,
         lineTotal: picked.lineTotal,
       });
     }
