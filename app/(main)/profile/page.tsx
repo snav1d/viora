@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { User as UserIcon, Package } from "lucide-react";
+import { User as UserIcon, Package, Store } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
 import { getSession } from "@/lib/auth/session";
+import { getSellerProfile } from "@/lib/auth/seller";
 import { prisma } from "@/lib/prisma";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { toNumber } from "@/lib/decimal";
@@ -38,6 +39,7 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } });
   const orders = await getOrdersForUser(session.userId);
+  const sellerProfile = await getSellerProfile();
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-5">
@@ -87,6 +89,16 @@ export default async function ProfilePage() {
           </ul>
         )}
       </section>
+
+      <ButtonLink
+        href={sellerProfile ? "/seller" : "/seller/register"}
+        variant="secondary"
+        size="md"
+        className="w-full gap-2"
+      >
+        <Store className="h-4 w-4" strokeWidth={1.75} />
+        {sellerProfile ? "پنل فروشنده" : "ثبت‌نام به‌عنوان فروشنده"}
+      </ButtonLink>
 
       <LogoutButton />
     </main>

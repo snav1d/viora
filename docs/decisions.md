@@ -1228,3 +1228,119 @@ already-typed number (rather than typing left-to-right into an empty field) can 
 cursor unexpectedly. Accepted rather than adding caret-tracking logic for a Sprint 0 field whose
 overwhelmingly common use is typing a fresh number, per this project's stated preference for
 standard patterns over cleverness (ADR 1).
+
+## 2026-09-13 — Product seller panel (minimum viable)
+
+### 27. Seller registration, product CRUD, and order fulfillment for product sellers
+**Decision:** Built the first working version of `panels-and-operations-spec.md`'s "پنل
+فروشنده‌ی محصول", scoped to exactly what was asked (registration, product CRUD, order
+fulfillment) and explicitly not sales analytics, subscription management, or reviews:
+- **Registration** (`app/seller/register`, `POST /api/seller/register`): a form collecting
+  businessName/description/categoryId/cityId/nationalId/bankAccountIban, creating a
+  `SellerProfile` with `status: PENDING` and appending `"SELLER"` to the user's existing
+  `roles` array (never replacing it — a user can already be a `CUSTOMER` and become a `SELLER`
+  too, per ADR 7/20's multi-role design) inside one `$transaction`, so a `SellerProfile` and its
+  matching role never diverge even if one write somehow failed. Approval is a direct
+  `UPDATE SellerProfile SET status='APPROVED'` for now — explicitly requested rather than
+  building an admin panel first.
+- **The panel gate** (`app/seller/(panel)/layout.tsx`, a route group so `/seller/register`
+  itself sits outside it): redirects to `/auth` if not logged in, to `/seller/register` if the
+  user has no `SellerProfile` yet, and renders a dedicated "pending" or "rejected" screen (with
+  `rejectionReason`) in place of the panel for those two statuses — the actual dashboard/
+  products/orders pages only ever render for `status: APPROVED`.
+- **Product CRUD** (`app/seller/(panel)/products/*`, `/api/seller/products*`): title,
+  description, categoryId, cityId, price, stock, up to 6 images, active/inactive, with a
+  search (`?q=`) and status filter (`?status=active|inactive`) on the list page. Delete is a
+  real `prisma.product.delete()`, not a soft-delete — safe because `OrderItem.productId` is
+  `ON DELETE SET NULL` (confirmed against the actual migration SQL, not assumed — the same fact
+  already established for the 500-product reseed, ADR 23), and no UI anywhere reads
+  `OrderItem.product` for a past order, so deleting a product a customer already bought loses
+  nothing a user would see. Every product route re-checks `sellerId` ownership server-side
+  (`getSellerProductById`) — the page-level gate stops navigation, not a direct `fetch()` to the
+  API, so each route needs its own check regardless of what the layout already enforced.
+- **Order fulfillment** (`app/seller/(panel)/orders`, `POST /api/seller/orders/[itemId]/ship`):
+  lists only `OrderItem`s where `sellerId` matches this seller **and** the parent order's
+  `paymentStatus` is `PAID` — a `PENDING_PAYMENT`/`FAILED` order never reached a real customer's
+  hands in this codebase (checkout only flips to `PROCESSING` on a successful mock charge), so
+  showing it in a seller's fulfillment queue would be actionable-looking noise for an order that
+  isn't real yet. Marking an item shipped sets `shippedAt`/`trackingCode` on that `OrderItem`
+  only, then separately checks whether *every* item on the parent `Order` (not just this
+  seller's) now has `shippedAt` set before flipping `Order.status` to `SHIPPED` — orders are
+  hardcoded `orderType: SINGLE_SELLER` today (ADR 20), but nothing stops a customer's cart from
+  actually mixing products from different sellers (the cart has no such restriction), so a
+  single-item auto-flip would incorrectly mark a multi-seller order fully shipped the moment
+  the first seller ships their own piece.
+- **Image storage**: added `S3StorageProvider` (`lib/providers/storage.ts`) alongside the
+  existing `LocalDiskStorageProvider`, using `@aws-sdk/client-s3` with `forcePathStyle: true`
+  (works against Liara Object Storage, ArvanCloud Object Storage, or real AWS S3 — see
+  `.env.example`). This is a genuine architectural fork, not a style choice, so it was put to
+  the user directly rather than assumed: the `deploy` branch is force-pushed as a rewritten
+  orphan commit on every CI build (ADR 15), and this sandbox has no way to verify from here
+  whether the user's actual cPanel update process preserves an untracked `public/uploads/`
+  directory across that or does a fresh checkout every time — guessing wrong would mean sellers'
+  product photos silently vanish on the next deploy. The user chose cloud storage; `local` stays
+  the (default, dev-only) implementation for `STORAGE_PROVIDER` since it needs no credentials to
+  develop against.
+**Also added**, not explicitly requested but directly in service of the stated goal ("سلرها
+هیچ راهی برای ورود ندارند" — sellers have no way in): a "ثبت‌نام به‌عنوان فروشنده" / "پنل
+فروشنده" link on the existing customer profile page (`app/(main)/profile/page.tsx`), since a
+panel with no discoverable entry point from anywhere in the app would still leave sellers with
+no real way in.
+**Rejected:** slug regeneration on product title edits — `Product.slug` is the product's public
+URL (`/shop/product/[slug]`) and already shared/bookmarkable the moment a product goes active,
+so an edit changes the title but never the slug. New products get a slug via
+`lib/slug.ts`'s `productSlug()`: ASCII-only characters extracted from the title plus a random
+hex suffix, since seller-entered titles are almost always Persian (which transliterates to
+nothing meaningful) and a random suffix is what actually guarantees uniqueness here, not a
+best-effort transliteration.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`
+(not `next dev`), driving every route via real HTTP (`curl`, cookie-jar sessions) rather than
+reading the code and assuming it works:
+- Registered a fresh test user as a seller → `SellerProfile.status: PENDING`,
+  `User.roles: ["CUSTOMER","SELLER"]` (both, not just `SELLER`) confirmed directly in the
+  database, and `GET /seller` rendered the pending screen, not the dashboard.
+- A second registration attempt on the same account was correctly rejected
+  ("شما قبلاً... ثبت کرده‌اید"), and the pre-existing seed-data seller (`فروشگاه جشن پارسا`,
+  owner of all 500 catalog products) was left untouched throughout — confirmed to be seed
+  fixture data, not leftover test residue, before doing anything destructive near it.
+- Approved the test seller directly via SQL; `GET /seller` then rendered the real dashboard
+  with the correct business name and stats.
+- Uploaded a real image via `POST /api/seller/uploads` (`local` provider for this test run, no
+  real S3 credentials exist to test against, and none should ever be pasted into this
+  conversation) and used the returned URL to create a product; the product then appeared,
+  correctly, on the seller's own product list, in a `?q=` search for part of its title, and
+  disappeared under a `?status=inactive` filter (it was active) — but *not* under a
+  non-matching search term, confirming the filter is a real `WHERE`, not a no-op.
+- The product edit page correctly pre-filled every field, including Persian-digit-formatted
+  price/stock (`۱۵۰٬۰۰۰`) and a rendered `<img>` preview of the uploaded photo.
+- `PATCH` from a *different* seller session against this product, and a direct `GET` of its
+  edit page, both correctly returned 404 — ownership checks work, not just UI hiding.
+- Placed a real order for the product as a separate customer account via `/api/checkout`, then
+  confirmed it appeared in the seller's `/seller/orders` list (only after `paymentStatus: PAID`
+  — the mock payment provider always succeeds, so this always passes in Sprint 0, but the query
+  itself was read to confirm it filters on this, not just eyeballing the result). Marked it
+  shipped with a tracking code: `OrderItem.shippedAt`/`trackingCode` set correctly,
+  `Order.status` flipped to `SHIPPED` (the only item on that order), the UI updated to show
+  "ارسال شده" and the tracking code, and a second ship attempt on the same item was correctly
+  rejected ("قبلاً ارسال شده").
+- Deleted the product afterward: the delete succeeded, `OrderItem.productId` for the
+  already-shipped order confirmed `NULL` in the database (not a foreign-key error), and the
+  seller's own orders page still rendered that historical line correctly via a
+  `"محصول حذف‌شده"` fallback instead of crashing on a null relation.
+- Exercised the `REJECTED` status screen directly via SQL, including a real `rejectionReason`
+  string rendering correctly on the page (one intermediate check appeared to fail — the reason
+  text didn't show up — but this was `mysql` CLI's own default-charset mangling of the Persian
+  `UPDATE` statement, the exact same known pitfall from ADR 23/24, not an app bug; re-ran the
+  same `UPDATE` with `--default-character-set=utf8mb4` and the text rendered correctly).
+- `npm run build` succeeds (all new routes listed in its output), `tsc --noEmit` and `eslint .`
+  both clean. All test rows (`User`, `SellerProfile`, `Product`, `Order`, `OrderItem`,
+  `OtpCode`) and the one uploaded test image created during this pass were deleted afterward;
+  the pre-existing seed data (3 users, 500 products) was confirmed unchanged before and after.
+**Not built, per the request's explicit scope:** an admin panel/UI for approving sellers (manual
+SQL only, as asked), sales analytics, subscription management (every `APPROVED` seller has full
+access, no `Subscription` row is created or checked), and reviews/ratings. **Not fixed, a
+pre-existing gap unrelated to this feature:** the storefront (`ProductCard`,
+`components/shop/*`) never renders a product's actual `images` — every product, seed data and
+seller-uploaded alike, shows the same generic placeholder icon on `/shop`. Seller-uploaded
+images are stored and retrievable (confirmed above) but nothing customer-facing displays them
+yet; out of scope for a seller-panel feature and not something the request asked for.

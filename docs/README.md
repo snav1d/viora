@@ -44,15 +44,19 @@ A Next.js (App Router, TypeScript) skeleton with:
   reads `config/party-wizard/budget-allocation.json`, filters active products/services in the
   chosen city, and returns a real suggested bundle with an "add all to cart" action. See
   `docs/decisions.md` ADR 22.
+- Product seller panel (`app/seller/`): registration with a manual (direct-DB) approval step,
+  product CRUD with image upload (search/filter on the list page), and order fulfillment
+  (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
 
 **Not built yet** (intentionally, per `docs/sprint-0-brief.md` §1): real payment/split-payment,
 the AI free-text entry point for Build My Party (the plain multi-step form + rule-based engine is
-the whole of phase 1 — see ADR 22), the balloon-printing order form, and the seller/print-partner/
-admin panels. The database has placeholders for all of this (see `docs/decisions.md` ADR 4, 6) so
-building them later doesn't require a schema rewrite.
+the whole of phase 1 — see ADR 22), the balloon-printing order form, the print-partner/admin
+panels, and — within the seller panel itself — an admin approval UI, sales analytics,
+subscription management, and reviews (ADR 27). The database has placeholders for all of this
+(see `docs/decisions.md` ADR 4, 6) so building them later doesn't require a schema rewrite.
 
 ## 3. Running it locally
 
