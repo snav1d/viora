@@ -29,10 +29,9 @@ export default async function SellerPanelLayout({ children }: { children: React.
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gold-100 text-gold-600">
             <Clock3 className="h-7 w-7" strokeWidth={1.5} />
           </span>
-          <p className="font-medium text-charcoal">درخواست شما در انتظار تایید است</p>
+          <p className="font-medium text-charcoal">به جمع ویورا خوش اومدی!</p>
           <p className="text-sm text-charcoal-muted">
-            بعد از بررسی و تایید حساب فروشگاه «{profile.businessName}»، دسترسی کامل به پنل فروشنده
-            برای شما فعال می‌شود.
+            پس از تایید اطلاعات فروشگاه «{profile.businessName}»، پنل فروشگاهی شما فعال می‌شود.
           </p>
         </div>
       </main>

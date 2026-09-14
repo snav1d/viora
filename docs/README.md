@@ -44,9 +44,10 @@ A Next.js (App Router, TypeScript) skeleton with:
   reads `config/party-wizard/budget-allocation.json`, filters active products/services in the
   chosen city, and returns a real suggested bundle with an "add all to cart" action. See
   `docs/decisions.md` ADR 22.
-- Product seller panel (`app/seller/`): registration with a manual (direct-DB) approval step,
+- Product seller panel (`app/seller/`): a 4-step registration wizard (shop info + avatar,
+  business identity, terms agreement, contact/address) ending in manual (direct-DB) approval,
   product CRUD with image upload (search/filter on the list page), and order fulfillment
-  (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27.
+  (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.

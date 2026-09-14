@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireApprovedSeller } from "@/lib/auth/seller";
 import { productSlug } from "@/lib/slug";
+import { storageUrlSchema } from "@/lib/validation/url";
 
 const bodySchema = z.object({
   title: z.string().min(2),
@@ -11,7 +12,7 @@ const bodySchema = z.object({
   cityId: z.string().min(1),
   price: z.number().int().positive(),
   stock: z.number().int().min(0),
-  images: z.array(z.string().url()).max(6),
+  images: z.array(storageUrlSchema).max(6),
   isActive: z.boolean(),
 });
 

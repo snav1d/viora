@@ -105,7 +105,7 @@ model Category {
 
   products         Product[]
   serviceOfferings ServiceOffering[]
-  sellerProfiles   SellerProfile[]
+  sellerCategories SellerCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -126,24 +126,46 @@ enum ApprovalStatus {
 
 /// Product seller (fixed monthly subscription) — panels-and-operations-spec.md §2.
 model SellerProfile {
-  id              String         @id @default(cuid())
-  userId          String         @unique
-  user            User           @relation(fields: [userId], references: [id])
-  businessName    String
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id])
+  businessName String
   /// Free-text shop description, shown on the seller's own registration/profile - not a
   /// per-product field. See docs/decisions.md ADR 27.
-  description     String?        @db.Text
-  /// The seller's primary product category (self-described at registration, e.g. "بادکنک‌آرایی
-  /// و دکور") - independent of each Product's own categoryId, which is set per product and can
-  /// span multiple categories for the same seller. See docs/decisions.md ADR 27.
-  categoryId      String?
-  category        Category?      @relation(fields: [categoryId], references: [id])
-  nationalId      String
-  bankAccountIban String
-  cityId          String?
-  city            City?          @relation(fields: [cityId], references: [id])
-  status          ApprovalStatus @default(PENDING)
-  rejectionReason String?        @db.Text
+  description  String? @db.Text
+  /// Either an uploaded logo (via StorageProvider) or one of the built-in default avatars
+  /// (public/avatars/*.svg, see lib/avatars.ts) - a single URL either way. Nullable only because
+  /// it's a new column on a table with existing rows (see ADR 29's migration note); the
+  /// registration wizard always has one selected (a default is pre-picked) before submit.
+  avatarUrl    String?
+  /// A shop can sell across more than one product category at once - a join table, not a single
+  /// FK (superseding ADR 27's single categoryId). See docs/decisions.md ADR 29.
+  categories   SellerCategory[]
+  nationalId   String
+  /// شناسه‌ی صنفی - a separate business/trade-union registration number, distinct from the
+  /// individual's national ID above. See docs/decisions.md ADR 29.
+  unionId      String?
+  /// Photo of the seller's پروانه‌ی کسب (business license), uploaded via StorageProvider.
+  businessLicenseImageUrl String?
+  bankAccountIban         String
+  cityId                  String?
+  city                    City?   @relation(fields: [cityId], references: [id])
+  /// Shop/warehouse address - collected as free text, not tied to City (which only exists for
+  /// phase-gating - see ADR 29's note on why city selection was dropped from the wizard itself).
+  address                 String? @db.Text
+  /// A JSON array of phone number strings (MySQL has no native scalar-list column - ADR 20). At
+  /// least one is required at the API layer - a schema-level minimum can't be expressed for Json.
+  phoneNumbers            Json    @default("[]")
+  /// How the seller heard about Viora - one of a fixed set of options, or "other" with free text
+  /// in referralSourceOther. See docs/decisions.md ADR 29.
+  referralSource          String?
+  referralSourceOther     String?
+  /// Set once, at registration, when the seller checks the terms-agreement checkbox. A nullable
+  /// "set = happened" timestamp, matching OtpCode.consumedAt/OrderItem.shippedAt's convention
+  /// elsewhere in this schema, not a boolean.
+  termsAcceptedAt         DateTime?
+  status                  ApprovalStatus @default(PENDING)
+  rejectionReason         String?        @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,6 +175,18 @@ model SellerProfile {
   orderItems    OrderItem[]
 
   @@index([status])
+}
+
+/// Join table for SellerProfile <-> Category (a shop can sell across several categories at
+/// once) - see docs/decisions.md ADR 29. No extra fields on the relationship itself, so this is
+/// a plain composite-PK join table, not a full entity.
+model SellerCategory {
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id])
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+
+  @@id([sellerProfileId, categoryId])
   @@index([categoryId])
 }
 

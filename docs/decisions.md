@@ -1429,3 +1429,127 @@ investigation were dropped/deleted afterward.
 against the real production database - this session cannot reach it, and doing so is the actual
 resolution for symptom 1. This should be run, then `/profile` (and the other `OrderItem`-touching
 pages listed above) re-checked on the live host.
+
+## 2026-09-14 — Seller registration becomes a 4-step wizard
+
+### 29. Multi-step seller registration wizard, plus two bugs found and fixed along the way
+**Decision:** Replaced the single-page seller registration form with a 4-step wizard
+(`components/seller/SellerRegisterWizard.tsx`, mirroring `WizardFlow`'s own pattern -
+`ProgressDots`, a `sessionStorage` draft so navigating to the terms page and back doesn't lose
+progress, back/next step nav): step 1 (shop name, avatar, multi-category, short description),
+step 2 (business license photo, national ID, union ID, IBAN with a plain-language note on what
+it's used for), step 3 (a single terms-acceptance checkbox linking to a new `/legal/seller-terms`
+page built from `legal-pages-draft.md` §4), step 4 (address, 1-5 contact phone numbers, a "how
+did you hear about us" survey). Final button reads "ثبت اطلاعات و ارسال برای ویورا" per the
+request, not the old "ثبت درخواست".
+**Schema changes** (`prisma/migrations/20260914101619_seller_registration_wizard`):
+`SellerProfile` gained `avatarUrl`, `unionId`, `businessLicenseImageUrl`, `address`,
+`phoneNumbers` (`Json`), `referralSource`/`referralSourceOther`, `termsAcceptedAt` (a nullable
+"set = happened" timestamp, matching `OtpCode.consumedAt`/`OrderItem.shippedAt`'s convention, not
+a boolean); its single nullable `categoryId` was replaced with a `SellerCategory` join table
+(`@@id([sellerProfileId, categoryId])`) since a shop can now sell across more than one category
+at once. Every new column is nullable at the DB level even though the wizard treats almost all of
+them as required - deliberately, not an oversight: `SellerProfile` already had one real row (the
+seed fixture) before this migration, and Prisma's non-interactive `migrate dev` can't prompt for
+a backfill value for a new `NOT NULL` column with no default, so "required" is enforced entirely
+at the API/zod layer here, the same trade-off `cityId` already made under ADR 27.
+**A real migration bug, caught before it shipped:** the first generated migration added
+`phoneNumbers JSON NOT NULL` with no explicit `DEFAULT`. Applying it locally left the existing
+seed row's `phoneNumbers` as an **empty string**, not `[]` - MySQL/MariaDB's own implicit default
+for a `NOT NULL` text-like column with no stated default, which is not valid JSON and fails that
+same column's own `json_valid()` CHECK constraint on every future read (confirmed directly: a
+fresh Prisma query against that row throws). This is the exact same failure shape as ADR 28's
+`/profile` incident - a schema change that silently breaks reads on pre-existing rows - except
+caught here before the migration was ever pushed anywhere, by testing it against a throwaway
+database seeded with one pre-existing row first. Fixed by rewriting the migration SQL to add the
+column nullable, backfill `'[]'` explicitly, then tighten to `NOT NULL` - verified by replaying
+the corrected SQL from scratch against a fresh throwaway database with a simulated pre-existing
+row, not just re-trusting the same environment that already had the column hand-patched.
+**Two more bugs found while building this feature, both fixed, neither scoped only to the
+wizard:**
+1. `app/api/seller/products/route.ts` and `.../products/[id]/route.ts` validated `images` with
+   `z.array(z.string().url()).max(6)` (shipped under ADR 27). `z.string().url()` requires an
+   *absolute* URL - confirmed directly against zod - but `LocalDiskStorageProvider.save()` (the
+   default `STORAGE_PROVIDER`, and what local dev/testing runs without real S3 credentials)
+   returns a site-relative path like `/uploads/xyz.png`. Every earlier "end-to-end" test of the
+   product-photo upload flow had manually prefixed that path with `http://localhost:3100` before
+   sending it - never actually exercising what the real `ProductForm.tsx` client code sends. Real
+   browser-driven testing this round (see below) hit the bug directly. Fixed with a shared
+   `lib/validation/url.ts`'s `storageUrlSchema` (accepts an absolute URL *or* a `/`-prefixed
+   relative path) used by the product routes and this feature's new `avatarUrl`/
+   `businessLicenseImageUrl` fields alike, instead of duplicating the bug into new code.
+2. The wizard's "شماره‌های تماس" (contact phone numbers) initially reused
+   `normalizeIranianPhone()` (ADR 2, mobile-only - it exists for OTP delivery, which requires a
+   mobile number). A shop's own listed contact number is reasonably a landline, and real testing
+   with one (`02112345678`) was rejected. Added `normalizeIranianContactNumber()` alongside it in
+   `lib/validation/phone.ts` (any 10-11 digit number starting with `0`) rather than loosening the
+   OTP-specific function, since OTP genuinely does require a mobile number and the two rules
+   shouldn't be coupled.
+**City selection was dropped from the wizard entirely, not asked about:** the request's step-4
+fields don't mention a city selector, and `SellerProfile.cityId` exists purely for phase-gating
+(ADR 20's city-rollout mechanism) - with exactly one active city (Tehran) right now, asking a
+seller to "choose" between one available option is friction with no real decision behind it, the
+opposite of the "warm, stress-free" tone the request asked for throughout. `POST
+/api/seller/register` now auto-assigns `cityId` to whichever city is active server-side (erroring
+clearly if none is, an edge case that can't happen today but shouldn't fail silently if it ever
+did). If a second city ever opens, this one line - not the wizard's UI - is what needs revisiting.
+**Default avatars:** 12 flat, single-motif SVGs (`public/avatars/avatar-01..12.svg`, listed in
+`lib/avatars.ts`) built directly from this app's own Champagne Rose tokens (`app/globals.css`) -
+a circle background plus one geometric shape (dot, triangle, hexagon, diamond, crescent, rings,
+star, stripes, dot-grid, plus), no two using the same background/shape color pair. A placeholder
+set exercising the picker UI, not the full 50, per the request.
+**A significant, previously-unknown finding from real testing, not a defect in this feature's own
+code:** verifying the avatar/license image previews in a real browser surfaced that the compiled
+`.next/standalone/server.js` **never serves a file added to `public/uploads/` after the server
+process started** - not eventually, not after retrying, only after the process itself is
+restarted. Confirmed precisely: a freshly-uploaded file (written to disk successfully, confirmed
+via `ls`) 404s on its very first request and every request after, served as a rendered Next.js
+not-found response (`x-nextjs-cache`/`x-nextjs-prerender` headers present, not a plain static-file
+404); restarting the server process with no other change makes the exact same file start
+returning `200` immediately. Next.js's standalone server appears to resolve `useFileSystemPublicRoutes`
+once at process startup rather than re-checking the filesystem per request - `next dev` is a
+different code path and isn't affected (per Next's own docs on how `public/` is generally
+served), which is exactly why this never surfaced in any dev-mode use of the app, only when
+testing the actual compiled artifact directly, as this project's own testing standard requires.
+This makes `STORAGE_PROVIDER="local"` materially worse than previously documented: ADR 27 flagged
+it as a *data-loss-on-the-next-deploy* risk; it turns out uploaded files are never servable at all
+during the *current* running process either, unless that process happens to restart after the
+upload. This doesn't change anything about production (S3 is already the chosen path there, per
+ADR 27, and S3-served URLs never touch Next's own static file resolution at all) - recorded here
+because it materially changes how "risky" local storage actually is, and because it explains a
+gap in this project's own earlier "verified end-to-end" claim for the product-photo upload
+feature: that pass never re-fetched an uploaded image, only checked that the API accepted and
+stored its URL.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP and a real browser rather than reading the code and assuming it works:
+- Drove the entire wizard through a real headless Chromium session (Playwright): real OTP login,
+  all four steps including picking a default avatar by clicking it, selecting two categories,
+  uploading a real business-license image through the actual file input, checking the terms
+  checkbox (confirmed its link points at `/legal/seller-terms`), adding a second phone number via
+  "افزودن شماره‌ی دیگر", and submitting - landed on `/seller` showing the exact new PENDING copy
+  ("به جمع ویورا خوش اومدی!..."), confirmed via a full-page screenshot.
+- Confirmed every field in the database afterward: `avatarUrl`, `businessLicenseImageUrl`,
+  `nationalId`, `unionId`, `bankAccountIban`, `address`, `phoneNumbers` (both the mobile and the
+  landline number, normalized), `referralSource`, `termsAcceptedAt` set, `status: PENDING`, both
+  selected categories present in `SellerCategory`, `User.roles` correctly became
+  `["CUSTOMER","SELLER"]` (not replacing the existing role), and `cityId` correctly
+  auto-assigned to Tehran.
+- Screenshotted each step individually to check the actual rendered design against the "warm,
+  confident, stress-free" brief - avatars, category chips, and the license-upload dropzone all
+  render as intended in the Champagne Rose palette.
+- Exercised every validation rule directly via the API with real requests: terms not accepted,
+  `referralSource: "other"` with no free text, zero categories selected, and a malformed image
+  URL - each rejected with its own specific, correctly-worded error message, not a generic one.
+- Re-ran the product-photo upload flow end-to-end with the corrected `storageUrlSchema` using the
+  *actual* relative path an upload returns (not a manually-prefixed one this time) - product
+  creation now succeeds where it would have silently failed before this fix.
+- All test users, seller profiles, category links, the one test product, and uploaded test files
+  created during this pass were deleted/removed afterward; the pre-existing seed data (3 users,
+  1 seller with 500 products) was confirmed unchanged before and after.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, all new routes listed in its
+  output.
+**Not done, per the request's own framing:** the print-partner-specific bullet from
+`legal-pages-draft.md` §4 ("پارتنر چاپ متعهد می‌شود...") was left out of `/legal/seller-terms` -
+that page is specifically for product sellers going through this wizard, not print partners, and
+including a print-partner obligation in a product-seller's terms page would be confusing, not
+thorough.

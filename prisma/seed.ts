@@ -9,6 +9,7 @@ import "dotenv/config";
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import productsSeedData from "./seed-data/products.json";
+import { DEFAULT_AVATARS } from "../lib/avatars";
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -89,17 +90,37 @@ async function main() {
     update: {},
     create: { phone: "09120000001", name: "فروشگاه جشن پارسا", roles: ["SELLER"] },
   });
+  const sellerProfileFields = {
+    businessName: "فروشگاه جشن پارسا",
+    description: "فروشگاه تخصصی لوازم جشن تولد، با تنوع بالا در بادکنک، ظروف، کیک و کادوی مهمانان.",
+    avatarUrl: DEFAULT_AVATARS[0].url,
+    nationalId: "1111111111",
+    unionId: "9876543210",
+    businessLicenseImageUrl: "/avatars/avatar-01.svg",
+    bankAccountIban: "IR000000000000000000000001",
+    cityId: tehran.id,
+    address: "تهران، خیابان ولیعصر، بالاتر از میدان ونک، پلاک ۱۲۳",
+    phoneNumbers: ["09120000001"],
+    referralSource: "internet_social",
+    termsAcceptedAt: new Date(),
+    status: "APPROVED" as const,
+  };
   const sellerProfile = await prisma.sellerProfile.upsert({
     where: { userId: sellerUser.id },
-    update: {},
-    create: {
-      userId: sellerUser.id,
-      businessName: "فروشگاه جشن پارسا",
-      nationalId: "1111111111",
-      bankAccountIban: "IR000000000000000000000001",
-      cityId: tehran.id,
-      status: "APPROVED",
-    },
+    // update mirrors create (not `{}`) so re-running this script backfills these fields onto a
+    // SellerProfile row that already existed before they did - see docs/decisions.md ADR 29.
+    update: sellerProfileFields,
+    create: { userId: sellerUser.id, ...sellerProfileFields },
+  });
+  // The fixture seller's 500 products span all five product categories (see below), so it's
+  // linked to all of them here too - the realistic case a multi-category shop selector exists
+  // for in the first place. See docs/decisions.md ADR 29.
+  await prisma.sellerCategory.createMany({
+    data: Object.values(productCategories).map((category) => ({
+      sellerProfileId: sellerProfile.id,
+      categoryId: category.id,
+    })),
+    skipDuplicates: true,
   });
 
   const providerUser = await prisma.user.upsert({
