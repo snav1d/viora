@@ -1344,3 +1344,88 @@ pre-existing gap unrelated to this feature:** the storefront (`ProductCard`,
 seller-uploaded alike, shows the same generic placeholder icon on `/shop`. Seller-uploaded
 images are stored and retrievable (confirmed above) but nothing customer-facing displays them
 yet; out of scope for a seller-panel feature and not something the request asked for.
+
+## 2026-09-14 — Post-deploy `/profile` incident: two unrelated causes, not one session bug
+
+### 28. `/profile` crash on the live host is a missed migration, not a session regression
+**Reported:** after the seller-panel deploy, `/profile` showed Next's generic "A server error
+occurred" page (with a digest, no detail) on the real live host for a logged-in user, and a
+separate manual test (`node server.js` on a bare test port, real OTP login cycle) showed the
+*logged-out* UI instead of a crash - suggesting, from the outside, one session-handling
+regression caused by the seller panel. Investigated both, on the real compiled
+`.next/standalone/server.js` against real MariaDB, as asked - not by reading the code and
+guessing. **They are two different, unrelated bugs, and neither one is a session bug:**
+1. **The live crash.** Reproduced exactly: built a throwaway database seeded from only the
+   *pre*-seller-panel migration (`20260910085317_init`), leaving out
+   `20260913134354_seller_panel` (i.e. `SellerProfile.categoryId`/`description` and
+   `OrderItem.shippedAt`/`trackingCode` never got added) - simulating a host where the app was
+   redeployed but `npx prisma migrate deploy` was never run against the real `DATABASE_URL`
+   afterward, exactly the two-separate-steps deploy process `docs/README.md` §5 already
+   documents. A real login against that database, then a real `GET /profile`, reproduced the
+   crash exactly: `HTTP 500`, and the server log showed
+   `PrismaClientKnownRequestError: The column 'OrderItem.shippedAt' does not exist in the
+   current database`. Note that this throws from `getOrdersForUser()` - code that predates the
+   seller panel entirely - not from the new `getSellerProfile()` call: Prisma 7's generated
+   client selects every column the *schema* declares on a model, so once the client is
+   regenerated for the new schema, **any** query touching `OrderItem` breaks against an
+   un-migrated database, not just seller-panel-specific ones. `/cart`'s checkout flow and every
+   `/seller/*` page read `OrderItem` too and would break the exact same way right now if this
+   migration is genuinely missing on the live host - `/profile` isn't uniquely broken, it's just
+   the page this was first noticed on.
+   **The fix is not a code change** - it's the operational step `docs/README.md` §5 already
+   calls out as separate from redeploying the app: run `npx prisma migrate deploy` against the
+   real production `DATABASE_URL` (from the host itself, or any machine that can reach it - no
+   cross-border connectivity issue exists for this host's own MySQL per ADR 20). This session has
+   no access to the real production database and did not - and could not - run that command;
+   confirming and applying it is the next action on the actual host, not something this fix
+   claims to have done.
+2. **What *is* a code change:** `/profile`'s own data-fetching (`prisma.user.findUniqueOrThrow`,
+   `getOrdersForUser`, `getSellerProfile`) is now wrapped in a `try/catch` that logs
+   `[app/(main)/profile] failed to load profile data for userId=<id> - <Error.name>:
+   <Error.message>` before re-throwing (Next's error boundary/digest page still renders exactly
+   as before - this doesn't swallow or hide the error, only makes its cause identifiable from
+   the server's own log without needing to reproduce it first). Same "state the precise reason
+   instead of leaving two different failures looking identical" intent as `lib/auth/session.ts`'s
+   own catch block (ADR 21) - here the ambiguity being removed is "session actually invalid" vs.
+   "session fine, something downstream threw", which otherwise both surface to a real user as the
+   exact same generic error page. Scoped to `/profile` only, matching what was asked - not
+   applied to every authenticated page in this pass.
+3. **The local "shows logged out" result is unrelated to both of the above, and predates the
+   seller panel.** `createSession()` (`lib/auth/session.ts`, ADR 21) sets the session cookie with
+   `secure: process.env.NODE_ENV === "production"`, and the *compiled* `server.js` Next emits for
+   `output: "standalone"` unconditionally hard-codes `NODE_ENV=production` before any app code
+   runs - so a `Secure` cookie is always what gets set once running from that build, regardless
+   of the actual connection. Confirmed directly: a real OTP verify against `node server.js` on
+   plain `http://localhost:<port>` returns `Set-Cookie: ...; Secure; HttpOnly; SameSite=lax`.
+   Real browsers (and RFC 6265bis-compliant clients) refuse to store a `Secure` cookie received
+   over a non-HTTPS connection - so testing the standalone build via a bare `http://` URL in an
+   actual browser silently drops the session cookie, and every following request looks logged
+   out, with nothing to report as a verification failure because the cookie was never received in
+   the first place. `curl` does **not** enforce this restriction (it stores/replays `Secure`
+   cookies over plain HTTP regardless), which is exactly why every `curl`-based reproduction in
+   this project's own testing - including this incident's - shows a working session while a real
+   browser against the same bare-HTTP test setup would not. This is why `getSession()`'s own
+   "request carried no session cookie" log (ADR 21) wasn't seen for this case: it would have
+   logged normally if the cookie had actually reached the server, but with the cookie dropped
+   client-side, no request carrying it was ever made. **Not a regression** - this exact
+   `secure:` line has been unchanged since ADR 21, and the real deployment sits behind a
+   TLS-terminating reverse proxy (ADR 21's own comment already documents this assumption), where
+   this never triggers. It only surfaces when testing the standalone artifact directly over plain
+   HTTP, which this incident's manual test did. **Not changed** - loosening `secure:` to make bare
+   -HTTP local testing easier would weaken a real, correct production security property for a
+   testing convenience; the accurate way to test session behavior against the compiled build
+   locally is `curl` (as this project's own verification passes have done throughout, including
+   ADR 26/27) or a local HTTPS-terminating proxy in front of it, not a bare browser tab.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP end-to-end for every claim above rather than inspecting code and asserting it:
+reproduced the live crash exactly (same error class, same missing-column message) against a
+purpose-built pre-migration database, confirmed the fix logs a clear, attributable line for that
+exact failure while leaving normal operation (against the real, fully-migrated dev database)
+completely silent and unaffected, and confirmed the `Secure`-cookie-over-HTTP mechanism directly
+from the raw `Set-Cookie` response header rather than inferring it. `tsc --noEmit` and `eslint .`
+clean; `npm run build` succeeds. All throwaway databases and test users created during this
+investigation were dropped/deleted afterward.
+**Not done, and stated plainly rather than left ambiguous:** running `npx prisma migrate deploy`
+against the real production database - this session cannot reach it, and doing so is the actual
+resolution for symptom 1. This should be run, then `/profile` (and the other `OrderItem`-touching
+pages listed above) re-checked on the live host.

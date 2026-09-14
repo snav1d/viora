@@ -37,9 +37,27 @@ export default async function ProfilePage() {
     );
   }
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } });
-  const orders = await getOrdersForUser(session.userId);
-  const sellerProfile = await getSellerProfile();
+  let user: Awaited<ReturnType<typeof prisma.user.findUniqueOrThrow>>;
+  let orders: Awaited<ReturnType<typeof getOrdersForUser>>;
+  let sellerProfile: Awaited<ReturnType<typeof getSellerProfile>>;
+  try {
+    user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } });
+    orders = await getOrdersForUser(session.userId);
+    sellerProfile = await getSellerProfile();
+  } catch (error) {
+    // A verified session alone doesn't guarantee these queries succeed - e.g. a deploy whose
+    // schema migration wasn't yet applied against this DATABASE_URL throws a real Prisma error
+    // here (see docs/decisions.md ADR 28), which would otherwise only ever reach a real user as
+    // Next's generic "A server error occurred" page with nothing but a digest ID - no way to
+    // tell, from that alone, whether this is a session bug or something else entirely. Logged
+    // (not swallowed) with the same "state the precise reason" intent as lib/auth/session.ts's
+    // own catch (ADR 21), then re-thrown so Next's error boundary still renders normally.
+    const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(
+      `[app/(main)/profile] failed to load profile data for userId=${session.userId} - ${reason}`,
+    );
+    throw error;
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-5">
