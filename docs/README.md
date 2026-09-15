@@ -57,11 +57,19 @@ A Next.js (App Router, TypeScript) skeleton with:
   delivery) that matches against qualified partners and places a real `Order` (reusing the same
   `Order`/`OrderItem` models every other order uses, not a parallel schema). See
   `docs/decisions.md` ADR 31, 32.
+- Reviews & ratings: a customer's own order detail page (`app/(main)/orders/[id]/`, linked from
+  `/profile`'s order history) gets a "سفارش رو دریافت کردم" delivery-confirmation button once
+  shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
+  print-service alike - one review per item, ever). Reviews show with an average + count on the
+  product detail page. See `docs/decisions.md` ADR 33.
+- Support tickets: customer side (`/support` list, `/support/new`, a per-ticket chat thread) and
+  admin side (`/admin/tickets` with status tabs + reply + status change) share one thread/reply
+  component and API route. See `docs/decisions.md` ADR 33.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
   (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,
-  and a print-color catalog (add/remove) replacing the direct-DB editing §4 below used to
-  document. See `docs/decisions.md` ADR 30, 31, 32.
+  a print-color catalog (add/remove), and a support-ticket queue - replacing the direct-DB editing
+  §4 below used to document. See `docs/decisions.md` ADR 30, 31, 32, 33.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
@@ -69,10 +77,14 @@ A Next.js (App Router, TypeScript) skeleton with:
 **Not built yet** (intentionally, per `docs/sprint-0-brief.md` §1): real payment/split-payment,
 the AI free-text entry point for Build My Party (the plain multi-step form + rule-based engine is
 the whole of phase 1 — see ADR 22), and — within the seller panel — sales analytics, subscription
-management, and reviews (ADR 27); within the print-partner panel — the order-reassignment
-marketplace, the paid "تاییدیه‌ی ویژه‌ی ویورا" badge, a visual partner calendar, and a real rating
-system (ADR 31); within the admin panel — user/customer management, order operations, seasonal
-themes/banners, discount codes, reports, and an audit log (all named but deliberately deferred in
+management, and a seller-facing view of their own reviews (ADR 27, 33 - customers can review and
+see reviews on the product page; sellers have no dashboard for it yet); within the print-partner
+panel — the order-reassignment marketplace, the paid "تاییدیه‌ی ویژه‌ی ویورا" badge, a visual
+partner calendar, and a real rating *shown in the partner-matching list* (ADR 31 - print
+offerings can now genuinely be reviewed the same as products via ADR 33's generic order-item
+review flow, but `getMatchingPrintProviders`'s "امتیاز —" slot doesn't read that data yet); within
+the admin panel — user/customer management, order operations, seasonal themes/banners, discount
+codes, reports, and an audit log (all named but deliberately deferred in
 `panels-and-operations-spec.md` §4 — see ADR 30). The database has placeholders for most of this
 (see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 

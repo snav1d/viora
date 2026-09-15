@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, UserCheck, Printer, Settings2 } from "lucide-react";
+import { LayoutGrid, UserCheck, Printer, Settings2, Headset } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const TABS = [
   { href: "/admin", label: "داشبورد", icon: LayoutGrid },
   { href: "/admin/sellers", label: "فروشنده‌ها", icon: UserCheck },
   { href: "/admin/providers", label: "پارتنرها", icon: Printer },
+  { href: "/admin/tickets", label: "پشتیبانی", icon: Headset },
   { href: "/admin/catalog", label: "شهر و دسته", icon: Settings2 },
 ] as const;
 

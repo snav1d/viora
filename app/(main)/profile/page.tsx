@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { User as UserIcon, Package, Store, ShieldCheck, Printer } from "lucide-react";
+import Link from "next/link";
+import { User as UserIcon, Package, Store, ShieldCheck, Printer, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
@@ -89,23 +90,25 @@ export default async function ProfilePage() {
         ) : (
           <ul className="flex flex-col gap-3">
             {orders.map((order) => (
-              <li
-                key={order.id}
-                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-charcoal">
-                    سفارش <span dir="ltr">#{order.id.slice(-6).toUpperCase()}</span>
-                  </p>
-                  <p className="text-charcoal-muted">
-                    {order.items.length.toLocaleString("fa-IR")} قلم ·{" "}
-                    {toNumber(order.totalAmount).toLocaleString("fa-IR")}{" "}
-                    تومان
-                  </p>
-                </div>
-                <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
-                  {ORDER_STATUS_LABELS[order.status]}
-                </span>
+              <li key={order.id}>
+                <Link
+                  href={`/orders/${order.id}`}
+                  className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm hover:border-rose-300"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-charcoal">
+                      سفارش <span dir="ltr">#{order.id.slice(-6).toUpperCase()}</span>
+                    </p>
+                    <p className="text-charcoal-muted">
+                      {order.items.length.toLocaleString("fa-IR")} قلم ·{" "}
+                      {toNumber(order.totalAmount).toLocaleString("fa-IR")}{" "}
+                      تومان
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
+                    {ORDER_STATUS_LABELS[order.status]}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -130,6 +133,11 @@ export default async function ProfilePage() {
       >
         <Printer className="h-4 w-4" strokeWidth={1.75} />
         {providerProfile ? "پنل پارتنر تولید" : "ثبت‌نام به‌عنوان پارتنر تولید"}
+      </ButtonLink>
+
+      <ButtonLink href="/support" variant="secondary" size="md" className="w-full gap-2">
+        <Headset className="h-4 w-4" strokeWidth={1.75} />
+        تماس با پشتیبانی
       </ButtonLink>
 
       {parseRoles(user.roles).includes("ADMIN") ? (

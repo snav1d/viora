@@ -3,11 +3,18 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
+import { ReviewList } from "@/components/reviews/ReviewList";
 import { getProductBySlug } from "@/lib/data/catalog";
+import { getProductReviewSummary } from "@/lib/data/reviews";
 import { toNumber } from "@/lib/decimal";
 import { siteConfig } from "@/lib/config/site";
 
 type Props = { params: Promise<{ slug: string }> };
+
+// This page now shows live review data (docs/decisions.md ADR 33) - without this, a newly
+// submitted review would never appear here until the next deploy, since a dynamic-segment page
+// with no generateStaticParams is otherwise cached after its first render.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -27,6 +34,7 @@ export default async function ProductPage({ params }: Props) {
   if (!product || !product.isActive) notFound();
 
   const price = toNumber(product.price);
+  const reviewSummary = await getProductReviewSummary(product.id);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -81,6 +89,8 @@ export default async function ProductPage({ params }: Props) {
           title={product.title}
           price={price}
         />
+
+        <ReviewList summary={reviewSummary} />
       </div>
     </main>
   );

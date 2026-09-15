@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { UserCheck, Printer, Settings2 } from "lucide-react";
+import { UserCheck, Printer, Settings2, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getAdminStats } from "@/lib/data/admin";
@@ -31,6 +31,12 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4 text-center">
           <p className="text-2xl font-semibold text-charcoal">
+            {stats.openTickets.toLocaleString("fa-IR")}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-muted">تیکت باز</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4 text-center">
+          <p className="text-2xl font-semibold text-charcoal">
             {stats.activeCities.toLocaleString("fa-IR")}
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">شهر فعال</p>
@@ -51,6 +57,10 @@ export default async function AdminDashboardPage() {
         <ButtonLink href="/admin/providers" variant="secondary" size="lg" className="w-full gap-2">
           <Printer className="h-4 w-4" strokeWidth={1.75} />
           تایید پارتنرهای تولید
+        </ButtonLink>
+        <ButtonLink href="/admin/tickets" variant="secondary" size="lg" className="w-full gap-2">
+          <Headset className="h-4 w-4" strokeWidth={1.75} />
+          تیکت‌های پشتیبانی
         </ButtonLink>
         <ButtonLink href="/admin/catalog" variant="secondary" size="lg" className="w-full gap-2">
           <Settings2 className="h-4 w-4" strokeWidth={1.75} />

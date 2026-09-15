@@ -33,13 +33,14 @@ export function getServiceProviderProfileDetail(id: string) {
 }
 
 export async function getAdminStats() {
-  const [pendingSellers, pendingProviders, activeCities, activeCategories] = await Promise.all([
+  const [pendingSellers, pendingProviders, openTickets, activeCities, activeCategories] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
     prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
+    prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
     prisma.city.count({ where: { isActive: true } }),
     prisma.category.count({ where: { isActive: true } }),
   ]);
-  return { pendingSellers, pendingProviders, activeCities, activeCategories };
+  return { pendingSellers, pendingProviders, openTickets, activeCities, activeCategories };
 }
 
 export function getAllCities() {

@@ -462,6 +462,14 @@ model OrderItem {
   shippedAt    DateTime?
   /// Set together with shippedAt, by whoever ships this line item.
   trackingCode String?
+  /// Set when the *customer* confirms receipt (the "سفارش رو دریافت کردم" button on their order
+  /// detail page, not something automatic or set by the seller/provider - docs/decisions.md
+  /// ADR 33). Same nullable "set = happened" convention as shippedAt. Two things depend on this
+  /// being a real, separately-set timestamp rather than inferred from shippedAt: the review
+  /// prompt (only once an item is actually confirmed received, not merely shipped) and, per
+  /// docs/legal-pages-draft.md §3, the 24-hour return window for physical products, which is
+  /// defined from the moment of delivery.
+  deliveredAt DateTime?
 
   // ---- SERVICE (print-partner) order fields - only set when this OrderItem's serviceOffering
   // is a print offering. See docs/decisions.md ADR 31. ----

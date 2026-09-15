@@ -12,3 +12,17 @@ export function getOrdersForUser(userId: string) {
     },
   });
 }
+
+/// findFirst (not findUnique) on the composite {id, userId} - this is the customer's own order
+/// detail page, so a mismatched userId (another user's order id) must come back as "not found",
+/// not a 403 that would confirm the order id exists at all.
+export function getOrderDetailForUser(orderId: string, userId: string) {
+  return prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      items: {
+        include: { product: true, serviceOffering: true, review: true },
+      },
+    },
+  });
+}

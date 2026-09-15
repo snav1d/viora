@@ -1870,3 +1870,99 @@ retroactively invalidate a partner's existing offering or a past order's histori
 is exactly the failure mode a snapshot avoids; nothing about this feature needs *querying* "which
 offerings use color X" at the database level, so the relation would add complexity with no
 matching use case.
+
+---
+
+## 2026-09-15 — customer reviews/ratings + support tickets
+
+### 33. `OrderItem.deliveredAt` (customer-confirmed) gates reviews; `Review`/`SupportTicket`/
+`TicketMessage` get their first real UI
+**Decision:** Built both pieces asked for, both using models that already existed as schema
+placeholders (`Review`, `SupportTicket`, `TicketMessage` - present since Sprint 0, unused by any
+UI until now):
+1. **Reviews & ratings**: a customer's own order detail page (`app/(main)/orders/[id]/page.tsx` -
+   the first customer-facing order detail page; before this, `/profile`'s order history was a
+   flat, unlinked list) gets a "سفارش رو دریافت کردم" button once `Order.status === "SHIPPED"`.
+   Clicking it (`POST /api/orders/[id]/deliver`) sets a new `OrderItem.deliveredAt` on every item
+   and flips `Order.status` to `DELIVERED`. Once an item has `deliveredAt`, its review prompt (a
+   1-5 star picker + optional comment, `components/reviews/ReviewForm.tsx`) appears in its place
+   until submitted, after which the submitted rating/comment shows instead - one review per
+   `OrderItem`, matching `Review.orderItemId`'s existing `@unique` constraint (which the request
+   itself asked for: "هر کاربر فقط یه‌بار برای هر آیتم سفارش می‌تونه نظر بده"). Reviews display
+   with an average + count on the product detail page (`ReviewList`, reading
+   `getProductReviewSummary`); the identical `getServiceOfferingReviewSummary` exists for the same
+   purpose on a service-offering detail page, but no such browsable page exists yet (print is a
+   guided order flow, not a catalog) - wired up the moment one does, without any further schema or
+   query work.
+2. **Support tickets**: customer side (`/support` list, `/support/new`, `/support/[id]` thread,
+   all reached from a new "تماس با پشتیبانی" button on `/profile`) and admin side
+   (`/admin/tickets` with OPEN/IN_PROGRESS/RESOLVED/CLOSED tabs - all four `TicketStatus` values
+   get a tab, not just the three the request named as examples, same reasoning as ADR 30's
+   PENDING/APPROVED/REJECTED sellers queue - and `/admin/tickets/[id]` with a status selector)
+   share one `TicketThread` presentational component and one `TicketReplyForm`/reply endpoint
+   (`POST /api/support/tickets/[id]/messages`) - who's allowed to post is resolved server-side
+   (the ticket's own owner, or an admin), not by which page happens to call it, so there's exactly
+   one message-creation code path instead of two nearly-identical ones.
+**Why the customer confirms delivery explicitly, rather than gating reviews on `SHIPPED` directly
+or auto-marking `DELIVERED` some days after shipping - asked of the account holder, since nothing
+in the codebase set `Order.status` to `DELIVERED` before this (it only ever reached `SHIPPED`, an
+enum value that had existed unused since Sprint 0):** the account holder chose the explicit
+customer-confirmation button, for a reason beyond preference -
+`docs/legal-pages-draft.md` §3 defines the physical-product return window as "ظرف ۲۴ ساعت پس از
+تحویل" (within 24 hours *of delivery*), which needs a real delivery timestamp to ever be
+enforceable; treating `shippedAt` as good enough, or auto-marking delivered after some
+configured lag, would both leave that legal clause permanently unimplementable, since neither
+produces the moment the customer actually received the order. `deliveredAt` follows the exact
+same nullable "set = happened" convention `shippedAt`/`acceptedAt` already established (ADR 27,
+31) rather than a new status enum value, for the same reason those were nullable timestamps: it's
+a fact about one event, not a state machine with further transitions.
+**Why confirm-delivery operates on the whole `Order`, not per `OrderItem` (unlike `shippedAt`,
+which is genuinely per-item since different sellers ship independently):** the customer only ever
+experiences one delivery event - one parcel arrives, whether it contains one seller's items or
+(via the hub pipeline, ADR 6) several sellers' combined shipment - so there is no real per-item
+"I received seller A's item but not seller B's" case to model for confirmation, unlike shipping
+where sellers genuinely act independently and at different times. By the time `Order.status`
+reaches `SHIPPED` every item already has `shippedAt` (the seller/provider ship routes only flip
+that status once true), so the confirm-delivery route is a single unconditional update across all
+items, not the incremental "only flip once everything's done" logic the ship routes need.
+**Why the product detail page needed `dynamic = "force-dynamic"` added (a real, if small,
+behavior change to a pre-existing page):** without it, a dynamic-segment page with no
+`generateStaticParams` is cached after its first render - meaning a newly submitted review would
+never appear there until the next deploy. This wasn't a pre-existing bug worth fixing on its own;
+it became one the moment this page started showing live, frequently-changing review data, the
+same reasoning behind every other `force-dynamic` export already in this codebase.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP throughout (a fresh customer, the existing seeded seller, a fresh admin, and a
+fourth unrelated "stranger" account, all via the real OTP flow):
+- Placed a real order via `/api/checkout` against a seeded product, shipped it via the existing
+  seller ship route, confirmed the order detail page's "سفارش رو دریافت کردم" button appears only
+  once `SHIPPED`. A non-owner session hitting the deliver endpoint got a 404 (not 403 - doesn't
+  confirm the order id exists to a non-owner); the owner's confirmation flipped
+  `Order.status = DELIVERED` and set `OrderItem.deliveredAt`; a second confirmation attempt was
+  correctly rejected ("قبلاً تحویل داده شده است").
+- The review form appeared only after delivery confirmation; submitting `rating: 0` was rejected
+  by zod ("امتیاز را انتخاب کنید."); a non-owner session got a 404 on the same `orderItemId`; the
+  owner's real submission (rating 4, a Persian comment) succeeded and immediately appeared on the
+  product's real detail page with the correct average ("۴ از ۱ نظر"); a second submission for the
+  same `orderItemId` was rejected ("قبلاً … نظر ثبت کرده‌اید").
+- Created a real ticket via the customer flow; confirmed it listed on `/support` and its initial
+  message rendered on `/support/[id]`. Confirmed the admin account hitting the *customer* route
+  `/support/[id]` for a ticket it doesn't own got a 404 (that route is the customer's own view,
+  not an admin shortcut - admins use `/admin/tickets/[id]`), while `/admin/tickets?status=OPEN`
+  and `/admin/tickets/[id]` correctly showed the same ticket with the customer's message labeled
+  "مشتری". Admin reply + status change (`IN_PROGRESS`) both succeeded and were immediately visible
+  on the customer's own `/support/[id]`, with the reply correctly labeled "پشتیبانی ویورا". A
+  fourth, wholly unrelated account attempting to post a message on this ticket got a 403; the
+  actual owner's own reply succeeded. An invalid status string was rejected by the admin status
+  route; resolving the ticket correctly dropped the admin dashboard's new "تیکت باز" stat tile
+  from 1 to 0.
+- All test users (4 phone numbers, the pre-existing seeded seller account's session cookie only -
+  its own `User` row was never deleted), the one test order/order-item, the one test review, and
+  the one test support ticket (with its messages) created during this pass were deleted
+  afterward; the seeded product/seller/review-free baseline was confirmed unchanged.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route (`/orders/[id]`,
+  `/support*`, `/admin/tickets*`, `/api/orders/[id]/deliver`, `/api/reviews`,
+  `/api/support/tickets*`, `/api/admin/tickets/[id]/status`) listed in its output.
+**Not built, per the request's explicit scope:** discount codes (needs a new database model -
+next phase, per the request) and real-time ticket notifications (a page refresh is enough for
+now, per the request - explicitly deferred, not overlooked).
