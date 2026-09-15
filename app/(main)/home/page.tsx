@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Sparkles, Printer } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
+import { HomeBanner } from "@/components/home/HomeBanner";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { getActiveProductCategories, getFeaturedProducts } from "@/lib/data/catalog";
+import { getActiveBanner } from "@/lib/data/banners";
 import { toNumber } from "@/lib/decimal";
 import { siteConfig } from "@/lib/config/site";
 
@@ -24,9 +26,10 @@ const organizationJsonLd = {
 };
 
 export default async function HomePage() {
-  const [categories, products] = await Promise.all([
+  const [categories, products, banner] = await Promise.all([
     getActiveProductCategories(),
     getFeaturedProducts(6),
+    getActiveBanner("HOME_TOP"),
   ]);
 
   return (
@@ -35,6 +38,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
+      {banner ? <HomeBanner imageUrl={banner.imageUrl} text={banner.text} link={banner.link} /> : null}
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs text-charcoal-muted">سلام 👋</p>

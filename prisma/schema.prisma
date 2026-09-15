@@ -697,11 +697,71 @@ model AiSettings {
 }
 
 /// Generic admin-editable key/value store for everything that doesn't need its own table:
-/// the hub's minimum-lead-time buffer, the print-partner support contact block, banner
-/// slots, seasonal theme, etc. (panels-and-operations-spec.md §1, §4). Unused by any UI
-/// in Sprint 0.
+/// the hub's minimum-lead-time buffer, the print-partner support contact block, etc.
+/// (panels-and-operations-spec.md §1, §4). Banner slots and seasonal theme - also named here
+/// originally - got their own dedicated models instead (SeasonalTheme, Banner below): both
+/// need several independent, individually-dated rows (several themes/banners scheduled across
+/// the year) plus admin list/CRUD pages, which a singleton-style key/value row doesn't fit.
 model PlatformSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Seasonal theme + banners — panels-and-operations-spec.md §4's "تم فصلی/مناسبتی" and
+// "مدیریت بنر/اعلامیه". Both follow the same "date-window decides live activation" shape as
+// Coupon (ADR 35): isActive is an admin kill switch, startsAt/endsAt decide whether an
+// otherwise-active row is actually live *today* - checked live on every request (this project
+// has no cron/background-job runner to do it out-of-band), never a value flipped by a daily job.
+// See docs/decisions.md ADR 36.
+// ---------------------------------------------------------------------------
+
+/// One named color palette (e.g. "یلدا") that replaces the default Champagne Rose palette
+/// (app/globals.css's `@theme` block) site-wide while it's live. `palette` is a flat JSON map
+/// keyed by every token name `lib/theme.ts`'s CHAMPAGNE_ROSE_PALETTE defines (e.g. "rose-500",
+/// "warm-white") to a replacement hex string - a full replacement set, not a sparse override, so
+/// there's never a question of what a partially-specified theme falls back to. Unlike Coupon's
+/// genuinely-optional startsAt/endsAt, both are required here: a theme with no date window isn't
+/// "seasonal" at all, and the live-activation query (lib/data/theme.ts's getActiveSeasonalTheme)
+/// needs a well-defined window to pick at most one active theme when rows could otherwise overlap.
+model SeasonalTheme {
+  id       String   @id @default(cuid())
+  name     String
+  palette  Json
+  startsAt DateTime
+  endsAt   DateTime
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, startsAt, endsAt])
+}
+
+/// Fixed set of UI banner slots - deliberately an enum, not a free-text field, so the admin picks
+/// from a real dropdown instead of typing a placement name that has to match what a template
+/// happens to render (panels-and-operations-spec.md §4). Only one value for now; more slots are
+/// additive (new enum members), never a schema change to this model.
+enum BannerPlacement {
+  HOME_TOP
+}
+
+model Banner {
+  id        String          @id @default(cuid())
+  imageUrl  String
+  text      String
+  /// Optional - a purely informational banner needs no destination.
+  link      String?
+  placement BannerPlacement @default(HOME_TOP)
+  isActive  Boolean         @default(true)
+  /// Unlike SeasonalTheme, a banner can reasonably run with no end date (a standing announcement)
+  /// or take effect immediately (no start date) - same optional-window convention as Coupon.
+  startsAt  DateTime?
+  endsAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placement, isActive, startsAt, endsAt])
 }

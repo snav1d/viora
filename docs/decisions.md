@@ -2165,3 +2165,105 @@ validates cross-field invariants at the API layer throughout (e.g. `PrintPricing
 `maxQuantity > minQuantity`), and MySQL's `CHECK` constraint support doesn't cleanly fit this
 codebase's existing migration-safety patterns for a comparison between two nullable-adjacent
 columns.
+
+---
+
+## 2026-09-15 — seasonal theme + banner management
+
+### 36. `SeasonalTheme`/`Banner` as dedicated models (superseding `PlatformSetting`'s original
+placeholder); live palette override via inline `style` on `<html>`; admin-only preview cookie
+**Decision:** Built both pieces named in `panels-and-operations-spec.md` §4's admin-panel
+wishlist ("تم فصلی/مناسبتی" and "مدیریت بنر/اعلامیه"), scoped exactly as the request asked (palette
+swap only, no micro-interactions; one banner placement to start):
+1. **`SeasonalTheme`** - `name`, `palette` (`Json`), `startsAt`/`endsAt` (both required - unlike
+   `Coupon`'s optional window, a theme with no date range isn't "seasonal" at all, and the live-
+   activation query needs a well-defined window to pick at most one theme when rows could
+   otherwise overlap), `isActive` (an admin kill switch independent of the window, same shape as
+   `Coupon.isActive`). `palette` is always a **complete** replacement map over every token
+   `app/globals.css`'s `@theme` block defines (`lib/theme.ts`'s `CHAMPAGNE_ROSE_PALETTE` - 19 keys:
+   `warm-white`, `surface`, `rose-50..700`, `gold-100..600`, `charcoal`, `charcoal-muted`,
+   `border`), never a sparse override - so there's no merge logic and no question of what a
+   partially-specified theme falls back to. `ThemeForm` pre-fills every field with the current
+   default, grouped by hue, so an admin who only wants to swap the rose/gold accents can leave the
+   rest untouched rather than having to know all 19 hex values.
+2. **`Banner`** - `imageUrl`, `text`, optional `link`, a `BannerPlacement` enum (one member,
+   `HOME_TOP`, for now - per the request, additive later, never a schema change), `isActive`,
+   and an **optional** `startsAt`/`endsAt` (unlike `SeasonalTheme` - a standing announcement with
+   no end date is a reasonable banner, matching `Coupon`'s optional-window convention instead).
+**Why dedicated models, not `PlatformSetting`:** that generic key/value table's own doc comment
+already named "banner slots, seasonal theme" as candidates for it, but both need several
+independent, individually-dated rows (several themes/banners scheduled across the year) plus
+admin list/CRUD pages with per-row `isActive` toggles - a singleton-style key/value row doesn't
+fit either requirement, so `PlatformSetting`'s comment was updated to point here instead.
+**Why a live per-request check, not an actual scheduled job:** the request's "بدون نیاز به دخالت
+دستی روزانه" (no daily manual step) doesn't require a cron job - this project has no
+background-job runner, and the cPanel/Passenger host only ever runs `node server.js` (ADR 15), so
+"automatic" here means the same thing it already means for `Coupon` (ADR 35): a live date-window
+check against `new Date()` on every request, never a value flipped by an out-of-band process.
+`getActiveSeasonalTheme()`/`getActiveBanner()` (`lib/data/theme.ts`, `lib/data/banners.ts`) are
+the direct extension of `validateCoupon()`'s date-window pattern to this case.
+**How the palette actually overrides `app/globals.css`, without touching `<head>`:** Next's own
+docs (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/layout.md`) say a
+root layout should not manually render `<head>` tags - that guidance is about the Metadata API's
+own territory (`title`/`meta`), not a blanket ban on inline styling, but there's a simpler and
+more robust option anyway: `RootLayout` (now `async`) applies the active palette as an inline
+`style` object directly on the `<html>` element it already renders. An inline `style` attribute
+has the highest possible specificity, so it overrides the `@theme` block's own generated `:root`
+declarations unconditionally - no reliance on `<style>`-tag source order, no `<head>` involved.
+React passes custom-property keys (`--color-rose-500`) through a `style` object as-is rather than
+camelCasing them, so `paletteToCssVars()` (`lib/theme.ts`) just maps the palette to
+`{ "--color-<token>": "<hex>" }`.
+**Admin preview, before public release:** `getEffectiveTheme()` checks a `viora_theme_preview`
+cookie (holding a theme id) before falling back to the live-window query. The cookie is not
+treated as sufficient on its own - every read re-verifies `requireAdmin()` server-side, the same
+"never trust an earlier read" posture ADR 31/35 established, so a non-admin who somehow sets this
+cookie on themselves gains nothing (confirmed directly: a non-admin session got `403` attempting
+to set it). This means the preview is genuinely admin-only and genuinely invisible to other
+visitors - not just hidden by client-side logic - since the palette is computed server-side before
+any HTML is sent. A `ThemePreviewBanner` (rendered in `RootLayout` only when previewing) tells the
+admin they're in preview mode and lets them exit back to whatever theme is actually live.
+`/admin/themes`'s per-row "پیش‌نمایش" button sets the cookie and opens the home page in a new tab;
+exiting is a separate static `DELETE /api/admin/themes/preview` route (not nested under `[id]`,
+since ending a preview never needs to name a theme).
+**Not added to `AdminNav`'s bottom tab bar:** the nav already carries six tabs at mobile width;
+both new sections are reachable from the admin dashboard's own button list (same precedent as
+`PrintColor` management, which similarly has no dedicated bottom tab and lives inside an existing
+page instead).
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP and one real Playwright pass (logged in through the actual OTP UI flow, not an
+injected cookie - a `secure` session cookie set by the standalone server, which always runs with
+`NODE_ENV=production` per ADR 21, cannot be attached by Playwright's `context.addCookies()` to a
+plain-`http://` page the way `curl -b` tolerates; a real browser login sidesteps this entirely):
+- A theme with `startsAt`/`endsAt` spanning today, created via the real admin API, appeared in the
+  rendered `<html style="...">` attribute for a plain anonymous request with no cookies at all -
+  confirmed via raw `curl`, not just "no error."
+- Deactivating that theme (`isActive: false`) made the override disappear from a fresh anonymous
+  request immediately - no caching lag.
+- A second theme dated ten days in the future (not live by window) was invisible to an anonymous
+  request even after being created; setting the admin's own preview cookie for it made the
+  override appear **only** on requests carrying that admin's session + cookie, while a concurrent
+  anonymous request kept seeing the default palette throughout - confirmed side-by-side, not
+  sequentially. A separately-logged-in non-admin account got `403` attempting to set the same
+  preview cookie for itself. Clearing the preview (`DELETE`) reverted the admin's own view to the
+  default palette.
+- A real `Banner` (uploaded image via `/api/admin/banners/uploads`, `HOME_TOP` placement, a real
+  link) rendered above the home page's header for an anonymous request; `isActive: false` and,
+  separately, an already-expired `endsAt` each independently hid it from a fresh request.
+- Real Playwright pass: the admin theme-creation form rendered all 19 color-picker fields grouped
+  by hue with working Jalali date pickers; `/admin/themes` and `/admin/banners` list pages
+  rendered their real just-created rows with working `ActiveToggle`s.
+- All test rows (two `SeasonalTheme`s, one `Banner`, the uploaded test image file), the
+  admin-bootstrap `ADMIN` role grant on the test account, and all `OtpCode` rows created during
+  login were deleted/reverted afterward.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds (also regenerated the Prisma
+  client, `npx prisma generate`, after the migration - needed separately from `migrate dev` in
+  this run), every new route (`/admin/themes`, `/admin/themes/new`, `/admin/themes/[id]/edit`,
+  `/admin/banners`, `/admin/banners/new`, `/admin/banners/[id]/edit`, and their matching
+  `/api/admin/...` routes) listed in its output alongside every pre-existing one.
+**Rejected:** a sparse/partial palette override (see above - always a complete 19-key map, no
+merge logic). A real cron job or Node `setInterval` for "daily" activation - no background-job
+infrastructure exists on this project's deploy target, and a live per-request check is exactly as
+correct with zero added moving parts. Nesting the preview-exit route under `/api/admin/themes/
+[id]/preview` - it never needs an id, so it lives at the static `/api/admin/themes/preview`
+instead (static segments take precedence over a sibling dynamic `[id]` in Next's own router, so
+this required no special-casing).

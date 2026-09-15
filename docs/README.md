@@ -81,10 +81,15 @@ A Next.js (App Router, TypeScript) skeleton with:
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
   (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,
-  a print-color catalog (add/remove), a support-ticket queue, and coupon management (add +
-  active/inactive toggle) - replacing the direct-DB editing §4 below used to document. See
-  `docs/decisions.md` ADR 30, 31, 32, 33, 35.
-- Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
+  a print-color catalog (add/remove), a support-ticket queue, coupon management (add +
+  active/inactive toggle), a seasonal-theme editor (`/admin/themes` - full palette override of
+  `app/globals.css`'s tokens, a date window that decides what's live *today* with no manual daily
+  step, and an admin-only preview of a not-yet-public theme), and banner management
+  (`/admin/banners` - image/text/link for a fixed set of UI placements, one to start, same
+  date-window activation) - replacing the direct-DB editing §4 below used to document. See
+  `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36.
+- Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`) - the default palette,
+  live-overridable site-wide by an admin-scheduled `SeasonalTheme` (ADR 36).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
 
@@ -97,10 +102,10 @@ panel — the order-reassignment marketplace, the paid "تاییدیه‌ی وی
 partner calendar, and a real rating *shown in the partner-matching list* (ADR 31 - print
 offerings can now genuinely be reviewed the same as products via ADR 33's generic order-item
 review flow, but `getMatchingPrintProviders`'s "امتیاز —" slot doesn't read that data yet); within
-the admin panel — user/customer management, order operations, seasonal themes/banners, reports,
-and an audit log (all named but deliberately deferred in `panels-and-operations-spec.md` §4 — see
-ADR 30; discount codes, also named there, are now built — see ADR 35). The database has
-placeholders for most of this
+the admin panel — user/customer management, order operations, reports, and an audit log (all
+named but deliberately deferred in `panels-and-operations-spec.md` §4 — see ADR 30; discount
+codes and seasonal themes/banners, also named there, are now built — see ADR 35, 36). The
+database has placeholders for most of this
 (see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 
 ## 3. Running it locally

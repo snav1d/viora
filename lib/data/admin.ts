@@ -33,16 +33,51 @@ export function getServiceProviderProfileDetail(id: string) {
 }
 
 export async function getAdminStats() {
-  const [pendingSellers, pendingProviders, openTickets, activeCities, activeCategories, activeCoupons] =
-    await Promise.all([
-      prisma.sellerProfile.count({ where: { status: "PENDING" } }),
-      prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
-      prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
-      prisma.city.count({ where: { isActive: true } }),
-      prisma.category.count({ where: { isActive: true } }),
-      prisma.coupon.count({ where: { isActive: true } }),
-    ]);
-  return { pendingSellers, pendingProviders, openTickets, activeCities, activeCategories, activeCoupons };
+  const now = new Date();
+  const [
+    pendingSellers,
+    pendingProviders,
+    openTickets,
+    activeCities,
+    activeCategories,
+    activeCoupons,
+    liveTheme,
+  ] = await Promise.all([
+    prisma.sellerProfile.count({ where: { status: "PENDING" } }),
+    prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
+    prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
+    prisma.city.count({ where: { isActive: true } }),
+    prisma.category.count({ where: { isActive: true } }),
+    prisma.coupon.count({ where: { isActive: true } }),
+    prisma.seasonalTheme.findFirst({
+      where: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
+    }),
+  ]);
+  return {
+    pendingSellers,
+    pendingProviders,
+    openTickets,
+    activeCities,
+    activeCategories,
+    activeCoupons,
+    liveThemeName: liveTheme?.name ?? null,
+  };
+}
+
+export function getAllSeasonalThemes() {
+  return prisma.seasonalTheme.findMany({ orderBy: { startsAt: "desc" } });
+}
+
+export function getSeasonalThemeDetail(id: string) {
+  return prisma.seasonalTheme.findUnique({ where: { id } });
+}
+
+export function getAllBanners() {
+  return prisma.banner.findMany({ orderBy: { createdAt: "desc" } });
+}
+
+export function getBannerDetail(id: string) {
+  return prisma.banner.findUnique({ where: { id } });
 }
 
 export function getAllCities() {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { UserCheck, Printer, Settings2, Headset, Ticket } from "lucide-react";
+import { UserCheck, Printer, Settings2, Headset, Ticket, Palette, Image as ImageIcon } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getAdminStats } from "@/lib/data/admin";
@@ -53,6 +53,10 @@ export default async function AdminDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">کد تخفیف فعال</p>
         </div>
+        <div className="col-span-2 rounded-2xl border border-border bg-surface p-4 text-center">
+          <p className="text-2xl font-semibold text-charcoal">{stats.liveThemeName ?? "—"}</p>
+          <p className="mt-1 text-xs text-charcoal-muted">تم فصلی فعال امروز</p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -71,6 +75,14 @@ export default async function AdminDashboardPage() {
         <ButtonLink href="/admin/coupons" variant="secondary" size="lg" className="w-full gap-2">
           <Ticket className="h-4 w-4" strokeWidth={1.75} />
           کدهای تخفیف
+        </ButtonLink>
+        <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
+          <Palette className="h-4 w-4" strokeWidth={1.75} />
+          تم فصلی/مناسبتی
+        </ButtonLink>
+        <ButtonLink href="/admin/banners" variant="secondary" size="lg" className="w-full gap-2">
+          <ImageIcon className="h-4 w-4" strokeWidth={1.75} />
+          مدیریت بنر
         </ButtonLink>
         <ButtonLink href="/admin/catalog" variant="secondary" size="lg" className="w-full gap-2">
           <Settings2 className="h-4 w-4" strokeWidth={1.75} />
