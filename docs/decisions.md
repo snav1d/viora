@@ -1553,3 +1553,91 @@ using real HTTP and a real browser rather than reading the code and assuming it 
 that page is specifically for product sellers going through this wizard, not print partners, and
 including a print-partner obligation in a product-seller's terms page would be confusing, not
 thorough.
+
+## 2026-09-15 — Minimal admin panel: access, seller approval, city/category toggle
+
+### 30. First ADMIN grant is a direct database edit, matching the seller-approval precedent
+**Decision:** Built exactly the three pieces asked for, scoped down from
+`panels-and-operations-spec.md` §4's much larger four-area admin panel design (user/partner
+management, order operations, platform config, reports - all deliberately out of scope here, per
+the request):
+1. **Access** (`app/admin/layout.tsx`, `lib/auth/admin.ts`): login is the existing OTP flow,
+   unchanged, per the request ("راه ورودش همون سیستم OTP فعلی باشه") - there is no separate admin
+   login form. `requireAdmin()` checks `User.roles` (still the same `Json` array every other role
+   lives in - ADR 7/20) for `"ADMIN"`, exactly mirroring `requireApprovedSeller()`'s shape. A
+   logged-in non-admin hitting `/admin` sees a plain "access denied" message, not a redirect
+   loop or a leak of what admin features exist.
+2. **Seller approval** (`/admin/sellers`, defaulting to the `PENDING` tab, with `APPROVED`/
+   `REJECTED` tabs alongside it - a superset of "list PENDING sellers" for free, at no extra
+   design cost, matching the seller panel's own product-list filter convention): the detail page
+   shows every field collected at registration (avatar, categories, national ID, union ID,
+   business-license photo, IBAN, address, phone numbers, referral survey - not just the four
+   fields the request named as examples), since an admin making an approve/reject call needs the
+   full picture, not a subset. Approve is one click; reject requires a reason (the pre-existing
+   `rejectionReason` column, per the request) via a small inline form. Approving a previously
+   -rejected seller clears any stale `rejectionReason` - otherwise a re-approved profile would
+   carry a rejection reason that no longer applies.
+3. **City/category toggles** (`/admin/catalog`): a plain list of every `City`/`Category` with an
+   `ActiveToggle` switch each, replacing the `npm run db:studio`/direct-DB editing
+   `docs/README.md` §4 has documented as the only way to do this since Sprint 0. Toggling only -
+   no create/delete UI - the request named the switch specifically, and creating a brand-new
+   city or category is a materially bigger feature (slug generation, category type/parent/
+   sort-order) nothing in the request asked for.
+**The first-ADMIN bootstrap question, asked before starting since this is the first time this
+role is ever granted:** given `User.roles` is a `Json` array, not a real enum column, the choice
+was between (a) a direct database edit - the same mechanism seller approval already uses, zero
+new code, and the account holder's real phone number never has to appear in this conversation or
+the repository, or (b) a small reusable CLI script for granting roles. **The account holder chose
+(a).** The exact command, verified against this session's own local database (see below):
+```sql
+UPDATE User SET roles = JSON_ARRAY_APPEND(roles, '$', 'ADMIN') WHERE phone = '<real phone>';
+```
+`JSON_ARRAY_APPEND` (not a hand-typed replacement string) is the important part - it preserves
+whatever roles the account already has (almost certainly `["CUSTOMER"]`) instead of risking
+overwriting them.
+**A real bug caught by testing this against a genuinely malformed request, not just the intended
+UI flow:** rejecting a seller with no `reason` field at all (not just an empty one) returned
+zod's own raw English message ("Invalid input: expected string, received undefined") instead of
+the route's own Persian one - `z.string().min(1, "...")`'s custom message only covers the
+*too-short* failure, not the separate *wrong-type-or-missing* failure zod raises first when a
+field isn't present at all. The reject form's own `required` textarea attribute means a real
+admin can't actually trigger this through the UI, but the same gap existed in
+`app/api/seller/register/route.ts` (found by systematically testing every field's *missing
+entirely* case, not just the one this incident happened to surface) and in the shared
+`storageUrlSchema` (`lib/validation/url.ts`, so this also covers the product-image routes from
+ADR 29) - any of these are reachable by anyone calling the API directly, not only through this
+app's own bundled UI. Fixed everywhere by passing `{ error: "..." }` as a second argument
+alongside the existing `.min()`/`.regex()` message, which zod v4 uses for the base
+type-or-presence failure specifically - confirmed field-by-field with a script that removes one
+key at a time from an otherwise-valid payload and checks the returned message is Persian, not
+just fixed for the one field manually tested.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP rather than reading the code and assuming it works:
+- A fresh, ordinary logged-in user hitting `/admin` saw the access-denied screen, and a direct
+  `POST` to an admin API route returned `403` - confirmed the gate isn't just a UI-level
+  redirect.
+- Ran the exact bootstrap `UPDATE ... JSON_ARRAY_APPEND ...` command above against that same
+  user; `/admin` (and its API routes) worked immediately on the very next request, with no
+  re-login - confirming `requireAdmin()` really does re-check the database per request rather
+  than relying on anything cached in the session.
+- Registered two real pending sellers through the actual registration API, approved one and
+  rejected the other (with a reason) through the real admin routes; confirmed both outcomes in
+  the database, that the approved seller's own `/seller` now shows their dashboard, and that the
+  rejected seller's own `/seller` shows the exact reason text just entered - the full loop, not
+  just the admin side of it.
+- Toggled a category off via the real API and confirmed it disappeared from the seller
+  registration wizard's live category list (the same `getActiveProductCategories()` every other
+  active-only query in this app already depends on), then toggled it back on and confirmed it
+  reappeared - not just that the database row flipped. Did the same for a city, then restored it
+  to its original (inactive) seed state.
+- All test users, seller profiles, and category links created during this pass were deleted
+  afterward; the toggled category/city were both restored to their pre-test state; the
+  pre-existing seed data (3 users, 1 approved seller, 500 products) was confirmed unchanged
+  before and after.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route listed in its
+  output.
+**Not built, per the request's explicit scope:** seasonal themes/banners, AI extractor settings,
+reports/analytics, discount codes - all named in `panels-and-operations-spec.md` §4 and
+explicitly deferred by the request to a later phase. Also not built: creating new cities or
+categories (toggle-only, see above), customer account management, and an audit log of admin
+actions (§4's own "تکمیلی" list) - none of these were asked for in this phase.

@@ -9,8 +9,8 @@ import { z } from "zod";
  * docs/decisions.md ADR 29.
  */
 export const storageUrlSchema = z
-  .string()
-  .min(1)
+  .string({ error: "آدرس تصویر نامعتبر است." })
+  .min(1, "آدرس تصویر نامعتبر است.")
   .refine((value) => value.startsWith("/") || /^https?:\/\//.test(value), {
     message: "آدرس تصویر نامعتبر است.",
   });

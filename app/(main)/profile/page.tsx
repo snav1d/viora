@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { User as UserIcon, Package, Store } from "lucide-react";
+import { User as UserIcon, Package, Store, ShieldCheck } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
 import { getSession } from "@/lib/auth/session";
 import { getSellerProfile } from "@/lib/auth/seller";
+import { parseRoles } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { toNumber } from "@/lib/decimal";
@@ -117,6 +118,13 @@ export default async function ProfilePage() {
         <Store className="h-4 w-4" strokeWidth={1.75} />
         {sellerProfile ? "پنل فروشنده" : "ثبت‌نام به‌عنوان فروشنده"}
       </ButtonLink>
+
+      {parseRoles(user.roles).includes("ADMIN") ? (
+        <ButtonLink href="/admin" variant="secondary" size="md" className="w-full gap-2">
+          <ShieldCheck className="h-4 w-4" strokeWidth={1.75} />
+          پنل ادمین
+        </ButtonLink>
+      ) : null}
 
       <LogoutButton />
     </main>

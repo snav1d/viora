@@ -45,19 +45,26 @@ A Next.js (App Router, TypeScript) skeleton with:
   chosen city, and returns a real suggested bundle with an "add all to cart" action. See
   `docs/decisions.md` ADR 22.
 - Product seller panel (`app/seller/`): a 4-step registration wizard (shop info + avatar,
-  business identity, terms agreement, contact/address) ending in manual (direct-DB) approval,
+  business identity, terms agreement, contact/address) ending in admin approval,
   product CRUD with image upload (search/filter on the list page), and order fulfillment
   (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
+- Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
+  granted by editing the database directly - see ADR 30), a seller approval queue
+  (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), and city/category active
+  toggles replacing the direct-DB editing §4 below used to document. See `docs/decisions.md`
+  ADR 30.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
 
 **Not built yet** (intentionally, per `docs/sprint-0-brief.md` §1): real payment/split-payment,
 the AI free-text entry point for Build My Party (the plain multi-step form + rule-based engine is
-the whole of phase 1 — see ADR 22), the balloon-printing order form, the print-partner/admin
-panels, and — within the seller panel itself — an admin approval UI, sales analytics,
-subscription management, and reviews (ADR 27). The database has placeholders for all of this
-(see `docs/decisions.md` ADR 4, 6) so building them later doesn't require a schema rewrite.
+the whole of phase 1 — see ADR 22), the balloon-printing order form, the print-partner panel, and
+— within the seller panel — sales analytics, subscription management, and reviews (ADR 27); within
+the admin panel — user/customer management, order operations, seasonal themes/banners, discount
+codes, reports, and an audit log (all named but deliberately deferred in
+`panels-and-operations-spec.md` §4 — see ADR 30). The database has placeholders for most of this
+(see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 
 ## 3. Running it locally
 
@@ -85,7 +92,7 @@ of being sent by real SMS — see ADR 3.
 | SMS / storage / payment provider selection | `.env` (`SMS_PROVIDER`, `STORAGE_PROVIDER`, `PAYMENT_PROVIDER`) | Implementations live in `lib/providers/*.ts`. Only the mock/local implementation exists today; add a new class + one line in the relevant `get*Provider()` factory to go live. See ADR 3. |
 | Session signing secret | `.env` (`AUTH_SESSION_SECRET`) | |
 | Database connection | `.env` (`DATABASE_URL`) | A single `mysql://` connection string, both locally and on the deploy host — no driver-selection variable needed (see ADR 20; superseded the Postgres/Neon setup ADR 7, 16, and 18 described). |
-| Active cities / categories (phase gating) | Database (`City.isActive`, `Category.isActive`) | No admin UI yet — edit via `npm run db:studio` or a seed script until the admin panel (out of scope for Sprint 0) exists. |
+| Active cities / categories (phase gating) | Database (`City.isActive`, `Category.isActive`) | Toggle from `/admin/catalog` (ADR 30) once an admin account exists, or via `npm run db:studio` directly either way. |
 | AI extractor for the party wizard (future) | Database, `AiSettings` singleton row | Schema-only placeholder; nothing reads it yet. See ADR 4. |
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
 | Party-wizard budget allocation | `config/party-wizard/budget-allocation.json` | Same as above. |

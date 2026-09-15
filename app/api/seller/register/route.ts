@@ -11,20 +11,29 @@ const referralSourceValues = REFERRAL_SOURCES.map((option) => option.value) as [
 
 const bodySchema = z
   .object({
-    businessName: z.string().min(2),
+    businessName: z.string({ error: "نام فروشگاه را وارد کنید." }).min(2, "نام فروشگاه را وارد کنید."),
     avatarUrl: storageUrlSchema,
-    categoryIds: z.array(z.string().min(1)).min(1, "حداقل یک دسته‌بندی را انتخاب کنید."),
+    categoryIds: z
+      .array(z.string().min(1), { error: "حداقل یک دسته‌بندی را انتخاب کنید." })
+      .min(1, "حداقل یک دسته‌بندی را انتخاب کنید."),
     description: z.string().min(1).optional(),
     businessLicenseImageUrl: storageUrlSchema,
-    nationalId: z.string().regex(/^\d{10}$/, "کد ملی باید ۱۰ رقم باشد."),
-    unionId: z.string().min(1, "شناسه‌ی صنفی را وارد کنید."),
-    bankAccountIban: z.string().regex(/^IR\d{24}$/, "شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد."),
+    nationalId: z
+      .string({ error: "کد ملی باید ۱۰ رقم باشد." })
+      .regex(/^\d{10}$/, "کد ملی باید ۱۰ رقم باشد."),
+    unionId: z.string({ error: "شناسه‌ی صنفی را وارد کنید." }).min(1, "شناسه‌ی صنفی را وارد کنید."),
+    bankAccountIban: z
+      .string({ error: "شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد." })
+      .regex(/^IR\d{24}$/, "شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد."),
     termsAccepted: z.literal(true, {
       error: "برای ادامه باید قوانین و شرایط همکاری را بپذیرید.",
     }),
-    address: z.string().min(1, "آدرس فروشگاه یا انبار را وارد کنید."),
-    phoneNumbers: z.array(z.string()).min(1, "حداقل یک شماره تماس لازم است.").max(5),
-    referralSource: z.enum(referralSourceValues),
+    address: z.string({ error: "آدرس فروشگاه یا انبار را وارد کنید." }).min(1, "آدرس فروشگاه یا انبار را وارد کنید."),
+    phoneNumbers: z
+      .array(z.string(), { error: "حداقل یک شماره تماس لازم است." })
+      .min(1, "حداقل یک شماره تماس لازم است.")
+      .max(5),
+    referralSource: z.enum(referralSourceValues, { error: "لطفاً یک گزینه را انتخاب کنید." }),
     referralSourceOther: z.string().min(1).optional(),
   })
   .superRefine((data, ctx) => {
