@@ -4,8 +4,8 @@ import { TopBar } from "@/components/nav/TopBar";
 import { TicketThread } from "@/components/support/TicketThread";
 import { TicketReplyForm } from "@/components/support/TicketReplyForm";
 import { getSession } from "@/lib/auth/session";
-import { getTicketDetail } from "@/lib/data/support";
-import { TICKET_STATUS_LABELS } from "@/lib/labels";
+import { getTicketDetail, classifyTicketSender } from "@/lib/data/support";
+import { TICKET_STATUS_LABELS, TICKET_SENDER_LABELS } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "تیکت پشتیبانی",
@@ -34,10 +34,13 @@ export default async function TicketDetailPage({ params }: Props) {
         {TICKET_STATUS_LABELS[ticket.status]}
       </span>
 
-      <TicketThread messages={ticket.messages} customerAuthorId={ticket.userId} />
+      <TicketThread
+        messages={ticket.messages}
+        ownerLabel={TICKET_SENDER_LABELS[classifyTicketSender(ticket.user)]}
+      />
 
       <div className="mt-auto">
-        <TicketReplyForm ticketId={ticket.id} />
+        <TicketReplyForm endpoint={`/api/support/tickets/${ticket.id}/messages`} />
       </div>
     </main>
   );

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/admin";
 import { createTicketMessage } from "@/lib/data/support";
 
 const bodySchema = z.object({
@@ -10,19 +10,17 @@ const bodySchema = z.object({
 
 type Params = { params: Promise<{ id: string }> };
 
-// The ticket owner's own reply endpoint - always posts as the customer/seller/partner side,
-// never as staff, regardless of whether this same account also holds ADMIN elsewhere (see
-// docs/decisions.md ADR 34). An admin replying to someone else's ticket uses the separate
-// /api/admin/tickets/[id]/messages route instead, which is what actually marks a reply staff.
+// The admin-side reply endpoint - the only place a message ever gets marked isFromStaff: true
+// (docs/decisions.md ADR 34). No ownership check: any admin can reply to any ticket.
 export async function POST(request: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "ابتدا وارد شوید.", requiresAuth: true }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
   }
 
   const { id } = await params;
   const ticket = await prisma.supportTicket.findUnique({ where: { id } });
-  if (!ticket || ticket.userId !== session.userId) {
+  if (!ticket) {
     return NextResponse.json({ error: "تیکت پیدا نشد." }, { status: 404 });
   }
 
@@ -36,9 +34,9 @@ export async function POST(request: Request, { params }: Params) {
 
   await createTicketMessage({
     ticketId: id,
-    authorId: session.userId,
+    authorId: admin.id,
     body: parsed.data.body,
-    isFromStaff: false,
+    isFromStaff: true,
   });
 
   return NextResponse.json({ ok: true });

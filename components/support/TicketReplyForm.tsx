@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 
-export function TicketReplyForm({ ticketId }: { ticketId: string }) {
+export function TicketReplyForm({ endpoint }: { endpoint: string }) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -16,7 +16,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
     setError(null);
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/support/tickets/${ticketId}/messages`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body }),

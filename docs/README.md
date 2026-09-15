@@ -62,9 +62,14 @@ A Next.js (App Router, TypeScript) skeleton with:
   shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
   print-service alike - one review per item, ever). Reviews show with an average + count on the
   product detail page. See `docs/decisions.md` ADR 33.
-- Support tickets: customer side (`/support` list, `/support/new`, a per-ticket chat thread) and
-  admin side (`/admin/tickets` with status tabs + reply + status change) share one thread/reply
-  component and API route. See `docs/decisions.md` ADR 33.
+- Support tickets: open to any account - customer, seller, or print partner alike, all reached
+  from the same "تماس با پشتیبانی" entry point on their own profile/dashboard (`/support` list,
+  `/support/new`, a per-ticket chat thread). Admin side (`/admin/tickets`, with independent
+  status *and* sender-type filters, a sender badge per row, reply, and status change) shares the
+  same thread-display component, but posts through its own dedicated reply route - a message's
+  customer-vs-staff label is decided by which route handled it, not by comparing user ids (that
+  comparison broke for an account that is both a ticket's owner and an admin - see ADR 34). See
+  `docs/decisions.md` ADR 33, 34.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
   (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,

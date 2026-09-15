@@ -603,9 +603,17 @@ model TicketMessage {
   id       String        @id @default(cuid())
   ticketId String
   ticket   SupportTicket @relation(fields: [ticketId], references: [id])
-  /// The id of whoever wrote it — the ticket's own customer, or an admin user.
+  /// The id of whoever wrote it — the ticket's own owner, or an admin user.
   authorId String
-  body     String        @db.Text
+  /// Set only by the admin-side reply route (docs/decisions.md ADR 34) - which endpoint handled
+  /// the request decides this, not whether the author's account also happens to hold ADMIN
+  /// elsewhere. A ticket owner who is also an admin, replying to their own ticket from their own
+  /// /support page, still gets false here - only a reply sent through /admin/tickets sets true.
+  /// This is what the UI uses to tell a customer/seller/partner message apart from a staff one;
+  /// comparing authorId to the ticket's own userId alone can't do this (they're the same account
+  /// in that self-admin case).
+  isFromStaff Boolean @default(false)
+  body        String  @db.Text
 
   createdAt DateTime @default(now())
 

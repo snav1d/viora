@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Package, ClipboardList } from "lucide-react";
+import { Package, ClipboardList, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getSellerProfile } from "@/lib/auth/seller";
@@ -48,6 +48,10 @@ export default async function SellerDashboardPage() {
         <ButtonLink href="/seller/orders" variant="secondary" size="lg" className="w-full gap-2">
           <ClipboardList className="h-4 w-4" strokeWidth={1.75} />
           مشاهده سفارش‌ها
+        </ButtonLink>
+        <ButtonLink href="/support" variant="secondary" size="lg" className="w-full gap-2">
+          <Headset className="h-4 w-4" strokeWidth={1.75} />
+          تماس با پشتیبانی
         </ButtonLink>
       </section>
     </main>

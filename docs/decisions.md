@@ -1966,3 +1966,86 @@ fourth unrelated "stranger" account, all via the real OTP flow):
 **Not built, per the request's explicit scope:** discount codes (needs a new database model -
 next phase, per the request) and real-time ticket notifications (a page refresh is enough for
 now, per the request - explicitly deferred, not overlooked).
+
+---
+
+## 2026-09-15 — support-ticket review pass: a real sender-labeling bug, plus two extensions
+
+### 34. `TicketMessage.isFromStaff` (set by which route replied, not who); ticket system opened to
+sellers/providers; admin sender-type filter
+**Decision:** Three fixes to the support-ticket half of ADR 33, reported after the account
+holder tested the live deploy:
+1. **Fixed a real sender-mislabeling bug.** `TicketThread` used to classify each message by
+   comparing `message.authorId` to `ticket.userId` ("is this the ticket owner's own message?").
+   That comparison is correct for a customer with no ADMIN role, but breaks down exactly for the
+   account this project's own admin bootstrap (ADR 30) produces: an existing account that a
+   direct-DB edit *also* granted ADMIN, rather than a separate staff account. When that account
+   replies to its *own* ticket from `/admin/tickets` (intending to answer as staff), `authorId`
+   is still equal to `ticket.userId` - same person, same row - so the old logic showed it as a
+   customer message, identically styled to the customer's own message right above it. Fixed by
+   adding `TicketMessage.isFromStaff`, set explicitly by *which reply route* handled the request,
+   never re-derived from identity: `/api/support/tickets/[id]/messages` (the ticket owner's own
+   route - reused as-is for the seller/provider case below) always creates `isFromStaff: false`
+   after checking `ticket.userId === session.userId`, with no admin fallback anymore; a new,
+   separate `/api/admin/tickets/[id]/messages` always creates `isFromStaff: true` after
+   `requireAdmin()`, with no ownership check (an admin can reply to anyone's ticket). The same
+   physical account posting through both routes now correctly produces one owner-labeled message
+   and one staff-labeled one - confirmed directly (see Verified below), not just reasoned about.
+2. **Support tickets opened to sellers and providers.** `SupportTicket.userId` already pointed at
+   a plain `User`, not a role-specific table, so nothing in the schema blocked a seller or
+   provider from filing one - the only missing piece was a way to get there. Added a "تماس با
+   پشتیبانی" button to both the seller and provider dashboards, linking to the exact same
+   `/support` pages the customer profile already used. No new pages, no role-specific branching
+   in any of them - they were already role-agnostic.
+3. **Admin sender-type filter.** `/admin/tickets` gets a second row of tabs (همه/مشتری/فروشنده/
+   پارتنر تولید) alongside the existing status tabs, plus a small sender-type badge on every row
+   in the list - both independent of status, combinable via `?status=&type=` query params. A
+   ticket has no stored "sender type" - `classifyTicketSender()` (`lib/data/support.ts`) reads it
+   live off the ticket owner's *current* `sellerProfile`/`serviceProviderProfile` relations (an
+   account with a seller profile is classified "فروشنده", one with a provider profile
+   "پارتنر تولید", anyone else "مشتری" - seller takes priority over provider on the rare account
+   holding both), matching the "never cache a role, always a fresh lookup" pattern every other
+   role check in this app already follows (ADR 21). This also made the thread's owner-side label
+   role-aware for free: `TicketThread`'s `ownerLabel` prop is now this same classification instead
+   of a hardcoded "مشتری", so a seller's own message reads "فروشنده" in the admin's view of their
+   ticket, not a misleading blanket "مشتری".
+**Why splitting into two routes, not a request-body flag like `{ body, asStaff: true }`:** a
+client-supplied flag is trivially forgeable - anyone could POST `asStaff: true` to the shared
+endpoint and have their message rendered as an official reply. Which URL handled the request is
+decided entirely server-side by routing and its own `requireAdmin()`/ownership check, so there is
+no equivalent trust boundary to forge. `TicketReplyForm` (unchanged internally) now takes an
+`endpoint` prop instead of a bare `ticketId`, the same shape `ApproveButton`/`RejectForm` already
+use (ADR 30/32) for "identical UI, different backing route depending on which page renders it."
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP throughout:
+- Reproduced the exact reported scenario: one account, granted ADMIN over its own existing
+  `CUSTOMER` role (the same bootstrap shape ADR 30 documents), created a ticket, then posted one
+  reply through `/api/support/tickets/[id]/messages` and one through
+  `/api/admin/tickets/[id]/messages` - all three messages share the identical `authorId`, but the
+  database rows show `isFromStaff` as `0, 0, 1` respectively, and both the ticket owner's own
+  `/support/[id]` view and the admin's `/admin/tickets/[id]` view of the *same* thread rendered
+  the first two as "مشتری" and the third as "پشتیبانی ویورا" - confirming the fix from both the
+  data layer and both rendering surfaces, not just one.
+- A fresh seller account (a directly-inserted `SellerProfile`, APPROVED) and a fresh provider
+  account (`ServiceProviderProfile`, APPROVED) each saw "تماس با پشتیبانی" on their own dashboard,
+  and each successfully created a real ticket via the existing `/support/new` flow with no code
+  changes needed there.
+- `/admin/tickets?status=OPEN` with no `type` showed all three tickets (the self-admin's,
+  seller's, provider's); `type=SELLER`, `type=SERVICE_PROVIDER`, and `type=CUSTOMER` each
+  correctly narrowed to exactly the one matching ticket; the unfiltered list's per-row badges
+  read "فروشنده"، "پارتنر تولید"، and "مشتری" respectively, next to the right subjects.
+- Access control on the split routes: a fourth, wholly unrelated account (neither the ticket
+  owner nor an admin) got a 404 from the owner route and a 403 from the admin route; the admin
+  account itself, deliberately hitting the *old* owner-only route on a ticket it doesn't own,
+  now gets a 404 too - confirming the admin fallback is actually gone, not just unused - and
+  correctly succeeded once it used the dedicated admin route instead.
+- All test accounts (4 phone numbers), the directly-inserted seller/provider profiles, and all
+  three test tickets (with their messages) created during this pass were deleted afterward.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, the new
+  `/api/admin/tickets/[id]/messages` route listed in its output alongside every pre-existing one.
+**Rejected:** inferring staff-ness from "does this account currently hold ADMIN" at render time
+instead of storing `isFromStaff` per message - this is exactly the identity-based approach that
+caused the original bug (an admin who is also the ticket's owner would still be misclassified,
+just via a different comparison), and it would also retroactively relabel a *past* message if the
+account's roles ever changed later, which a fact about a specific moment in time (who this reply
+was sent *as*) should never do.
