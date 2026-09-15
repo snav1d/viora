@@ -1,0 +1,12 @@
+User-Agent: *
+Allow: /
+Allow: /home
+Allow: /shop
+Disallow: /api/
+Disallow: /auth
+Disallow: /auth/
+Disallow: /wizard
+Disallow: /cart
+Disallow: /profile
+
+Sitemap: https://vio.tavaloda.com/sitemap.xml

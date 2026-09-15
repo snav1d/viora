@@ -1,0 +1,179 @@
+{
+  "app": {
+    "[project]/app/(main)/cart/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/home/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/orders/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/print/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/profile/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/shop/[categorySlug]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/shop/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/shop/product/[slug]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/support/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/support/new/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/support/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/(main)/wizard/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/_not-found/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/banners/[id]/edit/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/banners/new/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/banners/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/catalog/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/coupons/new/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/coupons/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/providers/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/providers/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/sellers/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/sellers/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/themes/[id]/edit/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/themes/new/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/themes/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/tickets/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/admin/tickets/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/auth/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/auth/verify/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/legal/seller-terms/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/provider/(panel)/orders/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/provider/(panel)/orders/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/provider/(panel)/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/provider/register/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/(panel)/orders/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/(panel)/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/[id]/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/new/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ],
+    "[project]/app/seller/register/page": [
+      "static/media/f1d25eabcf1db66d-s.p.21se6xk6bxqs6.woff2",
+      "static/media/ec8f59eafded4799-s.p.2avnhkksosb5d.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}
