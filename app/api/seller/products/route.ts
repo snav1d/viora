@@ -5,16 +5,27 @@ import { requireApprovedSeller } from "@/lib/auth/seller";
 import { randomSlug } from "@/lib/slug";
 import { storageUrlSchema } from "@/lib/validation/url";
 
-const bodySchema = z.object({
-  title: z.string().min(2),
-  description: z.string().min(1).optional(),
-  categoryId: z.string().min(1),
-  cityId: z.string().min(1),
-  price: z.number().int().positive(),
-  stock: z.number().int().min(0),
-  images: z.array(storageUrlSchema).max(6),
-  isActive: z.boolean(),
-});
+const bodySchema = z
+  .object({
+    title: z.string().min(2),
+    description: z.string().min(1).optional(),
+    categoryId: z.string().min(1),
+    cityId: z.string().min(1),
+    price: z.number().int().positive(),
+    discountPrice: z.number().int().positive().nullable().optional(),
+    stock: z.number().int().min(0),
+    images: z.array(storageUrlSchema).max(6),
+    isActive: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.discountPrice != null && data.discountPrice >= data.price) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["discountPrice"],
+        message: "قیمت با تخفیف باید کمتر از قیمت اصلی باشد.",
+      });
+    }
+  });
 
 export async function POST(request: Request) {
   const seller = await requireApprovedSeller();
@@ -47,6 +58,7 @@ export async function POST(request: Request) {
       slug: randomSlug(parsed.data.title),
       description: parsed.data.description,
       price: parsed.data.price,
+      discountPrice: parsed.data.discountPrice ?? null,
       stock: parsed.data.stock,
       images: parsed.data.images,
       isActive: parsed.data.isActive,

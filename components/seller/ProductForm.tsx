@@ -26,6 +26,7 @@ type ProductInput = {
   categoryId: string;
   cityId: string;
   price: number;
+  discountPrice: number | null;
   stock: number;
   images: string[];
   isActive: boolean;
@@ -48,6 +49,9 @@ export function ProductForm({
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "");
   const [cityId, setCityId] = useState(product?.cityId ?? "");
   const [price, setPrice] = useState(product ? String(product.price) : "");
+  const [discountPrice, setDiscountPrice] = useState(
+    product?.discountPrice ? String(product.discountPrice) : "",
+  );
   const [stock, setStock] = useState(product ? String(product.stock) : "0");
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
@@ -103,6 +107,7 @@ export function ProductForm({
             categoryId,
             cityId,
             price: Number(price || "0"),
+            discountPrice: discountPrice ? Number(discountPrice) : null,
             stock: Number(stock || "0"),
             images,
             isActive,
@@ -231,6 +236,28 @@ export function ProductForm({
       </div>
 
       <div className="space-y-1.5">
+        <label htmlFor="discountPrice" className="text-sm font-medium text-charcoal">
+          قیمت با تخفیف (اختیاری)
+        </label>
+        <input
+          id="discountPrice"
+          type="text"
+          inputMode="numeric"
+          value={discountPrice ? Number(discountPrice).toLocaleString("fa-IR") : ""}
+          onChange={(event) => setDiscountPrice(digitsOnly(event.target.value))}
+          placeholder="خالی بگذارید تا بدون تخفیف باشد"
+          className={inputClass}
+        />
+        {discountPrice && price && Number(discountPrice) >= Number(price) ? (
+          <p className="text-xs text-rose-700">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</p>
+        ) : (
+          <p className="text-xs text-charcoal-muted">
+            اگر تنظیم کنید، در فروشگاه قیمت اصلی خط‌خورده و این قیمت نمایش داده می‌شود.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
         <span className="text-sm font-medium text-charcoal">تصاویر محصول</span>
         <div className="flex flex-wrap gap-2">
           {images.map((url) => (
@@ -281,7 +308,16 @@ export function ProductForm({
 
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}
 
-      <Button type="submit" size="lg" disabled={submitting || uploading} className="mt-2 w-full">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={
+          submitting ||
+          uploading ||
+          (discountPrice !== "" && price !== "" && Number(discountPrice) >= Number(price))
+        }
+        className="mt-2 w-full"
+      >
         {submitting ? "در حال ذخیره…" : product ? "ذخیره تغییرات" : "افزودن محصول"}
       </Button>
     </form>

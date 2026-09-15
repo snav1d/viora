@@ -70,11 +70,20 @@ A Next.js (App Router, TypeScript) skeleton with:
   customer-vs-staff label is decided by which route handled it, not by comparing user ids (that
   comparison broke for an account that is both a ticket's owner and an admin - see ADR 34). See
   `docs/decisions.md` ADR 33, 34.
+- Two independent discount mechanisms (docs/decisions.md ADR 35): a seller's own optional
+  `Product.discountPrice` (absorbed by the seller - flows straight into `unitPrice`/
+  `splitAmount` like the regular price always has, shown strikethrough in the shop), and a
+  platform-wide `Coupon` (admin-managed at `/admin/coupons`, percentage or fixed-amount, with
+  caps/limits/date windows) applied at checkout on either a product cart or a print order. The
+  two stack, but only the seller's own discount ever touches what a seller/print-partner is
+  paid - a Coupon's discount comes only off `Order.totalAmount`, absorbed by Viora, never
+  `OrderItem.splitAmount`.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
   (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,
-  a print-color catalog (add/remove), and a support-ticket queue - replacing the direct-DB editing
-  §4 below used to document. See `docs/decisions.md` ADR 30, 31, 32, 33.
+  a print-color catalog (add/remove), a support-ticket queue, and coupon management (add +
+  active/inactive toggle) - replacing the direct-DB editing §4 below used to document. See
+  `docs/decisions.md` ADR 30, 31, 32, 33, 35.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
@@ -88,9 +97,10 @@ panel — the order-reassignment marketplace, the paid "تاییدیه‌ی وی
 partner calendar, and a real rating *shown in the partner-matching list* (ADR 31 - print
 offerings can now genuinely be reviewed the same as products via ADR 33's generic order-item
 review flow, but `getMatchingPrintProviders`'s "امتیاز —" slot doesn't read that data yet); within
-the admin panel — user/customer management, order operations, seasonal themes/banners, discount
-codes, reports, and an audit log (all named but deliberately deferred in
-`panels-and-operations-spec.md` §4 — see ADR 30). The database has placeholders for most of this
+the admin panel — user/customer management, order operations, seasonal themes/banners, reports,
+and an audit log (all named but deliberately deferred in `panels-and-operations-spec.md` §4 — see
+ADR 30; discount codes, also named there, are now built — see ADR 35). The database has
+placeholders for most of this
 (see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 
 ## 3. Running it locally

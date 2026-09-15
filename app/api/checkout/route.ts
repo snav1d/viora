@@ -3,10 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getPaymentProvider } from "@/lib/providers/payment";
+import { validateCoupon } from "@/lib/data/coupons";
 
 const bodySchema = z.object({
   items: z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1) })).min(1),
   shippingAddress: z.string().min(5),
+  couponCode: z.string().trim().min(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -27,10 +29,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "برخی محصولات دیگر موجود نیستند." }, { status: 400 });
   }
 
-  // Prices/sellers are re-read from the DB, never trusted from the client.
+  // Prices/sellers are re-read from the DB, never trusted from the client. A seller's own
+  // discountPrice (docs/decisions.md ADR 35) - when set - is simply the real price here: it
+  // flows straight into unitPrice/splitAmount exactly like the regular price always has, since
+  // it's the seller's own choice, not something a platform coupon should ever touch.
   const lines = parsed.data.items.map((item) => {
     const product = products.find((p) => p.id === item.productId)!;
-    const unitPrice = product.price.toNumber();
+    const unitPrice = (product.discountPrice ?? product.price).toNumber();
     return {
       productId: product.id,
       sellerId: product.sellerId,
@@ -40,7 +45,23 @@ export async function POST(request: Request) {
     };
   });
 
-  const totalAmount = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+
+  // Never trust the client's own earlier /api/coupons/validate preview - re-verify everything
+  // (still active, still within its window/limits, still meets minOrderAmount against the real
+  // server-computed subtotal) at the moment of actually charging.
+  let couponId: string | null = null;
+  let discountAmount = 0;
+  if (parsed.data.couponCode) {
+    const result = await validateCoupon(parsed.data.couponCode, session.userId, subtotal);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    couponId = result.coupon.id;
+    discountAmount = result.discountAmount;
+  }
+
+  const totalAmount = subtotal - discountAmount;
 
   const order = await prisma.order.create({
     data: {
@@ -49,6 +70,8 @@ export async function POST(request: Request) {
       status: "PENDING_PAYMENT",
       paymentStatus: "PENDING",
       totalAmount,
+      couponId,
+      discountAmount,
       shippingAddress: parsed.data.shippingAddress,
       items: {
         create: lines.map((line) => ({

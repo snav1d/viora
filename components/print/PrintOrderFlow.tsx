@@ -6,6 +6,7 @@ import { ChevronRight, FileUp } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
 import { JalaliDatePicker } from "@/components/ui/JalaliDatePicker";
+import { CouponInput } from "@/components/checkout/CouponInput";
 import { cn } from "@/lib/cn";
 import { formatJalaliLong, formatJalaliRange } from "@/lib/jalali";
 import type { MatchedPrintProvider } from "@/lib/data/print";
@@ -70,6 +71,8 @@ export function PrintOrderFlow({
   const [matching, setMatching] = useState(false);
   const [providers, setProviders] = useState<MatchedPrintProvider[]>([]);
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -169,6 +172,7 @@ export function PrintOrderFlow({
           notes: answers.notes || undefined,
           isExpressDelivery: answers.isExpressDelivery,
           requestedDeliveryDate: answers.isExpressDelivery ? answers.requestedDeliveryDate : undefined,
+          couponCode: couponCode ?? undefined,
         }),
       });
       const data = await response.json();
@@ -187,8 +191,9 @@ export function PrintOrderFlow({
 
   const selectedProvider = providers.find((p) => p.offeringId === selectedOfferingId) ?? null;
   const quantity = Number(answers.quantity) || 0;
-  const total =
+  const subtotal =
     selectedProvider ? selectedProvider.totalPrice + (answers.isExpressDelivery ? deliverySettings.expressFee : 0) : 0;
+  const total = subtotal - discountAmount;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -411,13 +416,37 @@ export function PrintOrderFlow({
                     : `عادی - تحویل بین ${formatJalaliRange(deliverySettings.normalDeliveryFromDate, deliverySettings.normalDeliveryToDate)}`}
                 </dd>
               </div>
-              <div className="col-span-2 border-t border-border pt-3">
+              {discountAmount > 0 ? (
+                <div className="col-span-2 border-t border-border pt-3">
+                  <dt className="text-charcoal-muted">تخفیف</dt>
+                  <dd className="font-medium text-rose-700">
+                    -{discountAmount.toLocaleString("fa-IR")} تومان
+                  </dd>
+                </div>
+              ) : null}
+              <div className={cn("col-span-2 pt-3", discountAmount === 0 && "border-t border-border")}>
                 <dt className="text-charcoal-muted">جمع کل</dt>
                 <dd className="text-base font-semibold text-charcoal">
                   {total.toLocaleString("fa-IR")} تومان
                 </dd>
               </div>
             </dl>
+
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-charcoal">کد تخفیف</p>
+              <CouponInput
+                subtotal={subtotal}
+                appliedCode={couponCode}
+                onApplied={(code, amount) => {
+                  setCouponCode(code);
+                  setDiscountAmount(amount);
+                }}
+                onRemoved={() => {
+                  setCouponCode(null);
+                  setDiscountAmount(0);
+                }}
+              />
+            </div>
           </StepShell>
         )}
 

@@ -24,11 +24,13 @@ export function JalaliDatePicker({
 }: {
   value: string;
   onChange: (iso: string) => void;
-  minIso: string;
+  /// Omit for no lower bound (e.g. an admin picking a coupon's start/end date, which can
+  /// legitimately be in the past) - every day is then selectable and "ماه قبل" never disables.
+  minIso?: string;
 }) {
   const [open, setOpen] = useState(false);
   const selected = isoToJalali(value);
-  const min = isoToJalali(minIso);
+  const min = minIso ? isoToJalali(minIso) : null;
   const [viewJy, setViewJy] = useState(selected.jy);
   const [viewJm, setViewJm] = useState(selected.jm);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,7 +72,7 @@ export function JalaliDatePicker({
     });
   }
 
-  const isPrevDisabled = viewJy < min.jy || (viewJy === min.jy && viewJm <= min.jm);
+  const isPrevDisabled = min !== null && (viewJy < min.jy || (viewJy === min.jy && viewJm <= min.jm));
 
   const monthLength = jalaliMonthLength(viewJy, viewJm);
   const { gy: firstGy, gm: firstGm, gd: firstGd } = toGregorian(viewJy, viewJm, 1);
@@ -78,6 +80,7 @@ export function JalaliDatePicker({
   const days = Array.from({ length: monthLength }, (_, i) => i + 1);
 
   function isBeforeMin(jy: number, jm: number, jd: number): boolean {
+    if (min === null) return false;
     if (jy !== min.jy) return jy < min.jy;
     if (jm !== min.jm) return jm < min.jm;
     return jd < min.jd;

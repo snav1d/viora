@@ -2049,3 +2049,119 @@ caused the original bug (an admin who is also the ticket's owner would still be 
 just via a different comparison), and it would also retroactively relabel a *past* message if the
 account's roles ever changed later, which a fact about a specific moment in time (who this reply
 was sent *as*) should never do.
+
+---
+
+## 2026-09-15 — two independent discount mechanisms
+
+### 35. Platform `Coupon` (admin-managed, absorbed by Viora) + seller `Product.discountPrice`
+(seller-absorbed, no dedicated model) - deliberately kept separate, stackable
+**Decision:** Built exactly the two mechanisms asked for, kept structurally independent per the
+request's own framing ("این دوتا کاملاً مستقل از هم پیاده بشن"):
+1. **`Product.discountPrice`** - one new nullable column on `Product`, no new model. When a
+   seller sets it (must be strictly less than `price`, enforced in both `ProductForm`'s submit
+   button and both product API routes' zod `superRefine` - never in SQL, matching this schema's
+   existing convention of validating cross-field invariants at the API layer, not the DB), it is
+   simply *the* price everywhere a real amount is computed - `unitPrice`/`splitAmount` at
+   checkout, the strikethrough display on `ProductCard` and the product detail page. No separate
+   "seller discount" calculation exists anywhere; `discountPrice ?? price` is the one place this
+   is resolved (`/api/checkout`), same as how `unitPrice` has always just been "the product's
+   price" before this.
+2. **`Coupon`** - a new model, admin-managed at `/admin/coupons` (create + an `isActive` toggle,
+   never a hard delete - `Order.couponId` references it, and the toggle-not-delete convention
+   already established for City/Category (ADR 30) and reused for PrintColor (ADR 32) applies
+   here too, for the same reason: a coupon that's been used must stay resolvable). Supports both
+   `PERCENTAGE` (with an optional `maxDiscountAmount` cap) and `FIXED_AMOUNT`, an optional
+   `minOrderAmount`, optional total and per-user redemption caps, and an optional
+   `startsAt`/`endsAt` window. `validateCoupon()` (`lib/data/coupons.ts`) is the single place
+   every one of these rules is checked, shared by a lightweight preview endpoint
+   (`/api/coupons/validate`, called while the customer is still editing their cart or print
+   order, so they see the real discount before committing) and both order-creation routes
+   (`/api/checkout`, `/api/print-orders`), which **never trust the preview result** and
+   re-validate everything (still active, still within its window, still under its redemption
+   caps, still meets `minOrderAmount` against the real server-computed subtotal) at the moment of
+   actually charging - the identical "never trust an earlier read" posture ADR 31 established for
+   print-partner matching, applied here to a case where the stakes are a real discount amount,
+   not just a stale provider list. Redemption counts are computed directly from `Order` rows
+   (`count({ couponId, paymentStatus: "PAID" })`, optionally `+ userId`) rather than a separate
+   `CouponRedemption` join table - nothing about this feature needs to query redemptions except
+   by coupon and by coupon+user, both of which `Order` already answers directly once it carries
+   `couponId`, so a dedicated table would just be a relation with no distinct use.
+**The financial rule that made these two mechanisms need to stay structurally separate, per the
+request's own explicit instruction:** a seller's own `discountPrice` is absorbed by the seller -
+it's their price, so it flows straight into `OrderItem.splitAmount` (their payout share) exactly
+like the regular price always has. A platform `Coupon`, by contrast, must **never** reduce what a
+seller or print partner receives - Viora itself absorbs the gap between what the customer paid
+(`Order.totalAmount`, net of the coupon) and what the vendor is owed (`sum(OrderItem.splitAmount)`,
+computed only from `unitPrice` - which already reflects any seller-level discount, but is
+computed *before* the coupon is ever considered). Concretely: `subtotal` is computed first from
+real (seller-discounted, if applicable) unit prices → `OrderItem.splitAmount` is fixed at that
+point → *then* the coupon is validated against that same `subtotal` and its `discountAmount`
+is subtracted only when computing `Order.totalAmount`, never touching `OrderItem` at all. This
+is why both order routes compute the coupon discount as a step strictly after building each
+line's `unitPrice`/`splitAmount`, not folded into the same per-line calculation.
+**Why `/api/print-orders` needed the identical treatment, not just `/api/checkout`:** the request
+named "فروشنده/پارتنر" (seller/partner) together when describing the split-amount rule, and a
+print order's `OrderItem.splitAmount` is exactly as real a vendor payout as a product order's -
+`lineTotal` (the provider's tier-priced total) is fixed before the coupon is applied to
+`lineTotal + expressFee`, so a print partner's payout is equally protected from ever being
+reduced by a platform coupon.
+**Why `JalaliDatePicker` gained an optional `minIso`, and why a separate
+`OptionalJalaliDatePicker` wrapper exists rather than changing the picker's own value semantics:**
+a coupon's `startsAt`/`endsAt` are genuinely optional and, unlike the print flow's delivery date,
+`startsAt` can legitimately be a past or present date - so the existing picker (which always
+requires a real value and, until now, always a lower bound) needed `minIso` to become optional
+rather than forcing every future caller to invent a meaningless bound. The unset/set toggle itself
+(an "افزودن تاریخ" affordance until a date is picked, then the real picker plus a clear button)
+was kept in a separate wrapper component instead of teaching the core picker to represent "no
+date" as a value, since every other caller (the print flow's express-delivery date) never has an
+unset state and shouldn't have to handle one.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP and one real Playwright pass for the two client-heavy interactions (the admin
+coupon form's date picker, and the cart's coupon apply/remove flow):
+- A seller-set `discountPrice` (600,000 vs. a 735,000 `price`) rejected when submitted `>=
+  price` (both the disabled submit button and the API's own re-validation); once set, rendered
+  correctly strikethrough on both the home page's `ProductCard` and the product detail page, and
+  a real checkout of that product used 600,000 as `unitPrice`/`splitAmount` with zero coupon
+  involved - confirmed via the actual `OrderItem` row, not just the request succeeding.
+- A real `PERCENTAGE` coupon (20%, capped at 100,000, `minOrderAmount` 500,000, total cap 2,
+  per-user cap 1): preview correctly rejected a 400,000 subtotal (`سفارش‌های بالای ۵۰۰٬۰۰۰`),
+  correctly capped a 600,000 and a 1,000,000 subtotal to the same 100,000 (confirming the cap
+  binds, not just the percentage math). A real checkout combining the seller-discounted product
+  (subtotal 1,200,000) with this coupon produced `Order.totalAmount = 1,100,000`,
+  `Order.discountAmount = 100,000`, **and `OrderItem.splitAmount = 1,200,000` - unchanged by the
+  coupon** - the exact financial isolation the request required, confirmed from the database, not
+  assumed from the code. The same customer's second attempt at the same coupon was rejected
+  (per-user cap); a second customer's use succeeded (bringing total redemptions to the cap); a
+  third customer was then correctly rejected (`ظرفیت … تمام شده`) - the total cap enforced across
+  different accounts, not just per-account.
+- A real `FIXED_AMOUNT` coupon (50,000 flat, no caps) applied to a real print order: `lineTotal`
+  (5,700 × 150 = 855,000) stayed the provider's full `splitAmount`; `Order.totalAmount` came out
+  to exactly 805,000 (855,000 − 50,000) - confirming the identical financial-isolation rule holds
+  for print-partner orders, not just product ones.
+- Deactivating a coupon via the real admin toggle immediately made it unusable for a customer who
+  hadn't even hit their own redemption limit yet - confirming `isActive` is checked independently
+  of every other rule, not skipped once other checks pass.
+- Date-window rules: a coupon with `endsAt` before `startsAt` was rejected at creation
+  (`تاریخ پایان باید بعد از تاریخ شروع باشد`); a coupon already past its `endsAt` was rejected as
+  expired; one whose `startsAt` was still in the future was rejected as not yet active - both
+  against real dates, not mocked time.
+- Real Playwright interaction: the admin coupon form's `OptionalJalaliDatePicker` opened to
+  today's real Jalali date on "افزودن تاریخ شروع" and the created coupon appeared in the real
+  list afterward; a real product was added to a real cart and the cart's `CouponInput` correctly
+  showed the applied-code badge and a discount line after typing a code and clicking "اعمال", and
+  correctly reverted to the plain input after "حذف".
+- All test users (7 phone numbers across both sessions), all four real test orders, both test
+  coupons plus the two invalid ones created to test date-window rejection, and the Playwright-run
+  coupon were deleted afterward; the seller-test product's `discountPrice` was reset to `null`;
+  the pre-existing seed baseline (products, the one seeded seller/provider, zero coupons)
+  confirmed unchanged before and after.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route (`/admin/coupons`,
+  `/admin/coupons/new`, `/api/admin/coupons`, `/api/admin/coupons/[id]`, `/api/coupons/validate`)
+  listed in its output alongside every pre-existing one.
+**Rejected:** a `CouponRedemption` join table (see above - `Order` already answers every query
+this feature needs). Encoding `discountPrice < price` as a database constraint - this schema
+validates cross-field invariants at the API layer throughout (e.g. `PrintPricingTier`'s
+`maxQuantity > minQuantity`), and MySQL's `CHECK` constraint support doesn't cleanly fit this
+codebase's existing migration-safety patterns for a comparison between two nullable-adjacent
+columns.

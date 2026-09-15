@@ -34,6 +34,8 @@ export default async function ProductPage({ params }: Props) {
   if (!product || !product.isActive) notFound();
 
   const price = toNumber(product.price);
+  const discountPrice = product.discountPrice ? toNumber(product.discountPrice) : null;
+  const effectivePrice = discountPrice ?? price;
   const reviewSummary = await getProductReviewSummary(product.id);
 
   const jsonLd = {
@@ -45,7 +47,7 @@ export default async function ProductPage({ params }: Props) {
     offers: {
       "@type": "Offer",
       priceCurrency: "IRR",
-      price: price * 10, // Toman -> Rial for schema.org (ISO 4217 has no Toman code)
+      price: effectivePrice * 10, // Toman -> Rial for schema.org (ISO 4217 has no Toman code)
       availability:
         product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
@@ -65,7 +67,18 @@ export default async function ProductPage({ params }: Props) {
         <div className="space-y-2">
           <p className="text-xs text-charcoal-muted">{product.category.name}</p>
           <h1 className="text-lg font-semibold text-charcoal">{product.title}</h1>
-          <p className="text-xl font-bold text-rose-700">{price.toLocaleString("fa-IR")} تومان</p>
+          {discountPrice ? (
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-bold text-rose-700">
+                {discountPrice.toLocaleString("fa-IR")} تومان
+              </p>
+              <p className="text-sm text-charcoal-muted line-through">
+                {price.toLocaleString("fa-IR")} تومان
+              </p>
+            </div>
+          ) : (
+            <p className="text-xl font-bold text-rose-700">{price.toLocaleString("fa-IR")} تومان</p>
+          )}
         </div>
 
         {product.description ? (
@@ -87,7 +100,7 @@ export default async function ProductPage({ params }: Props) {
           productId={product.id}
           slug={product.slug}
           title={product.title}
-          price={price}
+          price={effectivePrice}
         />
 
         <ReviewList summary={reviewSummary} />

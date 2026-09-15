@@ -38,6 +38,7 @@ export default async function EditSellerProductPage({ params }: Props) {
           categoryId: product.categoryId,
           cityId: product.cityId,
           price: toNumber(product.price),
+          discountPrice: product.discountPrice ? toNumber(product.discountPrice) : null,
           stock: product.stock,
           images: parseProductImages(product.images),
           isActive: product.isActive,

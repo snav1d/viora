@@ -6,14 +6,33 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart/CartContext";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
+import { CouponInput } from "@/components/checkout/CouponInput";
 
 export function CartView() {
   const { items, updateQuantity, removeItem, clear, totalPrice } = useCart();
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"online">("online");
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const finalTotal = totalPrice - discountAmount;
+
+  // A previously-applied coupon's discountAmount was computed against the subtotal at the
+  // moment it was applied - if the cart changes afterward, that number would be stale (still
+  // shown, no longer accurate), so any cart edit clears it and the customer re-applies against
+  // the new subtotal. The final checkout call always re-validates server-side regardless.
+  function handleUpdateQuantity(productId: string, quantity: number) {
+    updateQuantity(productId, quantity);
+    setCouponCode(null);
+    setDiscountAmount(0);
+  }
+  function handleRemoveItem(productId: string) {
+    removeItem(productId);
+    setCouponCode(null);
+    setDiscountAmount(0);
+  }
 
   async function handleCheckout() {
     setError(null);
@@ -27,6 +46,7 @@ export function CartView() {
           items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
           shippingAddress: address,
           paymentMethod,
+          couponCode: couponCode ?? undefined,
         }),
       });
       const data = await response.json();
@@ -79,7 +99,7 @@ export function CartView() {
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                  onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
                   aria-label="کاهش تعداد"
                 >
@@ -89,7 +109,7 @@ export function CartView() {
                   {item.quantity.toLocaleString("fa-IR")}
                 </span>
                 <button
-                  onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                  onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
                   aria-label="افزایش تعداد"
                 >
@@ -98,7 +118,7 @@ export function CartView() {
               </div>
             </div>
             <button
-              onClick={() => removeItem(item.productId)}
+              onClick={() => handleRemoveItem(item.productId)}
               className="text-charcoal-muted hover:text-rose-600"
               aria-label="حذف از سبد"
             >
@@ -107,6 +127,22 @@ export function CartView() {
           </li>
         ))}
       </ul>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-charcoal">کد تخفیف</p>
+        <CouponInput
+          subtotal={totalPrice}
+          appliedCode={couponCode}
+          onApplied={(code, amount) => {
+            setCouponCode(code);
+            setDiscountAmount(amount);
+          }}
+          onRemoved={() => {
+            setCouponCode(null);
+            setDiscountAmount(0);
+          }}
+        />
+      </div>
 
       <div className="space-y-2">
         <label htmlFor="address" className="text-sm font-medium text-charcoal">
@@ -140,11 +176,23 @@ export function CartView() {
         </label>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
-        <span className="text-charcoal-muted">جمع کل</span>
-        <span className="text-lg font-bold text-charcoal">
-          {totalPrice.toLocaleString("fa-IR")} تومان
-        </span>
+      <div className="space-y-1.5 border-t border-border pt-4 text-sm">
+        <div className="flex items-center justify-between text-charcoal-muted">
+          <span>جمع سبد</span>
+          <span>{totalPrice.toLocaleString("fa-IR")} تومان</span>
+        </div>
+        {discountAmount > 0 ? (
+          <div className="flex items-center justify-between text-rose-700">
+            <span>تخفیف</span>
+            <span>-{discountAmount.toLocaleString("fa-IR")} تومان</span>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between pt-1">
+          <span className="font-medium text-charcoal">جمع کل</span>
+          <span className="text-lg font-bold text-charcoal">
+            {finalTotal.toLocaleString("fa-IR")} تومان
+          </span>
+        </div>
       </div>
 
       {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}

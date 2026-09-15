@@ -11,7 +11,7 @@ export function ActiveToggle({
 }: {
   id: string;
   isActive: boolean;
-  kind: "cities" | "categories";
+  kind: "cities" | "categories" | "coupons";
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);

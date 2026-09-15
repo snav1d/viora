@@ -33,14 +33,16 @@ export function getServiceProviderProfileDetail(id: string) {
 }
 
 export async function getAdminStats() {
-  const [pendingSellers, pendingProviders, openTickets, activeCities, activeCategories] = await Promise.all([
-    prisma.sellerProfile.count({ where: { status: "PENDING" } }),
-    prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
-    prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
-    prisma.city.count({ where: { isActive: true } }),
-    prisma.category.count({ where: { isActive: true } }),
-  ]);
-  return { pendingSellers, pendingProviders, openTickets, activeCities, activeCategories };
+  const [pendingSellers, pendingProviders, openTickets, activeCities, activeCategories, activeCoupons] =
+    await Promise.all([
+      prisma.sellerProfile.count({ where: { status: "PENDING" } }),
+      prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
+      prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
+      prisma.city.count({ where: { isActive: true } }),
+      prisma.category.count({ where: { isActive: true } }),
+      prisma.coupon.count({ where: { isActive: true } }),
+    ]);
+  return { pendingSellers, pendingProviders, openTickets, activeCities, activeCategories, activeCoupons };
 }
 
 export function getAllCities() {
@@ -53,4 +55,8 @@ export function getAllCategories() {
 
 export function getAllPrintColors() {
   return prisma.printColor.findMany({ orderBy: { name: "asc" } });
+}
+
+export function getAllCoupons() {
+  return prisma.coupon.findMany({ orderBy: { createdAt: "desc" } });
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getPaymentProvider } from "@/lib/providers/payment";
 import { getPrintDeliverySettings } from "@/lib/data/print";
+import { validateCoupon } from "@/lib/data/coupons";
 import { storageUrlSchema } from "@/lib/validation/url";
 
 const bodySchema = z
@@ -16,6 +17,7 @@ const bodySchema = z
     notes: z.string().min(1).optional(),
     isExpressDelivery: z.boolean(),
     requestedDeliveryDate: z.string().min(1).optional(),
+    couponCode: z.string().trim().min(1).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.isExpressDelivery && !data.requestedDeliveryDate) {
@@ -93,7 +95,24 @@ export async function POST(request: Request) {
   }
 
   const lineTotal = unitPrice * parsed.data.quantity;
-  const totalAmount = lineTotal + expressFee;
+  const subtotal = lineTotal + expressFee;
+
+  // Never trust the client's own earlier /api/coupons/validate preview - re-verify at the
+  // moment of actually charging. The discount comes off the customer-facing subtotal only - the
+  // provider's own splitAmount below stays lineTotal, untouched by a platform coupon (docs/
+  // decisions.md ADR 35), same reasoning as /api/checkout's seller-discount-but-not-coupon split.
+  let couponId: string | null = null;
+  let discountAmount = 0;
+  if (parsed.data.couponCode) {
+    const result = await validateCoupon(parsed.data.couponCode, session.userId, subtotal);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    couponId = result.coupon.id;
+    discountAmount = result.discountAmount;
+  }
+
+  const totalAmount = subtotal - discountAmount;
 
   const order = await prisma.order.create({
     data: {
@@ -102,6 +121,8 @@ export async function POST(request: Request) {
       status: "PENDING_PAYMENT",
       paymentStatus: "PENDING",
       totalAmount,
+      couponId,
+      discountAmount,
       items: {
         create: [
           {

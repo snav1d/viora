@@ -91,6 +91,7 @@ export default async function HomePage() {
               slug={product.slug}
               title={product.title}
               price={toNumber(product.price)}
+              discountPrice={product.discountPrice ? toNumber(product.discountPrice) : null}
             />
           ))}
         </div>

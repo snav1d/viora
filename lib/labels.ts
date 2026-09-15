@@ -1,4 +1,4 @@
-import type { OrderStatus, TicketStatus } from "@/lib/generated/prisma/client";
+import type { OrderStatus, TicketStatus, CouponType } from "@/lib/generated/prisma/client";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "در انتظار پرداخت",
@@ -25,4 +25,9 @@ export const TICKET_SENDER_LABELS: Record<TicketSenderType, string> = {
   CUSTOMER: "مشتری",
   SELLER: "فروشنده",
   SERVICE_PROVIDER: "پارتنر تولید",
+};
+
+export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
+  PERCENTAGE: "درصدی",
+  FIXED_AMOUNT: "مبلغ ثابت",
 };
