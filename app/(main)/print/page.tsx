@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { getAvailablePrintColors, getPrintDeliverySettings } from "@/lib/data/print";
+import { getPrintColorNames, getPrintDeliverySettings } from "@/lib/data/print";
 import { PrintOrderFlow } from "@/components/print/PrintOrderFlow";
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default async function PrintOrderPage() {
   }
 
   const [colors, deliverySettings] = await Promise.all([
-    getAvailablePrintColors(),
+    getPrintColorNames(),
     getPrintDeliverySettings(),
   ]);
 

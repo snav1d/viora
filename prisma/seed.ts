@@ -181,6 +181,15 @@ async function main() {
     })),
   });
 
+  // The admin-curated print-color catalog (docs/decisions.md ADR 32) - the same names the
+  // seeded offering below selects from, so seed data stays internally consistent.
+  const seedPrintColors = ["قرمز", "آبی", "طلایی", "نقره‌ای", "سفید", "مشکی"];
+  await Promise.all(
+    seedPrintColors.map((name) =>
+      prisma.printColor.upsert({ where: { name }, update: {}, create: { name } }),
+    ),
+  );
+
   // Structured print settings supersede customFieldsSchema for this offering specifically - see
   // docs/decisions.md ADR 31. basePrice is set to the lowest tier's unitPrice (5700, the
   // 100-499 tier below) as a "starting from" display price - the real per-order price comes
@@ -253,9 +262,9 @@ async function main() {
     create: { key: "print_express_fee", value: { amount: 150000 } },
   });
   await prisma.platformSetting.upsert({
-    where: { key: "print_normal_turnaround_text" },
+    where: { key: "print_normal_turnaround_days" },
     update: {},
-    create: { key: "print_normal_turnaround_text", value: { text: "معمولاً ۳ تا ۵ روز کاری" } },
+    create: { key: "print_normal_turnaround_days", value: { minDays: 3, maxDays: 5 } },
   });
 
   console.log("Seed complete.");

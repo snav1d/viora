@@ -1762,3 +1762,111 @@ admin account, all via the real OTP flow):
 `panels-and-operations-spec.md`'s print-partner section and explicitly deferred by the request to
 a later phase. Also not built: a real rating system (`completedOrderCount` is the only ranking
 signal for now, exactly as the request anticipated - "می‌تونه صفر/خالی باشه").
+
+---
+
+## 2026-09-15 — print-partner review pass: four gaps found against the original design doc
+
+### 32. Jalali date picker, admin-curated color catalog, computed delivery-date range
+**Decision:** Four fixes to the print-partner feature (ADR 31), found on a re-read of
+`panels-and-operations-spec.md`'s print-partner section against what was actually shipped:
+1. **A real Jalali (Persian) date picker** (`lib/jalali.ts`, `components/ui/JalaliDatePicker.tsx`)
+   replaces the native `<input type="date">` that the express-delivery date field used. A native
+   date input always renders the Gregorian calendar regardless of `lang`/locale - a real HTML
+   limitation, not something CSS or a locale attribute fixes - while every other Persian-date
+   *display* in this app (`toLocaleDateString("fa-IR")`) already converts correctly, since that's
+   Intl/ICU's job, not the browser widget's (verified directly: Node's ICU has full Jalali
+   support). `lib/jalali.ts` wraps `jalaali-js` (MIT, zero dependencies, the Borkowski algorithm -
+   the same one and JS ecosystem's de facto standard) for the Jalali<->Gregorian conversion this
+   needs; hand-rolling that conversion was considered and rejected; correctness here matters (a
+   subtle date-math bug is the kind of thing that ships silently wrong) and the leap-year break
+   table the real algorithm needs is exactly the kind of "solved problem, don't reinvent it"
+   case this project already accepts for `zod`/`jose`/`clsx`. `JalaliDatePicker` is a popover
+   month-grid (prev/next navigation, Saturday-first week per Persian convention, disabled days
+   before a `minIso` bound) - not three raw day/month/year `<select>`s, which would read as a
+   bureaucratic form control rather than matching the "warm, confident" brand identity ADR 29
+   established for this whole registration/ordering experience.
+2. **`PrintColor` model** (`prisma/schema.prisma`) replaces free-text color entry at partner
+   registration with an admin-curated catalog - the original design
+   (`panels-and-operations-spec.md`'s print-partner section, re-read for this pass) always
+   specified a fixed, admin-managed color list, not partner-defined free text; ADR 31 missed this
+   and let partners type anything. `ServiceOffering.printableColors` still stores the chosen
+   names as a plain JSON string array, not a relation to `PrintColor` - a partner's already-saved
+   selection must survive an admin later removing that color from the catalog (their offering
+   keeps showing what they actually support; only *new* selections and the customer-facing color
+   list are affected), and MySQL's `json_valid()` machinery already makes that array the
+   established pattern for this exact field (ADR 20, ADR 31). Admin management lives as a third
+   section on the existing `/admin/catalog` page (add a color, remove one - no toggle, unlike
+   City/Category's phased-rollout `isActive` switch, because a print color has no "not ready yet"
+   phase the way an unlaunched city does: it's either offered or it isn't) rather than a new nav
+   tab, matching `panels-and-operations-spec.md` §4's own grouping of color/city/category
+   management under one "پیکربندی پلتفرم" concern. The provider registration wizard's free-text
+   input + chips became a checkbox list sourced from this catalog, and
+   `/api/provider/register` now re-validates every submitted color against the live `PrintColor`
+   table server-side (never trusting the client's checkbox state - the same "never trust the
+   client" posture ADR 31's `/api/print-orders` already applied to the matching step). The
+   customer-facing color list (`getPrintColorNames`, `lib/data/print.ts`) switched from *deriving*
+   available colors from what currently-qualifying offerings happen to support to reading the
+   admin catalog directly - the two are meant to be the same list now that one exists, and
+   matching can legitimately return zero partners for a given color (already a handled UI state:
+   "فعلاً پارتنری با این مشخصات پیدا نشد"), so there's no correctness reason left to hide a
+   catalog color just because nobody currently supports it.
+3. **Normal delivery shows a real calendar date range, not prose.** `print_normal_turnaround_text`
+   (a free-text `PlatformSetting`, e.g. "معمولاً ۳ تا ۵ روز کاری") is replaced by
+   `print_normal_turnaround_days` (`{ minDays, maxDays }`), and `getPrintDeliverySettings()`
+   resolves it against "today" server-side into two real ISO dates
+   (`normalDeliveryFromDate`/`normalDeliveryToDate`) - a customer choosing normal delivery now
+   sees "تحویل بین ۲۷ شهریور تا ۲۹ شهریور ۱۴۰۵", not a relative description that never says *which*
+   dates to actually expect. Resolved once per page request rather than shipping raw day counts
+   to the client and computing "today" there, so the date shown is always anchored to the
+   server's clock, matching how every other request-time value in this app is computed. Kept to
+   plain calendar-day arithmetic (no Friday/business-day skipping, no holiday calendar) -
+   `panels-and-operations-spec.md` itself only ever asked for an approximate range ("بازه‌ای، مثلاً
+   شنبه تا سه‌شنبه"), and modeling Iran's actual business-day/holiday calendar is real scope this
+   phase never asked for.
+4. **Naming audit: no code change needed.** The spec's own naming note ("به‌جای «چاپ‌کننده» →
+   **پارتنر تولید**") was checked against every Persian string in `app/`, `components/`, and
+   `lib/` (`grep` for چاپ‌کننده/چاپ کننده/چاپخانه/چاپگر/پرینتر across all of ADR 31's new code) -
+   already consistently "پارتنر تولید" everywhere a role/entity is named. The only "چاپخانه" hit
+   is `prisma/seed.ts`'s fake business name ("چاپخانه گلرنگ"), a proper noun for one seeded
+   partner's shop name, not a UI label for the role - left as-is.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`:
+- `lib/jalali.ts`'s conversion functions round-tripped correctly via a direct `tsx` check
+  (`toJalaali`/`toGregorian` inverse, `formatJalaliRange` across both a same-year and a
+  year-boundary-crossing pair, `jalaaliMonthLength` for a known leap/common year).
+- Real Playwright interaction (Chromium, not just reading the component's source) against the
+  live `/print` page's date picker: today (before the `minIso` bound) renders disabled, tomorrow
+  renders selectable and becomes the shown value on click; "ماه قبل" (prev month) is disabled
+  while viewing the bound month and re-disables correctly after navigating forward and back;
+  navigating to the next month shows the correct next Jalali month name, the correct day count
+  for that month (۳۰ for مهر, a 30-day month), and zero disabled days (a fully-future month has
+  no `minIso` boundary inside it). The selected date then correctly appeared in the step-3
+  confirmation via `formatJalaliLong` ("فوری - ۲۵ شهریور ۱۴۰۵").
+- Admin color management via real HTTP: added a color, confirmed it appears on `/admin/catalog`;
+  duplicate add rejected with a Persian message (not a raw constraint error); empty/whitespace
+  name rejected; a non-admin session's add attempt returned 403; deleted the color, confirmed a
+  second delete on the same id returns a 404 with a Persian message.
+- `/api/provider/register` with a color not in the `PrintColor` table was rejected
+  ("یک یا چند رنگ انتخاب‌شده دیگر معتبر نیست."); the identical request with a real catalog color
+  succeeded - confirms server-side re-validation actually runs, not just the checkbox UI
+  happening to only offer valid options.
+- Real Playwright check of the provider registration wizard's step 2: 8 checkboxes rendered (2
+  balloon-finish + 6 seeded colors), zero free-text color inputs present - confirms the free-text
+  chip UI is fully gone, not just visually replaced while the old input still exists.
+- `/print`'s rendered HTML showed "تحویل بین ۲۷ شهریور تا ۲۹ شهریور ۱۴۰۵" against a request made on
+  2026-09-15 (Jalali ۱۴۰۵/۶/۲۴) with the seeded `{minDays: 3, maxDays: 5}` - matches
+  today+3/today+5 exactly.
+- All test users, the one test provider profile/offering/tier created during this pass, and
+  uploaded test files were deleted afterward; the stale `print_normal_turnaround_text` row (left
+  over from before this ADR, now fully superseded by `print_normal_turnaround_days`) was removed
+  from the local dev database.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, `/api/admin/print-colors` and
+  `/api/admin/print-colors/[id]` listed in its output alongside every pre-existing route.
+**Rejected:** three raw `<select>` dropdowns (day/month/year) for the date picker - functionally
+sufficient but reads as an administrative form control, not the "warm, confident" experience this
+whole flow is meant to be. A relation from `ServiceOffering.printableColors`/`OrderItem.printColor`
+to `PrintColor` instead of a plain string snapshot - would make an admin's color removal
+retroactively invalidate a partner's existing offering or a past order's historical record, which
+is exactly the failure mode a snapshot avoids; nothing about this feature needs *querying* "which
+offerings use color X" at the database level, so the relation would add complexity with no
+matching use case.

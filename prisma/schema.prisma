@@ -281,8 +281,10 @@ model ServiceOffering {
   /// panels-and-operations-spec.md §3. See docs/decisions.md ADR 31.
   supportsChrome Boolean @default(false)
   supportsMatte  Boolean @default(false)
-  /// A JSON array of color-name strings this partner can print, self-defined at registration -
-  /// MySQL has no native scalar-list column (ADR 20). See docs/decisions.md ADR 31.
+  /// A JSON array of color-name strings this partner can print, chosen at registration from the
+  /// admin-curated PrintColor list (docs/decisions.md ADR 32) - stored as a plain string
+  /// snapshot, not a relation, since MySQL has no native scalar-list column (ADR 20) and a
+  /// partner's already-saved selection must survive an admin later removing that color.
   printableColors Json    @default("[]")
   /// Orders below this quantity never show this partner as a match - null means "not a print
   /// offering" (a future non-print ServiceOffering has no such concept).
@@ -317,6 +319,16 @@ model PrintPricingTier {
   createdAt DateTime @default(now())
 
   @@index([serviceOfferingId])
+}
+
+/// The admin-curated set of printable balloon colors (docs/decisions.md ADR 32) - partners pick
+/// from this list at registration (ServiceOffering.printableColors stores the chosen names as a
+/// plain string snapshot, not a relation to this table, so removing a color here never touches
+/// a partner's already-saved offering), and customers pick from the same list when ordering.
+model PrintColor {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------

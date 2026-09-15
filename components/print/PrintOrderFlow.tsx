@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, FileUp } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
+import { JalaliDatePicker } from "@/components/ui/JalaliDatePicker";
 import { cn } from "@/lib/cn";
+import { formatJalaliLong, formatJalaliRange } from "@/lib/jalali";
 import type { MatchedPrintProvider } from "@/lib/data/print";
 
 const TOTAL_STEPS = 3;
@@ -59,7 +61,7 @@ export function PrintOrderFlow({
   deliverySettings,
 }: {
   colors: string[];
-  deliverySettings: { expressFee: number; normalTurnaroundText: string };
+  deliverySettings: { expressFee: number; normalDeliveryFromDate: string; normalDeliveryToDate: string };
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -323,12 +325,10 @@ export function PrintOrderFlow({
               </div>
               {answers.isExpressDelivery ? (
                 <div className="space-y-1.5">
-                  <input
-                    type="date"
-                    min={todayPlus(1)}
+                  <JalaliDatePicker
                     value={answers.requestedDeliveryDate}
-                    onChange={(event) => update({ requestedDeliveryDate: event.target.value })}
-                    className={inputClass}
+                    onChange={(iso) => update({ requestedDeliveryDate: iso })}
+                    minIso={todayPlus(1)}
                   />
                   <p className="text-xs text-charcoal-muted">
                     هزینه‌ی اضافه‌ی تحویل فوری: {deliverySettings.expressFee.toLocaleString("fa-IR")} تومان
@@ -336,7 +336,8 @@ export function PrintOrderFlow({
                 </div>
               ) : (
                 <p className="text-xs text-charcoal-muted">
-                  زمان تحویل تقریبی: {deliverySettings.normalTurnaroundText}
+                  تحویل بین{" "}
+                  {formatJalaliRange(deliverySettings.normalDeliveryFromDate, deliverySettings.normalDeliveryToDate)}
                 </p>
               )}
             </div>
@@ -406,8 +407,8 @@ export function PrintOrderFlow({
                 <dt className="text-charcoal-muted">تاریخ تحویل</dt>
                 <dd className="font-medium text-charcoal">
                   {answers.isExpressDelivery
-                    ? `فوری - ${new Date(answers.requestedDeliveryDate).toLocaleDateString("fa-IR")}`
-                    : `عادی (${deliverySettings.normalTurnaroundText})`}
+                    ? `فوری - ${formatJalaliLong(answers.requestedDeliveryDate)}`
+                    : `عادی - تحویل بین ${formatJalaliRange(deliverySettings.normalDeliveryFromDate, deliverySettings.normalDeliveryToDate)}`}
                 </dd>
               </div>
               <div className="col-span-2 border-t border-border pt-3">

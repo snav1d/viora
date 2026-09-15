@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ImagePlus, Plus, X } from "lucide-react";
+import { ChevronRight, ImagePlus, Plus } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -89,11 +89,10 @@ function isStepAnswered(step: number, answers: Answers): boolean {
   );
 }
 
-export function ProviderRegisterWizard() {
+export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
-  const [colorInput, setColorInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
@@ -126,18 +125,12 @@ export function ProviderRegisterWizard() {
     }
   }
 
-  function addColor() {
-    const value = colorInput.trim();
-    if (!value || answers.colors.includes(value)) {
-      setColorInput("");
-      return;
-    }
-    update({ colors: [...answers.colors, value] });
-    setColorInput("");
-  }
-
-  function removeColor(color: string) {
-    update({ colors: answers.colors.filter((c) => c !== color) });
+  function toggleColor(color: string) {
+    update({
+      colors: answers.colors.includes(color)
+        ? answers.colors.filter((c) => c !== color)
+        : [...answers.colors, color],
+    });
   }
 
   function updateTier(index: number, patch: Partial<Tier>) {
@@ -353,39 +346,36 @@ export function ProviderRegisterWizard() {
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-charcoal">رنگ‌های قابل‌چاپ</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={colorInput}
-                  onChange={(event) => setColorInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addColor();
-                    }
-                  }}
-                  placeholder="مثلاً قرمز"
-                  className={inputClass}
-                />
-                <Button type="button" variant="secondary" onClick={addColor} className="shrink-0 px-4">
-                  افزودن
-                </Button>
-              </div>
-              {answers.colors.length > 0 ? (
+              {colors.length === 0 ? (
+                <p className="text-sm text-charcoal-muted">
+                  فعلاً رنگی توسط ویورا تعریف نشده. لطفاً بعداً دوباره سر بزنید.
+                </p>
+              ) : (
                 <div className="flex flex-wrap gap-2">
-                  {answers.colors.map((color) => (
-                    <span
-                      key={color}
-                      className="flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1.5 text-sm text-charcoal"
-                    >
-                      {color}
-                      <button type="button" onClick={() => removeColor(color)} aria-label={`حذف ${color}`}>
-                        <X className="h-3.5 w-3.5" strokeWidth={2} />
-                      </button>
-                    </span>
-                  ))}
+                  {colors.map((color) => {
+                    const checked = answers.colors.includes(color);
+                    return (
+                      <label
+                        key={color}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                          checked
+                            ? "border-gold-500 bg-gold-100 text-charcoal"
+                            : "border-border bg-surface text-charcoal-muted",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleColor(color)}
+                          className="h-3.5 w-3.5 rounded border-border"
+                        />
+                        {color}
+                      </label>
+                    );
+                  })}
                 </div>
-              ) : null}
+              )}
             </div>
 
             <div className="space-y-1.5">

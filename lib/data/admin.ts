@@ -49,3 +49,7 @@ export function getAllCities() {
 export function getAllCategories() {
   return prisma.category.findMany({ orderBy: [{ type: "asc" }, { sortOrder: "asc" }] });
 }
+
+export function getAllPrintColors() {
+  return prisma.printColor.findMany({ orderBy: { name: "asc" } });
+}

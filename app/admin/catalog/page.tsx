@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { TopBar } from "@/components/nav/TopBar";
 import { ActiveToggle } from "@/components/admin/ActiveToggle";
-import { getAllCities, getAllCategories } from "@/lib/data/admin";
+import { PrintColorManager } from "@/components/admin/PrintColorManager";
+import { getAllCities, getAllCategories, getAllPrintColors } from "@/lib/data/admin";
 import type { CategoryType } from "@/lib/generated/prisma/client";
 
 export const metadata: Metadata = {
@@ -21,7 +22,11 @@ const CATEGORY_TYPE_LABELS: Record<CategoryType, string> = {
 };
 
 export default async function AdminCatalogPage() {
-  const [cities, categories] = await Promise.all([getAllCities(), getAllCategories()]);
+  const [cities, categories, printColors] = await Promise.all([
+    getAllCities(),
+    getAllCategories(),
+    getAllPrintColors(),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-5">
@@ -60,6 +65,11 @@ export default async function AdminCatalogPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-charcoal">رنگ‌های چاپ</h2>
+        <PrintColorManager colors={printColors} />
       </section>
     </main>
   );

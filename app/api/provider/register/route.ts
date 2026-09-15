@@ -77,6 +77,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // Colors are chosen from the admin-curated PrintColor list, not free text (docs/decisions.md
+  // ADR 32) - never trust the client's own checkbox state, re-verify every submitted name is
+  // still a real, currently-defined color.
+  const validColors = new Set(
+    (await prisma.printColor.findMany({ select: { name: true } })).map((c) => c.name),
+  );
+  if (!parsed.data.printableColors.every((color) => validColors.has(color))) {
+    return NextResponse.json({ error: "یک یا چند رنگ انتخاب‌شده دیگر معتبر نیست." }, { status: 400 });
+  }
+
   // Print-partner phase currently has exactly one SERVICE category (چاپ بادکنک تبلیغاتی) and one
   // active city (Tehran) - auto-assigned server-side rather than asked of the partner, same
   // reasoning as seller registration's city auto-assignment (docs/decisions.md ADR 29): asking

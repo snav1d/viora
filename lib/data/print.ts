@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/decimal";
+import { addDaysIso, todayIso } from "@/lib/jalali";
 import type { BalloonFinish, Prisma } from "@/lib/generated/prisma/client";
 
 function parseColors(value: Prisma.JsonValue): string[] {
@@ -17,19 +18,15 @@ const activePrintOfferingFilter = {
   provider: { status: "APPROVED" as const },
 };
 
-/** Every color any currently-qualifying print partner supports, deduped - what the customer
- * picks from, so a requested color always exactly matches some partner's own list instead of
- * relying on fragile free-text comparison. */
-export async function getAvailablePrintColors(): Promise<string[]> {
-  const offerings = await prisma.serviceOffering.findMany({
-    where: activePrintOfferingFilter,
-    select: { printableColors: true },
-  });
-  const colors = new Set<string>();
-  for (const offering of offerings) {
-    for (const color of parseColors(offering.printableColors)) colors.add(color);
-  }
-  return Array.from(colors).sort();
+/** The admin-curated color catalog (docs/decisions.md ADR 32) - both the provider registration
+ * wizard's checkbox list and the customer order flow's color picker read from this exact same
+ * list, so a color name always means the same thing on both sides. A color with no partner
+ * currently supporting it is still shown here (matching can legitimately return zero partners,
+ * already a handled UI state) rather than silently hidden, since hiding it would make the
+ * catalog drift from what the admin panel actually shows as configured. */
+export async function getPrintColorNames(): Promise<string[]> {
+  const colors = await prisma.printColor.findMany({ orderBy: { name: "asc" } });
+  return colors.map((c) => c.name);
 }
 
 export type MatchedPrintProvider = {
@@ -88,15 +85,26 @@ export async function getMatchingPrintProviders(params: {
   return results.sort((a, b) => b.completedOrderCount - a.completedOrderCount);
 }
 
-export async function getPrintDeliverySettings(): Promise<{ expressFee: number; normalTurnaroundText: string }> {
-  const [feeRow, textRow] = await Promise.all([
+/** normalDeliveryFromDate/ToDate are real calendar dates (today + the configured day range),
+ * computed once per request here rather than shipping the raw day counts to the client - a
+ * relative description ("۳ تا ۵ روز کاری") doesn't tell a customer *which* dates to expect, so
+ * this resolves it against "today" server-side and the caller just formats/displays it. See
+ * docs/decisions.md ADR 32. */
+export async function getPrintDeliverySettings(): Promise<{
+  expressFee: number;
+  normalDeliveryFromDate: string;
+  normalDeliveryToDate: string;
+}> {
+  const [feeRow, daysRow] = await Promise.all([
     prisma.platformSetting.findUnique({ where: { key: "print_express_fee" } }),
-    prisma.platformSetting.findUnique({ where: { key: "print_normal_turnaround_text" } }),
+    prisma.platformSetting.findUnique({ where: { key: "print_normal_turnaround_days" } }),
   ]);
   const feeValue = feeRow?.value as { amount?: number } | undefined;
-  const textValue = textRow?.value as { text?: string } | undefined;
+  const daysValue = daysRow?.value as { minDays?: number; maxDays?: number } | undefined;
+  const today = todayIso();
   return {
     expressFee: feeValue?.amount ?? 0,
-    normalTurnaroundText: textValue?.text ?? "",
+    normalDeliveryFromDate: addDaysIso(today, daysValue?.minDays ?? 3),
+    normalDeliveryToDate: addDaysIso(today, daysValue?.maxDays ?? 5),
   };
 }

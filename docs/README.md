@@ -49,17 +49,19 @@ A Next.js (App Router, TypeScript) skeleton with:
   product CRUD with image upload (search/filter on the list page), and order fulfillment
   (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
 - Print-partner panel (`app/provider/`): registration (business identity + printable balloon
-  types/colors + self-defined tiered pricing by quantity band) ending in admin approval, an order
-  queue with two-stage visibility (limited info until the partner accepts, full design-file/color/
-  notes after), and shipping with a tracking code. Customer side (`app/(main)/print/`): a design-
-  file upload + finish/color/quantity/delivery form that matches against qualified partners and
-  places a real `Order` (reusing the same `Order`/`OrderItem` models every other order uses, not a
-  parallel schema). See `docs/decisions.md` ADR 31.
+  types/colors chosen from an admin-curated catalog + self-defined tiered pricing by quantity
+  band) ending in admin approval, an order queue with two-stage visibility (limited info until the
+  partner accepts, full design-file/color/notes after), and shipping with a tracking code.
+  Customer side (`app/(main)/print/`): a design-file upload + finish/color/quantity/delivery form
+  (a real Jalali date picker for express delivery, a computed calendar-date range for normal
+  delivery) that matches against qualified partners and places a real `Order` (reusing the same
+  `Order`/`OrderItem` models every other order uses, not a parallel schema). See
+  `docs/decisions.md` ADR 31, 32.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
-  (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), and city/category active
-  toggles replacing the direct-DB editing §4 below used to document. See `docs/decisions.md`
-  ADR 30, 31.
+  (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,
+  and a print-color catalog (add/remove) replacing the direct-DB editing §4 below used to
+  document. See `docs/decisions.md` ADR 30, 31, 32.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
@@ -105,7 +107,8 @@ of being sent by real SMS — see ADR 3.
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
 | Party-wizard budget allocation | `config/party-wizard/budget-allocation.json` | Same as above. |
 | Party-wizard result text template | `config/party-wizard/result-template.txt` | Same as above. |
-| Hub processing buffer, partner support contact block, express print fee, normal print turnaround text | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`, `print_express_fee`, `print_normal_turnaround_text`); no admin UI yet. |
+| Hub processing buffer, partner support contact block, express print fee, normal print turnaround days | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`, `print_express_fee`, `print_normal_turnaround_days`); no admin UI yet. |
+| Printable balloon colors | Database, `PrintColor` table | Admin add/remove UI at `/admin/catalog` (ADR 32) - both the partner registration wizard and the customer order flow read this same list. |
 
 ## 5. Deployment target
 
