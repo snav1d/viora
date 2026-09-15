@@ -1641,3 +1641,124 @@ reports/analytics, discount codes - all named in `panels-and-operations-spec.md`
 explicitly deferred by the request to a later phase. Also not built: creating new cities or
 categories (toggle-only, see above), customer account management, and an audit log of admin
 actions (§4's own "تکمیلی" list) - none of these were asked for in this phase.
+
+---
+
+## 2026-09-15 — print partner (چاپ بادکنک تبلیغاتی)
+
+### 31. Print-partner core built on the existing `ServiceProviderProfile`/`ServiceOffering`/
+`Order`/`OrderItem` models, not a parallel schema
+**Decision:** Built exactly the three pieces asked for from `panels-and-operations-spec.md`'s
+"پنل پارتنر تولید" section, deliberately scoped down from that doc's larger design (order-
+reassignment marketplace, paid "تاییدیه‌ی ویژه" badge, visual partner calendar - all explicitly
+deferred):
+1. **Provider registration/profile** (`components/provider/ProviderRegisterWizard.tsx`,
+   `/api/provider/register`): a 2-step wizard reusing `ServiceProviderProfile` (added
+   `businessLicenseImageUrl`, `commissionRate` given a `@default(10.00)`) and `ServiceOffering`
+   (added `supportsChrome`/`supportsMatte`, `printableColors Json`, `minOrderQuantity`, and a new
+   `PrintPricingTier` child model for the partner's self-defined quantity-band pricing). Registers
+   PENDING, exactly mirroring the seller wizard's shape (`lib/auth/provider.ts` is a line-for-line
+   mirror of `lib/auth/seller.ts`).
+2. **Customer order flow** (`app/(main)/print/page.tsx`, `components/print/PrintOrderFlow.tsx`,
+   `lib/data/print.ts`, `/api/print-orders*`): design-file upload, finish/color/quantity form,
+   normal-vs-express delivery choice (express adds a flat fee read from `PlatformSetting`), then a
+   matching step that lists only providers who (a) are `APPROVED`, (b) support the requested
+   finish, (c) list the requested color, and (d) have `minOrderQuantity <= quantity` - each shown
+   with its tier-priced total and a `completedOrderCount` (from `shippedAt IS NOT NULL`, since no
+   rating system exists yet, per the request). Order creation re-validates every one of those
+   conditions server-side against a fresh DB read rather than trusting the client's own earlier
+   `/match` response, and re-computes the price from the matching `PrintPricingTier` rather than
+   accepting a client-supplied total.
+3. **Provider-side order management** (`app/provider/(panel)/orders/*`,
+   `/api/provider/orders/[itemId]/{accept,ship}`): two-stage visibility gated on the new
+   `OrderItem.acceptedAt` (nullable - "set = happened," the same pattern `hubStatus`/`shippedAt`
+   already use) - before accept, only customer name/quantity/delivery date are shown; accepting
+   unlocks the design-file download link, color, finish, and notes. Shipping is blocked until
+   accepted ("ابتدا باید سفارش را بپذیرید") and, exactly like the seller order flow, flips the
+   parent `Order.status` to `SHIPPED` only once every item on that order has been shipped.
+**Why `Order`/`OrderItem` reuse over a separate model, per the account holder's explicit answer
+when asked:** the wizard engine has already been putting print-balloon line items into suggested
+carts as `kind: "service"` + `providerId` since its earliest tests - a parallel order model would
+fork that pipeline rather than extend it, for a feature that is structurally an order line item
+(quantity, price, a provider to fulfil it, a delivery/shipping lifecycle) like any other. The new
+fields added to `OrderItem` (`designFileUrl`, `printColor`, `printFinish`, `isExpressDelivery`,
+`requestedDeliveryDate`, `expressFee`, `customerNotes`, `acceptedAt`) are all nullable and
+print-specific, following the same "extend the existing row, don't fork the model" precedent
+`hubStatus`/`shippedAt` set for the seller hub flow (ADR 6).
+**Why offerings are created `isActive: false` and only flipped true on admin approval:** a
+PENDING provider's print listing must never be visible to customers before approval - this is
+enforced twice, independently: `lib/data/print.ts`'s `activePrintOfferingFilter` already checks
+`provider: { status: "APPROVED" }` on every query, and `isActive: false` at creation means even a
+bug or a future query that forgets that provider-status check still can't surface it. Approval
+(`/api/admin/providers/[id]/approve`) flips both `ServiceProviderProfile.status` and every one of
+that provider's `ServiceOffering.isActive` rows in the same transaction, mirroring the seller
+approve route's `rejectionReason: null` clearing on approval.
+**Admin approval queue** (`/admin/providers`, mirroring `/admin/sellers`'s PENDING/APPROVED/
+REJECTED tabs exactly): the detail page shows identity info, the license document, print settings
+(finish types, min quantity, colors), and the full pricing-tier table, since - same reasoning as
+ADR 30's seller detail page - an admin approve/reject decision needs the whole picture, not a
+subset.
+**A migration bug caught proactively before shipping, same class as ADR 29:** `ServiceOffering.
+printableColors JSON NOT NULL` with no explicit SQL `DEFAULT`, applied against a table with one
+pre-existing seeded row, left that row's value as MySQL's implicit empty-string default - not
+valid JSON, so it fails the column's own `json_valid()` CHECK constraint on every future read.
+Fixed with the by-now-standard pattern: add nullable → `UPDATE ServiceOffering SET
+printableColors='[]' WHERE printableColors IS NULL` → `MODIFY COLUMN ... NOT NULL`. This was
+checked for and fixed *before* the migration was ever applied to the real dev database, by
+recognizing the pattern from ADR 29 rather than rediscovering it the same way (a broken read).
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP throughout (two fresh provider accounts, one fresh customer account, one fresh
+admin account, all via the real OTP flow):
+- Replayed every migration from scratch against a throwaway database with a simulated
+  pre-existing `ServiceOffering` row inserted before the `print_partner` migration ran - confirmed
+  the row ends up with a valid `[]`, not the broken empty string.
+- Registered a provider with two pricing tiers (50-199 → 6,000 / 200+ → 5,000); confirmed the
+  profile landed `PENDING`, its offering `isActive = 0`, both tiers persisted correctly, and
+  `SERVICE_PROVIDER` was appended (not replacing) the account's existing `["CUSTOMER"]` roles.
+  Confirmed the PENDING panel screen shows the exact welcome copy with the business name
+  interpolated.
+- Granted `ADMIN` to a separate fresh account via the same direct-DB `JSON_ARRAY_APPEND` bootstrap
+  ADR 30 established (no new bootstrap mechanism needed - it already generalizes). Confirmed the
+  provider showed up in `/admin/providers?status=PENDING`, approved it, and confirmed both the
+  profile flipped `APPROVED` and the offering flipped `isActive = 1` in the same check - then that
+  the provider's own `/provider` now rendered the real dashboard instead of the PENDING screen.
+- Matching correctness, each checked as a distinct request against the real endpoint: a provider
+  whose `supportsMatte = false` is correctly excluded from a `MATTE` search; a color not in a
+  provider's `printableColors` returns zero matches; a quantity below every matching provider's
+  `minOrderQuantity` returns zero matches; a quantity exactly on a tier boundary (200, where tiers
+  are 50-199/200-999) returned the *upper* tier's price (5,000), not the lower one - confirming
+  the boundary comparison is `>=`, not off-by-one.
+- Placed a real express order (design-file upload, `CHROME`/red/200 units, express with a future
+  date): confirmed `Order.orderType = SERVICE`, `totalAmount` equalled the tier price
+  (200 × 5,000 = 1,000,000) plus the seeded express fee (150,000) exactly, and every print-specific
+  `OrderItem` field persisted correctly. Separately confirmed an express order missing
+  `requestedDeliveryDate` is rejected server-side with a Persian message, not silently accepted.
+- Placed a second, normal-delivery order (60 units, tier 1 → 6,000/unit) and confirmed its total
+  (360,000) carries no express fee, `isExpressDelivery = 0`.
+- Two-stage visibility on the real order detail page: before `accept`, the rendered HTML contained
+  neither the design-file download link nor the customer's notes text (only name/quantity/delivery
+  date); after accepting, both appeared, along with the finish/color. Attempting to `ship` before
+  `accept` was rejected with "ابتدا باید سفارش را بپذیرید"; attempting to `accept` an
+  already-accepted order was rejected; a *different* provider's session attempting to `accept` this
+  order returned 403; a plain customer session hitting the same endpoint also returned 403.
+- Shipped the express order with a tracking code and confirmed `Order.status` flipped to `SHIPPED`
+  (the only item on that order); confirmed a subsequent `/match` call for the same finish/color/
+  quantity now reported `completedOrderCount: 1` for that provider and sorted it ahead of a
+  same-search competitor with `completedOrderCount: 0`.
+- Reject flow: rejecting a second test provider with no `reason` field returned the route's own
+  Persian message, not zod's raw English (this route was written with the ADR 30 lesson already
+  applied, and this confirms it holds) - and its offering correctly stayed `isActive = 0` since it
+  was never approved. The rejected provider's own `/provider` panel showed the exact rejection
+  reason text.
+- All test users (4 phone numbers), both provider profiles, their offerings/tiers, and both real
+  orders/order-items created during this pass were deleted afterward; uploaded test files removed
+  from `public/uploads/`; pre-existing seed data (the one seeded approved provider/offering/tiers,
+  `PlatformSetting` rows) confirmed unchanged before and after.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route (`/print`,
+  `/provider*`, `/admin/providers*`, `/api/provider/*`, `/api/print-orders*`,
+  `/api/admin/providers/*`) listed in its output.
+**Not built, per the request's explicit scope:** order-reassignment marketplace ("بازار واگذاری
+سفارش"), the paid "تاییدیه‌ی ویژه‌ی ویورا" badge, and a visual partner calendar - all named in
+`panels-and-operations-spec.md`'s print-partner section and explicitly deferred by the request to
+a later phase. Also not built: a real rating system (`completedOrderCount` is the only ranking
+signal for now, exactly as the request anticipated - "می‌تونه صفر/خالی باشه").

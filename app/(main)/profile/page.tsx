@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { User as UserIcon, Package, Store, ShieldCheck } from "lucide-react";
+import { User as UserIcon, Package, Store, ShieldCheck, Printer } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
 import { getSession } from "@/lib/auth/session";
 import { getSellerProfile } from "@/lib/auth/seller";
+import { getServiceProviderProfile } from "@/lib/auth/provider";
 import { parseRoles } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { getOrdersForUser } from "@/lib/data/orders";
@@ -41,10 +42,12 @@ export default async function ProfilePage() {
   let user: Awaited<ReturnType<typeof prisma.user.findUniqueOrThrow>>;
   let orders: Awaited<ReturnType<typeof getOrdersForUser>>;
   let sellerProfile: Awaited<ReturnType<typeof getSellerProfile>>;
+  let providerProfile: Awaited<ReturnType<typeof getServiceProviderProfile>>;
   try {
     user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } });
     orders = await getOrdersForUser(session.userId);
     sellerProfile = await getSellerProfile();
+    providerProfile = await getServiceProviderProfile();
   } catch (error) {
     // A verified session alone doesn't guarantee these queries succeed - e.g. a deploy whose
     // schema migration wasn't yet applied against this DATABASE_URL throws a real Prisma error
@@ -117,6 +120,16 @@ export default async function ProfilePage() {
       >
         <Store className="h-4 w-4" strokeWidth={1.75} />
         {sellerProfile ? "پنل فروشنده" : "ثبت‌نام به‌عنوان فروشنده"}
+      </ButtonLink>
+
+      <ButtonLink
+        href={providerProfile ? "/provider" : "/provider/register"}
+        variant="secondary"
+        size="md"
+        className="w-full gap-2"
+      >
+        <Printer className="h-4 w-4" strokeWidth={1.75} />
+        {providerProfile ? "پنل پارتنر تولید" : "ثبت‌نام به‌عنوان پارتنر تولید"}
       </ButtonLink>
 
       {parseRoles(user.roles).includes("ADMIN") ? (

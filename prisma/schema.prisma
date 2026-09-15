@@ -197,10 +197,16 @@ model ServiceProviderProfile {
   userId          String         @unique
   user            User           @relation(fields: [userId], references: [id])
   businessName    String
+  /// Photo of the partner's پروانه‌ی کسب/مدارک هویتی, uploaded via StorageProvider - same
+  /// convention as SellerProfile.businessLicenseImageUrl (ADR 29).
+  businessLicenseImageUrl String?
   nationalId      String
   bankAccountIban String
-  /// Percentage, e.g. 12.50 for 12.5%.
-  commissionRate  Decimal        @db.Decimal(5, 2)
+  /// Percentage, e.g. 12.50 for 12.5%. Defaults to a placeholder platform-wide rate - real
+  /// per-partner commission negotiation is out of scope for this phase, same simplification as
+  /// subscription/commission management was for the seller panel (ADR 27). See docs/decisions.md
+  /// ADR 31.
+  commissionRate  Decimal        @default(10.00) @db.Decimal(5, 2)
   status          ApprovalStatus @default(PENDING)
   rejectionReason String?        @db.Text
 
@@ -259,21 +265,58 @@ model ServiceOffering {
   title       String
   slug        String                  @unique
   description String?                 @db.Text
+  /// A "starting from" display price (the lowest pricingTiers.unitPrice at save time) for
+  /// generic listing cards, e.g. the party wizard's auxiliary-service suggestion
+  /// (lib/wizard/engine.ts) - the real per-order price for a print job comes from matching the
+  /// requested quantity against pricingTiers, not this field. See docs/decisions.md ADR 31.
   basePrice   Decimal                 @db.Decimal(12, 0)
   /// Per-service custom order fields (e.g. balloon print: design upload, run size, colors).
   /// Shape is defined by the service category, not fixed here — see
-  /// panels-and-operations-spec.md §3. Unused by any UI in Sprint 0.
+  /// panels-and-operations-spec.md §3. Superseded for balloon printing specifically by the
+  /// structured fields below (ADR 31) - kept as-is for any future service category that isn't
+  /// balloon printing. Unused by any UI.
   customFieldsSchema Json?
+  /// Balloon finish types this partner can print - a fixed 2-value set (not a join table like
+  /// SellerCategory's open-ended list - ADR 29) since there are only ever two, per
+  /// panels-and-operations-spec.md §3. See docs/decisions.md ADR 31.
+  supportsChrome Boolean @default(false)
+  supportsMatte  Boolean @default(false)
+  /// A JSON array of color-name strings this partner can print, self-defined at registration -
+  /// MySQL has no native scalar-list column (ADR 20). See docs/decisions.md ADR 31.
+  printableColors Json    @default("[]")
+  /// Orders below this quantity never show this partner as a match - null means "not a print
+  /// offering" (a future non-print ServiceOffering has no such concept).
+  minOrderQuantity Int?
   isActive    Boolean                 @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orderItems OrderItem[]
-  reviews    Review[]
+  orderItems   OrderItem[]
+  reviews      Review[]
+  pricingTiers PrintPricingTier[]
 
   @@index([cityId, categoryId, isActive])
   @@index([providerId])
+}
+
+/// One quantity-based pricing band a print partner defines for themselves at registration
+/// (e.g. 100-500 units -> 5,700 Toman/unit) - panels-and-operations-spec.md §3's "تعرفه‌ی
+/// پلکانی". A dedicated table, not JSON on ServiceOffering, since real price computation needs
+/// to query/compare these ranges, not just display them - see docs/decisions.md ADR 31.
+model PrintPricingTier {
+  id                String          @id @default(cuid())
+  serviceOfferingId String
+  serviceOffering   ServiceOffering @relation(fields: [serviceOfferingId], references: [id])
+  minQuantity       Int
+  /// null = this is the open-ended top tier ("این تعداد و بیشتر").
+  maxQuantity Int?
+  /// Toman, per unit.
+  unitPrice   Decimal @db.Decimal(12, 0)
+
+  createdAt DateTime @default(now())
+
+  @@index([serviceOfferingId])
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +360,18 @@ model PartyProfile {
 enum OrderType {
   SINGLE_SELLER
   MULTI_SELLER
+  /// A print-partner order (panels-and-operations-spec.md §3) - a single ServiceProviderProfile
+  /// transaction, not a product-seller one, so SINGLE_SELLER's name would be misleading. See
+  /// docs/decisions.md ADR 31.
+  SERVICE
+}
+
+/// The two balloon finish types this platform prints, per panels-and-operations-spec.md §3 -
+/// used both as what a partner supports (ServiceOffering.supportsChrome/supportsMatte) and what
+/// a specific order requests (OrderItem.printFinish).
+enum BalloonFinish {
+  CHROME
+  MATTE
 }
 
 enum OrderStatus {
@@ -390,10 +445,32 @@ model OrderItem {
   /// The seller/provider's own fulfillment step for a SINGLE_SELLER order - a nullable
   /// timestamp, not a status enum, matching OtpCode.consumedAt's "set = happened" convention
   /// elsewhere in this schema. null = still preparing; set = shipped. Independent of hubStatus,
-  /// which is the (currently unused - see ADR 22) multi-seller hub pipeline. See ADR 27.
+  /// which is the (currently unused - see ADR 22) multi-seller hub pipeline. See ADR 27. Reused
+  /// as-is for a SERVICE order's final delivery step - see ADR 31.
   shippedAt    DateTime?
   /// Set together with shippedAt, by whoever ships this line item.
   trackingCode String?
+
+  // ---- SERVICE (print-partner) order fields - only set when this OrderItem's serviceOffering
+  // is a print offering. See docs/decisions.md ADR 31. ----
+  /// The customer's uploaded artwork, via StorageProvider.
+  designFileUrl String?
+  /// One color from the chosen provider's own printableColors list at order time.
+  printColor    String?
+  printFinish   BalloonFinish?
+  /// false (default) = normal turnaround (an informational date-range shown from
+  /// PlatformSetting, not stored per-order); true = the customer picked an exact date and paid
+  /// expressFee.
+  isExpressDelivery     Boolean   @default(false)
+  requestedDeliveryDate DateTime?
+  /// Snapshot of PlatformSetting's print_express_fee at order time (like unitPrice/splitAmount,
+  /// never re-read live later) - only set when isExpressDelivery is true.
+  expressFee    Decimal?  @db.Decimal(12, 0)
+  customerNotes String?   @db.Text
+  /// Set when the provider accepts this order - gates whether they can see designFileUrl/
+  /// printColor/customerNotes at all (panels-and-operations-spec.md §3's two-stage visibility).
+  /// Nullable "set = happened" timestamp, same convention as shippedAt above.
+  acceptedAt DateTime?
 
   createdAt DateTime @default(now())
 

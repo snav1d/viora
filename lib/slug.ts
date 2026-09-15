@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
 
 /**
- * Seller-entered product titles are almost always Persian, which has no ASCII transliteration
+ * Seller/partner-entered titles are almost always Persian, which has no ASCII transliteration
  * in this codebase - stripping non a-z0-9 leaves an empty string for a purely-Persian title, so
- * a random suffix (not a best-effort transliteration) is what actually keeps `Product.slug`
- * both URL-safe and unique. See docs/decisions.md ADR 27.
+ * a random suffix (not a best-effort transliteration) is what actually keeps a slug both
+ * URL-safe and unique. Used for both Product.slug (ADR 27) and ServiceOffering.slug (ADR 31).
  */
-export function productSlug(title: string): string {
+export function randomSlug(title: string): string {
   const base = title
     .trim()
     .toLowerCase()

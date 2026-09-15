@@ -128,17 +128,21 @@ async function main() {
     update: {},
     create: { phone: "09120000002", name: "چاپخانه گلرنگ", roles: ["SERVICE_PROVIDER"] },
   });
+  const providerProfileFields = {
+    businessName: "چاپخانه گلرنگ",
+    businessLicenseImageUrl: "/avatars/avatar-02.svg",
+    nationalId: "2222222222",
+    bankAccountIban: "IR000000000000000000000002",
+    commissionRate: 12.5,
+    status: "APPROVED" as const,
+  };
   const providerProfile = await prisma.serviceProviderProfile.upsert({
     where: { userId: providerUser.id },
-    update: {},
-    create: {
-      userId: providerUser.id,
-      businessName: "چاپخانه گلرنگ",
-      nationalId: "2222222222",
-      bankAccountIban: "IR000000000000000000000002",
-      commissionRate: 12.5,
-      status: "APPROVED",
-    },
+    // update mirrors create so re-running this script backfills businessLicenseImageUrl onto a
+    // row that already existed before it did - same reasoning as SellerProfile's own upsert
+    // (ADR 29).
+    update: providerProfileFields,
+    create: { userId: providerUser.id, ...providerProfileFields },
   });
 
   // Deleting first (rather than upserting each row) is what makes this re-runnable as the real
@@ -177,9 +181,13 @@ async function main() {
     })),
   });
 
-  await prisma.serviceOffering.upsert({
+  // Structured print settings supersede customFieldsSchema for this offering specifically - see
+  // docs/decisions.md ADR 31. basePrice is set to the lowest tier's unitPrice (5700, the
+  // 100-499 tier below) as a "starting from" display price - the real per-order price comes
+  // from matching the requested quantity against the tiers, not this field.
+  const balloonPrintOffering = await prisma.serviceOffering.upsert({
     where: { slug: "promo-balloon-print-standard" },
-    update: {},
+    update: { supportsChrome: true, supportsMatte: true, printableColors: ["قرمز", "آبی", "طلایی", "نقره‌ای", "سفید", "مشکی"], minOrderQuantity: 100 },
     create: {
       providerId: providerProfile.id,
       categoryId: balloonPrintingCategory.id,
@@ -188,6 +196,10 @@ async function main() {
       slug: "promo-balloon-print-standard",
       description: "چاپ یک‌رنگ یا چندرنگ روی بادکنک لاتکس، مناسب افتتاحیه و رویدادهای شرکتی.",
       basePrice: 5700,
+      supportsChrome: true,
+      supportsMatte: true,
+      printableColors: ["قرمز", "آبی", "طلایی", "نقره‌ای", "سفید", "مشکی"],
+      minOrderQuantity: 100,
       customFieldsSchema: {
         fields: [
           { key: "designFile", label: "فایل طرح", type: "file", required: true },
@@ -198,6 +210,19 @@ async function main() {
       },
       isActive: true,
     },
+  });
+
+  // Deleted-and-recreated rather than upserted per row, same reasoning as the product reseed
+  // above: re-running this script should always leave exactly this tier table, not accumulate
+  // duplicates. Safe against existing orders - nothing references PrintPricingTier directly
+  // (an OrderItem snapshots unitPrice/expressFee at order time, per docs/decisions.md ADR 31).
+  await prisma.printPricingTier.deleteMany({ where: { serviceOfferingId: balloonPrintOffering.id } });
+  await prisma.printPricingTier.createMany({
+    data: [
+      { serviceOfferingId: balloonPrintOffering.id, minQuantity: 100, maxQuantity: 499, unitPrice: 5700 },
+      { serviceOfferingId: balloonPrintOffering.id, minQuantity: 500, maxQuantity: 999, unitPrice: 4900 },
+      { serviceOfferingId: balloonPrintOffering.id, minQuantity: 1000, maxQuantity: null, unitPrice: 4200 },
+    ],
   });
 
   await prisma.aiSettings.upsert({
@@ -218,6 +243,19 @@ async function main() {
       key: "partner_support_contact",
       value: { phone: "02100000000", email: "support@viora.ir", telegram: "@viora_support" },
     },
+  });
+  // Print-partner delivery settings (docs/decisions.md ADR 31) - platform-wide, not per-partner:
+  // the request's own wording only said pricing tiers/minimum quantity are partner-defined, not
+  // the express fee or normal turnaround.
+  await prisma.platformSetting.upsert({
+    where: { key: "print_express_fee" },
+    update: {},
+    create: { key: "print_express_fee", value: { amount: 150000 } },
+  });
+  await prisma.platformSetting.upsert({
+    where: { key: "print_normal_turnaround_text" },
+    update: {},
+    create: { key: "print_normal_turnaround_text", value: { text: "معمولاً ۳ تا ۵ روز کاری" } },
   });
 
   console.log("Seed complete.");

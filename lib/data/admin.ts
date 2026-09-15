@@ -17,13 +17,29 @@ export function getSellerProfileDetail(id: string) {
   });
 }
 
+export function getServiceProviderProfiles(status?: ApprovalStatus) {
+  return prisma.serviceProviderProfile.findMany({
+    where: status ? { status } : undefined,
+    include: { serviceOfferings: { include: { pricingTiers: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export function getServiceProviderProfileDetail(id: string) {
+  return prisma.serviceProviderProfile.findUnique({
+    where: { id },
+    include: { serviceOfferings: { include: { pricingTiers: true } } },
+  });
+}
+
 export async function getAdminStats() {
-  const [pendingSellers, activeCities, activeCategories] = await Promise.all([
+  const [pendingSellers, pendingProviders, activeCities, activeCategories] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
+    prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
     prisma.city.count({ where: { isActive: true } }),
     prisma.category.count({ where: { isActive: true } }),
   ]);
-  return { pendingSellers, activeCities, activeCategories };
+  return { pendingSellers, pendingProviders, activeCities, activeCategories };
 }
 
 export function getAllCities() {

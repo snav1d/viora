@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
-export function RejectSellerForm({ sellerId }: { sellerId: string }) {
+export function RejectForm({ endpoint }: { endpoint: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -16,7 +16,7 @@ export function RejectSellerForm({ sellerId }: { sellerId: string }) {
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/sellers/${sellerId}/reject`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),

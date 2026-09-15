@@ -2,24 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, UserCheck, Printer, Settings2 } from "lucide-react";
+import { LayoutGrid, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const TABS = [
-  { href: "/admin", label: "داشبورد", icon: LayoutGrid },
-  { href: "/admin/sellers", label: "فروشنده‌ها", icon: UserCheck },
-  { href: "/admin/providers", label: "پارتنرها", icon: Printer },
-  { href: "/admin/catalog", label: "شهر و دسته", icon: Settings2 },
+  { href: "/provider", label: "داشبورد", icon: LayoutGrid },
+  { href: "/provider/orders", label: "سفارش‌ها", icon: ClipboardList },
 ] as const;
 
-export function AdminNav() {
+export function ProviderNav() {
   const pathname = usePathname();
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-md items-stretch justify-around">
         {TABS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
+          const active = pathname === href || (href !== "/provider" && pathname.startsWith(`${href}/`));
           return (
             <Link
               key={href}

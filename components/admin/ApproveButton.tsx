@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
-export function ApproveSellerButton({ sellerId }: { sellerId: string }) {
+export function ApproveButton({ endpoint, label }: { endpoint: string; label: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export function ApproveSellerButton({ sellerId }: { sellerId: string }) {
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/sellers/${sellerId}/approve`, { method: "POST" });
+      const response = await fetch(endpoint, { method: "POST" });
       const data = await response.json();
       if (!response.ok) {
         setError(data.error ?? "خطایی رخ داد.");
@@ -30,7 +30,7 @@ export function ApproveSellerButton({ sellerId }: { sellerId: string }) {
   return (
     <div className="flex flex-col gap-1">
       <Button size="lg" className="w-full" onClick={handleApprove} disabled={loading}>
-        {loading ? "در حال تایید…" : "تایید فروشنده"}
+        {loading ? "در حال تایید…" : label}
       </Button>
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
     </div>

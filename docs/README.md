@@ -48,21 +48,29 @@ A Next.js (App Router, TypeScript) skeleton with:
   business identity, terms agreement, contact/address) ending in admin approval,
   product CRUD with image upload (search/filter on the list page), and order fulfillment
   (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
+- Print-partner panel (`app/provider/`): registration (business identity + printable balloon
+  types/colors + self-defined tiered pricing by quantity band) ending in admin approval, an order
+  queue with two-stage visibility (limited info until the partner accepts, full design-file/color/
+  notes after), and shipping with a tracking code. Customer side (`app/(main)/print/`): a design-
+  file upload + finish/color/quantity/delivery form that matches against qualified partners and
+  places a real `Order` (reusing the same `Order`/`OrderItem` models every other order uses, not a
+  parallel schema). See `docs/decisions.md` ADR 31.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
-  granted by editing the database directly - see ADR 30), a seller approval queue
+  granted by editing the database directly - see ADR 30), seller and print-partner approval queues
   (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), and city/category active
   toggles replacing the direct-DB editing §4 below used to document. See `docs/decisions.md`
-  ADR 30.
+  ADR 30, 31.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD
   (`Organization` on home, `Product` on product pages), and server-rendered content by default.
 
 **Not built yet** (intentionally, per `docs/sprint-0-brief.md` §1): real payment/split-payment,
 the AI free-text entry point for Build My Party (the plain multi-step form + rule-based engine is
-the whole of phase 1 — see ADR 22), the balloon-printing order form, the print-partner panel, and
-— within the seller panel — sales analytics, subscription management, and reviews (ADR 27); within
-the admin panel — user/customer management, order operations, seasonal themes/banners, discount
-codes, reports, and an audit log (all named but deliberately deferred in
+the whole of phase 1 — see ADR 22), and — within the seller panel — sales analytics, subscription
+management, and reviews (ADR 27); within the print-partner panel — the order-reassignment
+marketplace, the paid "تاییدیه‌ی ویژه‌ی ویورا" badge, a visual partner calendar, and a real rating
+system (ADR 31); within the admin panel — user/customer management, order operations, seasonal
+themes/banners, discount codes, reports, and an audit log (all named but deliberately deferred in
 `panels-and-operations-spec.md` §4 — see ADR 30). The database has placeholders for most of this
 (see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 
@@ -97,7 +105,7 @@ of being sent by real SMS — see ADR 3.
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
 | Party-wizard budget allocation | `config/party-wizard/budget-allocation.json` | Same as above. |
 | Party-wizard result text template | `config/party-wizard/result-template.txt` | Same as above. |
-| Hub processing buffer, partner support contact block | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`); no admin UI yet. |
+| Hub processing buffer, partner support contact block, express print fee, normal print turnaround text | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`, `print_express_fee`, `print_normal_turnaround_text`); no admin UI yet. |
 
 ## 5. Deployment target
 

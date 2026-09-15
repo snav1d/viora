@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Printer } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { ProductCard } from "@/components/shop/ProductCard";
@@ -56,6 +56,19 @@ export default async function HomePage() {
         </div>
         <ButtonLink href="/wizard" size="md" className="mt-4 w-full">
           شروع جشن‌ساز
+        </ButtonLink>
+      </section>
+
+      <section className="flex items-center gap-3 rounded-3xl border border-border bg-surface p-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <Printer className="h-5 w-5" strokeWidth={1.75} />
+        </span>
+        <div className="flex-1 space-y-0.5">
+          <h2 className="text-sm font-semibold text-charcoal">چاپ بادکنک تبلیغاتی</h2>
+          <p className="text-xs text-charcoal-muted">طرح خودتون رو بفرستید، بهترین پارتنر رو پیدا کنید.</p>
+        </div>
+        <ButtonLink href="/print" variant="secondary" size="md" className="shrink-0">
+          سفارش
         </ButtonLink>
       </section>
 

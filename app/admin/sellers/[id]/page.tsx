@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
-import { ApproveSellerButton } from "@/components/admin/ApproveSellerButton";
-import { RejectSellerForm } from "@/components/admin/RejectSellerForm";
+import { ApproveButton } from "@/components/admin/ApproveButton";
+import { RejectForm } from "@/components/admin/RejectForm";
 import { getSellerProfileDetail } from "@/lib/data/admin";
 import { REFERRAL_SOURCES } from "@/lib/seller/registration";
 
@@ -131,8 +131,8 @@ export default async function AdminSellerDetailPage({ params }: Props) {
 
       {seller.status === "PENDING" ? (
         <div className="mt-auto flex flex-col gap-2">
-          <ApproveSellerButton sellerId={seller.id} />
-          <RejectSellerForm sellerId={seller.id} />
+          <ApproveButton endpoint={`/api/admin/sellers/${seller.id}/approve`} label="تایید فروشنده" />
+          <RejectForm endpoint={`/api/admin/sellers/${seller.id}/reject`} />
         </div>
       ) : null}
     </main>

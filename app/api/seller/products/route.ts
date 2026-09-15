@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireApprovedSeller } from "@/lib/auth/seller";
-import { productSlug } from "@/lib/slug";
+import { randomSlug } from "@/lib/slug";
 import { storageUrlSchema } from "@/lib/validation/url";
 
 const bodySchema = z.object({
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       categoryId: category.id,
       cityId: city.id,
       title: parsed.data.title,
-      slug: productSlug(parsed.data.title),
+      slug: randomSlug(parsed.data.title),
       description: parsed.data.description,
       price: parsed.data.price,
       stock: parsed.data.stock,
