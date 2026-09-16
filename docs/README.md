@@ -16,7 +16,7 @@ This file is the entry point for any human or AI picking up this project without
 | `docs/00-START-HERE.md` | The original project brief handed to Claude Code. Read this first — it explains the documentation/ADR discipline this project follows. |
 | `docs/project-plan-v1.md` | Vision, business model, phased roadmap, high-level architecture. |
 | `docs/party-wizard-engine-spec.md` | Full design of the "Build My Party" suggestion engine (themes, budget allocation, AI extraction layer) — mostly **not yet implemented**, see §4 below. |
-| `docs/panels-and-operations-spec.md` | Single/multi-vendor order flow, seller panel, print-partner panel, admin panel — **mostly not yet built**, see §4 below. |
+| `docs/panels-and-operations-spec.md` | Single/multi-vendor order flow (§1 - the hub-routing piece is now built, see ADR 37), seller panel, print-partner panel, admin panel — **mostly not yet built**, see §4 below. |
 | `docs/sprint-0-brief.md` | The actual scope this codebase currently implements. |
 | `docs/legal-pages-draft.md` | Draft Terms/Privacy/Refund copy — not yet wired into any page. |
 | `docs/wireframes/` | Reference low-fidelity UI kit (generic shapes, not page-specific mockups). |
@@ -48,6 +48,14 @@ A Next.js (App Router, TypeScript) skeleton with:
   business identity, terms agreement, contact/address) ending in admin approval,
   product CRUD with image upload (search/filter on the list page), and order fulfillment
   (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
+- Single/multi-seller order routing to the Viora processing hub (`docs/decisions.md` ADR 37): a
+  checkout mixing products from more than one seller becomes a `MULTI_SELLER` order whose items
+  route through the hub's `PENDING_SELLER_SHIPMENT → RECEIVED_AT_HUB → QUALITY_CHECK →
+  FINAL_SHIPPED` pipeline instead of shipping straight to the customer - a seller sends such an
+  item to the hub (no customer tracking code needed), and admin (`/admin/hub`) runs it through
+  quality check and registers the one real customer-facing tracking code. A textual (non-blocking)
+  lead-time warning, based on the order's own optional event date and an admin-configurable
+  minimum-days buffer, is shown to the seller.
 - Print-partner panel (`app/provider/`): registration (business identity + printable balloon
   types/colors chosen from an admin-curated catalog + self-defined tiered pricing by quantity
   band) ending in admin approval, an order queue with two-stage visibility (limited info until the
@@ -139,7 +147,7 @@ of being sent by real SMS — see ADR 3.
 | Party-wizard theme list | `config/party-wizard/themes.json` | Plain JSON, edit directly. Not consumed by any code yet (ADR 5) — the rule-based suggestion engine sprint wires this up. |
 | Party-wizard budget allocation | `config/party-wizard/budget-allocation.json` | Same as above. |
 | Party-wizard result text template | `config/party-wizard/result-template.txt` | Same as above. |
-| Hub processing buffer, partner support contact block, express print fee, normal print turnaround days | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`, `print_express_fee`, `print_normal_turnaround_days`); no admin UI yet. |
+| Hub processing buffer, partner support contact block, express print fee, normal print turnaround days | Database, `PlatformSetting` key/value table | Seeded with defaults (`hub_min_days_before_event`, `partner_support_contact`, `print_express_fee`, `print_normal_turnaround_days`); no admin UI to edit the values yet, but `hub_min_days_before_event` is now actually read (the seller panel's hub lead-time warning, ADR 37). |
 | Printable balloon colors | Database, `PrintColor` table | Admin add/remove UI at `/admin/catalog` (ADR 32) - both the partner registration wizard and the customer order flow read this same list. |
 
 ## 5. Deployment target

@@ -40,7 +40,16 @@ export function getSellerOrderItems(sellerId: string) {
 export async function getSellerStats(sellerId: string) {
   const [activeProducts, pendingItems] = await Promise.all([
     prisma.product.count({ where: { sellerId, isActive: true } }),
-    prisma.orderItem.count({ where: { sellerId, shippedAt: null, ...paidOrderFilter } }),
+    // Once an item has been sent to the Viora hub (hubStatus past PENDING_SELLER_SHIPMENT), it's
+    // out of this seller's hands - "پنding" here means "this seller still needs to act on it".
+    prisma.orderItem.count({
+      where: {
+        sellerId,
+        shippedAt: null,
+        OR: [{ hubStatus: null }, { hubStatus: "PENDING_SELLER_SHIPMENT" }],
+        ...paidOrderFilter,
+      },
+    }),
   ]);
   return { activeProducts, pendingItems };
 }

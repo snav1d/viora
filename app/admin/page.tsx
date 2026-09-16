@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
-import { UserCheck, Printer, Settings2, Headset, Ticket, Palette, Image as ImageIcon } from "lucide-react";
+import {
+  UserCheck,
+  Printer,
+  Settings2,
+  Headset,
+  Ticket,
+  Palette,
+  Image as ImageIcon,
+  Boxes,
+} from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getAdminStats } from "@/lib/data/admin";
@@ -53,9 +62,15 @@ export default async function AdminDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">کد تخفیف فعال</p>
         </div>
-        <div className="col-span-2 rounded-2xl border border-border bg-surface p-4 text-center">
+        <div className="rounded-2xl border border-border bg-surface p-4 text-center">
           <p className="text-2xl font-semibold text-charcoal">{stats.liveThemeName ?? "—"}</p>
           <p className="mt-1 text-xs text-charcoal-muted">تم فصلی فعال امروز</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4 text-center">
+          <p className="text-2xl font-semibold text-charcoal">
+            {stats.hubItems.toLocaleString("fa-IR")}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-muted">آیتم در مرکز پردازش</p>
         </div>
       </section>
 
@@ -75,6 +90,10 @@ export default async function AdminDashboardPage() {
         <ButtonLink href="/admin/coupons" variant="secondary" size="lg" className="w-full gap-2">
           <Ticket className="h-4 w-4" strokeWidth={1.75} />
           کدهای تخفیف
+        </ButtonLink>
+        <ButtonLink href="/admin/hub" variant="secondary" size="lg" className="w-full gap-2">
+          <Boxes className="h-4 w-4" strokeWidth={1.75} />
+          مرکز پردازش ویورا
         </ButtonLink>
         <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
           <Palette className="h-4 w-4" strokeWidth={1.75} />

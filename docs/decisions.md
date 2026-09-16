@@ -2267,3 +2267,99 @@ correct with zero added moving parts. Nesting the preview-exit route under `/api
 [id]/preview` - it never needs an id, so it lives at the static `/api/admin/themes/preview`
 instead (static segments take precedence over a sibling dynamic `[id]` in Next's own router, so
 this required no special-casing).
+
+---
+
+## 2026-09-16 — single/multi-seller order routing to the Viora hub
+
+### 37. `Order.orderType`/`OrderItem.hubStatus` (both already in the schema since Sprint 0, never
+set or read until now) wired up end-to-end; no migration needed
+**Decision:** A cart checkout's real distinct-seller count now decides the order's fate, exactly
+as `panels-and-operations-spec.md` §1 originally specified and the schema already anticipated
+(`OrderType.MULTI_SELLER`, `HubProcessingStatus`'s four-value pipeline, and `Order.eventDate`'s
+own doc comment - "Used for the hub's minimum-lead-time rule on multi-seller orders" - were all
+sitting unused since Sprint 0, the same kind of gap ADR 33 found for `OrderStatus.DELIVERED`).
+Every field this phase needed already existed, so there is no migration in this push:
+1. **`/api/checkout`** groups its server-computed lines by `sellerId` (never trusting the client's
+   own cart contents for this any more than it already didn't trust them for price) - more than
+   one distinct seller sets `orderType: "MULTI_SELLER"` and every `OrderItem.hubStatus` to
+   `PENDING_SELLER_SHIPMENT`; exactly one seller keeps today's behavior (`SINGLE_SELLER`,
+   `hubStatus: null`) untouched. An optional `eventDate` field was added to `CartView` (a plain
+   `OptionalJalaliDatePicker`, shown unconditionally - the client cart doesn't carry `sellerId`
+   per line today, so there's no reliable way to show it only when a cart will turn out
+   multi-seller, and asking for it always is harmless for a single-seller order too) - without it,
+   the hub's lead-time warning below would have no real date to compute against.
+2. **Seller panel**: a hub item's ship action is a new, separate `SendToHubButton`/
+   `/api/seller/orders/[itemId]/send-to-hub` route, not the existing `ShipItemForm`/`/ship` route -
+   no tracking-code input, since the destination is the Viora hub, not the customer (the request's
+   own explicit reasoning). The existing `/ship` route now rejects any item with a non-null
+   `hubStatus` rather than silently accepting a direct-ship call on a hub item. There is no
+   separate hub-intake actor/account in this system (panels-and-operations-spec.md §1's own note
+   that the beachhead-phase hub is too small to need real warehouse modeling), so the seller's own
+   "sent it" declaration is what advances `hubStatus` straight to `RECEIVED_AT_HUB` - the admin
+   queue is simply a view of items at or past that state, not a separate intake confirmation step.
+   Also shown: a **textual, non-blocking** lead-time warning (per the request - "فعلاً نیازی به
+   اعتبارسنجی سخت‌گیرانه نیست") computed from `Order.eventDate` minus the hub's configurable
+   minimum-lead-time buffer (`PlatformSetting` key `hub_min_days_before_event`, seeded as
+   `{"days": 2}` back in Sprint 0 - already exactly the key this phase needed, read for the first
+   time here via `lib/data/hub.ts`'s `getHubMinDaysBeforeEvent()`, mirroring
+   `lib/data/print.ts`'s `getPrintDeliverySettings()`). A generic version of the same text shows
+   when `eventDate` is null. `getSellerStats`'s "سفارش در انتظار ارسال" count was narrowed to
+   exclude items already sent to the hub - once a seller has sent an item, it's no longer theirs
+   to act on, so counting it as "pending" for them would be misleading.
+3. **Admin panel** (`/admin/hub`, `lib/data/hub.ts`'s `getHubQueueItems()`): a **two-step** flow,
+   not one collapsed action, so `QUALITY_CHECK` is a real, observable state something actually
+   sets - not a schema value nothing ever reaches, the exact anti-pattern ADR 33 already flagged
+   once for `DELIVERED`. `RECEIVED_AT_HUB` items get a "شروع کنترل کیفیت" button
+   (`/api/admin/hub-items/[itemId]/start-quality-check`, reusing the existing generic
+   `ApproveButton`); `QUALITY_CHECK` items get `FinalizeHubItemForm` (a required tracking-code
+   input - the only tracking code this customer will ever see for a hub item, unlike the seller's
+   own optional one) posting to `/api/admin/hub-items/[itemId]/finalize`, which sets
+   `hubStatus: "FINAL_SHIPPED"`, `shippedAt`, `trackingCode`, and - only once every item on the
+   order has shipped, the same convention every other ship route in this codebase already uses -
+   flips `Order.status` to `SHIPPED`.
+**Why `shippedAt` is set at finalize, not when the seller sends the item to the hub:** `shippedAt`
+is this schema's one "did this item actually ship to the customer" signal, gating both the
+customer's delivery-confirmation/review flow (ADR 33) and, per `docs/legal-pages-draft.md`, the
+24-hour return window - none of which should start counting while an item is still sitting in
+Viora's own hub. A hub item's real "shipped" moment is when it leaves the hub for the customer,
+which is exactly what `finalize` represents.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP (a second seller/product created directly in the database for this test, since
+the seeded catalog only had one seller) and one real Playwright pass:
+- A cart mixing products from two distinct sellers produced a real `MULTI_SELLER` order with both
+  `OrderItem`s at `hubStatus: "PENDING_SELLER_SHIPMENT"` - confirmed from the database, not just
+  the request succeeding. The same customer's single-seller cart, checked out immediately after,
+  produced an unaffected `SINGLE_SELLER` order with `hubStatus: null` on its item.
+- The direct-ship route (`/api/seller/orders/[itemId]/ship`) rejected a call against a hub item
+  (`"این کالا باید از طریق «ارسال به مرکز ویورا» پردازش شود."`); `send-to-hub` then correctly
+  advanced it to `RECEIVED_AT_HUB` for both sellers' own items.
+- Admin `finalize` on a `RECEIVED_AT_HUB` item (quality check not yet started) was correctly
+  rejected (`"این آیتم آماده‌ی ارسال نهایی نیست."`); `start-quality-check` then `finalize`
+  succeeded in sequence, setting `shippedAt`/`trackingCode` on that item alone -
+  `Order.status` stayed `PROCESSING` (confirmed from the database) until the *second* item on the
+  same order was independently taken through the same two steps, at which point `Order.status`
+  flipped to `SHIPPED` - the "only once every item has shipped" rule verified against a real
+  two-seller order, not assumed from the code.
+- Real Playwright pass: the seller orders page showed the hub lead-time warning with a real
+  computed Jalali deadline date for an order with `eventDate` set, and the generic version of the
+  same text for one without; a `FINAL_SHIPPED` hub item showed "ارسال نهایی شده" (not the generic
+  "ارسال شده" badge) via its own `hubStatus`-derived label. The admin `/admin/hub` queue correctly
+  showed its empty state once every item created during this test had either not yet been sent by
+  its seller or had already been finalized. The cart page, with an item present, rendered the new
+  "تاریخ جشن (اختیاری)" field and its explanatory copy correctly.
+- All test rows (the second seller account/profile/product, all orders created against them, the
+  admin-bootstrap `ADMIN` grant on the test account, and every `OtpCode` row created during
+  login) were deleted/reverted afterward.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route
+  (`/admin/hub`, `/api/admin/hub-items/[itemId]/start-quality-check`,
+  `/api/admin/hub-items/[itemId]/finalize`, `/api/seller/orders/[itemId]/send-to-hub`) listed in
+  its output alongside every pre-existing one.
+**Rejected:** collapsing the admin's two-step hub flow into one action (see above - would leave
+`QUALITY_CHECK` permanently unreachable, the exact gap already fixed once for `DELIVERED`).
+Modeling a distinct "seller shipped, hub hasn't received it yet" state between
+`PENDING_SELLER_SHIPMENT` and `RECEIVED_AT_HUB` - there is no hub-intake actor in this system to
+ever observe or act on that distinction, so it would be a state nothing could ever transition out
+of on its own. Threading `sellerId` into the client-side cart so the event-date field could be
+shown conditionally only for a soon-to-be multi-seller order - real added complexity (touching
+`CartContext` and every "add to cart" call site) for a field that's harmless to show unconditionally.

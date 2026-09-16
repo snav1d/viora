@@ -26,6 +26,15 @@ export async function POST(request: Request, { params }: Params) {
   if (item.shippedAt) {
     return NextResponse.json({ error: "این سفارش قبلاً ارسال شده است." }, { status: 400 });
   }
+  // A MULTI_SELLER order's items go through the Viora hub instead (docs/decisions.md ADR 37) -
+  // this route is only for a direct-to-customer SINGLE_SELLER item; never trust the client to
+  // only call the matching route for what an item actually is.
+  if (item.hubStatus !== null) {
+    return NextResponse.json(
+      { error: "این کالا باید از طریق «ارسال به مرکز ویورا» پردازش شود." },
+      { status: 400 },
+    );
+  }
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {

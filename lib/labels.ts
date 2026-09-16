@@ -1,4 +1,10 @@
-import type { OrderStatus, TicketStatus, CouponType, BannerPlacement } from "@/lib/generated/prisma/client";
+import type {
+  OrderStatus,
+  TicketStatus,
+  CouponType,
+  BannerPlacement,
+  HubProcessingStatus,
+} from "@/lib/generated/prisma/client";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "در انتظار پرداخت",
@@ -34,4 +40,12 @@ export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
 
 export const BANNER_PLACEMENT_LABELS: Record<BannerPlacement, string> = {
   HOME_TOP: "بالای صفحه‌ی اصلی",
+};
+
+/// panels-and-operations-spec.md §1's own labels for the multi-seller hub pipeline.
+export const HUB_PROCESSING_STATUS_LABELS: Record<HubProcessingStatus, string> = {
+  PENDING_SELLER_SHIPMENT: "در انتظار ارسال فروشنده به مرکز",
+  RECEIVED_AT_HUB: "دریافت‌شده در مرکز",
+  QUALITY_CHECK: "در حال کنترل کیفیت",
+  FINAL_SHIPPED: "ارسال نهایی شده",
 };

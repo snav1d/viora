@@ -7,6 +7,7 @@ import { useCart } from "@/lib/cart/CartContext";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
 import { CouponInput } from "@/components/checkout/CouponInput";
+import { OptionalJalaliDatePicker } from "@/components/ui/OptionalJalaliDatePicker";
 
 export function CartView() {
   const { items, updateQuantity, removeItem, clear, totalPrice } = useCart();
@@ -14,6 +15,7 @@ export function CartView() {
   const [paymentMethod, setPaymentMethod] = useState<"online">("online");
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [eventDate, setEventDate] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -47,6 +49,7 @@ export function CartView() {
           shippingAddress: address,
           paymentMethod,
           couponCode: couponCode ?? undefined,
+          eventDate: eventDate ?? undefined,
         }),
       });
       const data = await response.json();
@@ -142,6 +145,15 @@ export function CartView() {
             setDiscountAmount(0);
           }}
         />
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-charcoal">تاریخ جشن (اختیاری)</p>
+        <p className="text-xs text-charcoal-muted">
+          اگه سفارش شما بین چند فروشنده تقسیم بشه و از مرکز پردازش ویورا عبور کنه، این تاریخ به
+          فروشنده‌ها کمک می‌کنه بدونن باید کالا رو تا کِی به مرکز برسونن.
+        </p>
+        <OptionalJalaliDatePicker label="افزودن تاریخ جشن" value={eventDate} onChange={setEventDate} />
       </div>
 
       <div className="space-y-2">

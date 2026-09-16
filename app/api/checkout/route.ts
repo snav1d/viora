@@ -9,6 +9,11 @@ const bodySchema = z.object({
   items: z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1) })).min(1),
   shippingAddress: z.string().min(5),
   couponCode: z.string().trim().min(1).optional(),
+  // Optional - only meaningful for the hub's minimum-lead-time warning (docs/decisions.md
+  // ADR 37) shown to a seller on a MULTI_SELLER order's items. A customer who skips it just
+  // means that warning shows generic text instead of a computed deadline; nothing else depends
+  // on it, so it's never required here.
+  eventDate: z.string().min(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -63,16 +68,25 @@ export async function POST(request: Request) {
 
   const totalAmount = subtotal - discountAmount;
 
+  // A cart mixing products from more than one seller goes through the Viora hub instead of each
+  // seller shipping straight to the customer (panels-and-operations-spec.md §1) - orderType and
+  // each item's starting hubStatus are derived from the real distinct-seller count here, never
+  // trusted from the client. See docs/decisions.md ADR 37.
+  const distinctSellerCount = new Set(lines.map((line) => line.sellerId)).size;
+  const orderType = distinctSellerCount > 1 ? "MULTI_SELLER" : "SINGLE_SELLER";
+  const startingHubStatus = orderType === "MULTI_SELLER" ? "PENDING_SELLER_SHIPMENT" : null;
+
   const order = await prisma.order.create({
     data: {
       userId: session.userId,
-      orderType: "SINGLE_SELLER",
+      orderType,
       status: "PENDING_PAYMENT",
       paymentStatus: "PENDING",
       totalAmount,
       couponId,
       discountAmount,
       shippingAddress: parsed.data.shippingAddress,
+      eventDate: parsed.data.eventDate ? new Date(parsed.data.eventDate) : null,
       items: {
         create: lines.map((line) => ({
           productId: line.productId,
@@ -80,6 +94,7 @@ export async function POST(request: Request) {
           quantity: line.quantity,
           unitPrice: line.unitPrice,
           splitAmount: line.splitAmount,
+          hubStatus: startingHubStatus,
         })),
       },
     },

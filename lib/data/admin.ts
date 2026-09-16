@@ -42,6 +42,7 @@ export async function getAdminStats() {
     activeCategories,
     activeCoupons,
     liveTheme,
+    hubItems,
   ] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
     prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
@@ -52,6 +53,7 @@ export async function getAdminStats() {
     prisma.seasonalTheme.findFirst({
       where: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
     }),
+    prisma.orderItem.count({ where: { hubStatus: { in: ["RECEIVED_AT_HUB", "QUALITY_CHECK"] } } }),
   ]);
   return {
     pendingSellers,
@@ -61,6 +63,7 @@ export async function getAdminStats() {
     activeCategories,
     activeCoupons,
     liveThemeName: liveTheme?.name ?? null,
+    hubItems,
   };
 }
 
