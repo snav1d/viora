@@ -4,7 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
-export function ApproveButton({ endpoint, label }: { endpoint: string; label: string }) {
+export function ApproveButton({
+  endpoint,
+  label,
+  variant = "primary",
+}: {
+  endpoint: string;
+  label: string;
+  /// "secondary" for a plain POST action that isn't really an "approval" in tone (e.g. suspending
+  /// a seller, docs/decisions.md ADR 38) - same component, just not the gold primary look.
+  variant?: "primary" | "secondary";
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +39,8 @@ export function ApproveButton({ endpoint, label }: { endpoint: string; label: st
 
   return (
     <div className="flex flex-col gap-1">
-      <Button size="lg" className="w-full" onClick={handleApprove} disabled={loading}>
-        {loading ? "در حال تایید…" : label}
+      <Button size="lg" variant={variant} className="w-full" onClick={handleApprove} disabled={loading}>
+        {loading ? "در حال ثبت…" : label}
       </Button>
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
     </div>

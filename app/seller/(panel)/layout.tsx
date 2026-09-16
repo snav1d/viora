@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Clock3, XCircle } from "lucide-react";
+import { Clock3, XCircle, AlertTriangle } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { SellerNav } from "@/components/seller/SellerNav";
 import { getSession } from "@/lib/auth/session";
@@ -57,6 +57,15 @@ export default async function SellerPanelLayout({ children }: { children: React.
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20">
+      {profile.status === "SUSPENDED" ? (
+        <div className="flex items-start gap-2 border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <p>
+            فروشگاه شما موقتاً تعلیق شده است و امکان افزودن محصول جدید ندارید. سفارش‌های فعلی شما
+            دست‌نخورده باقی می‌مانند و همچنان می‌توانید آن‌ها را پردازش کنید.
+          </p>
+        </div>
+      ) : null}
       {children}
       <SellerNav />
     </div>

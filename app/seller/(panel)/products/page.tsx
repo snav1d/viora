@@ -27,13 +27,15 @@ export default async function SellerProductsPage({ searchParams }: Props) {
     <main className="flex flex-1 flex-col gap-4 px-4 py-5">
       <TopBar title="محصولات من" />
 
-      <Link
-        href="/seller/products/new"
-        className="flex items-center justify-center gap-2 rounded-full bg-gold-500 py-3 text-sm font-medium text-charcoal hover:bg-gold-600"
-      >
-        <Plus className="h-4 w-4" strokeWidth={2} />
-        افزودن محصول جدید
-      </Link>
+      {profile.status === "APPROVED" ? (
+        <Link
+          href="/seller/products/new"
+          className="flex items-center justify-center gap-2 rounded-full bg-gold-500 py-3 text-sm font-medium text-charcoal hover:bg-gold-600"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2} />
+          افزودن محصول جدید
+        </Link>
+      ) : null}
 
       <form className="flex gap-2" method="get">
         <div className="relative flex-1">

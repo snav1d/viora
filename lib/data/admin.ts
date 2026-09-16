@@ -1,8 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { ApprovalStatus } from "@/lib/generated/prisma/client";
+import type { ApprovalStatus, SellerStatus } from "@/lib/generated/prisma/client";
 
-export function getSellerProfiles(status?: ApprovalStatus) {
+export function getSellerProfiles(status?: SellerStatus) {
   return prisma.sellerProfile.findMany({
     where: status ? { status } : undefined,
     include: { city: true, categories: { include: { category: true } } },
@@ -43,6 +43,7 @@ export async function getAdminStats() {
     activeCoupons,
     liveTheme,
     hubItems,
+    pendingReturns,
   ] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
     prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
@@ -54,6 +55,7 @@ export async function getAdminStats() {
       where: { isActive: true, startsAt: { lte: now }, endsAt: { gte: now } },
     }),
     prisma.orderItem.count({ where: { hubStatus: { in: ["RECEIVED_AT_HUB", "QUALITY_CHECK"] } } }),
+    prisma.orderItem.count({ where: { returnStatus: "REQUESTED" } }),
   ]);
   return {
     pendingSellers,
@@ -64,6 +66,7 @@ export async function getAdminStats() {
     activeCoupons,
     liveThemeName: liveTheme?.name ?? null,
     hubItems,
+    pendingReturns,
   };
 }
 

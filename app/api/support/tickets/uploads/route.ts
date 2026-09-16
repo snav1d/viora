@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireOperatingSeller } from "@/lib/auth/seller";
+import { getSession } from "@/lib/auth/session";
 import { getStorageProvider } from "@/lib/providers/storage";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+/// Any logged-in user, not role-restricted like /api/seller/uploads - a return-request photo
+/// (docs/decisions.md ADR 38) can come from a plain customer, same bar as ticket creation itself.
 export async function POST(request: Request) {
-  const seller = await requireOperatingSeller();
-  if (!seller) {
-    return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "ابتدا وارد شوید.", requiresAuth: true }, { status: 401 });
   }
 
   const formData = await request.formData().catch(() => null);

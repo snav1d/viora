@@ -41,10 +41,12 @@ export default async function SellerDashboardPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <ButtonLink href="/seller/products/new" size="lg" className="w-full gap-2">
-          <Package className="h-4 w-4" strokeWidth={1.75} />
-          افزودن محصول جدید
-        </ButtonLink>
+        {profile.status === "APPROVED" ? (
+          <ButtonLink href="/seller/products/new" size="lg" className="w-full gap-2">
+            <Package className="h-4 w-4" strokeWidth={1.75} />
+            افزودن محصول جدید
+          </ButtonLink>
+        ) : null}
         <ButtonLink href="/seller/orders" variant="secondary" size="lg" className="w-full gap-2">
           <ClipboardList className="h-4 w-4" strokeWidth={1.75} />
           مشاهده سفارش‌ها

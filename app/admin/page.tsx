@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   UserCheck,
   Printer,
@@ -72,6 +73,15 @@ export default async function AdminDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">آیتم در مرکز پردازش</p>
         </div>
+        <Link
+          href="/admin/tickets?type=RETURN_REQUEST"
+          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+        >
+          <p className="text-2xl font-semibold text-charcoal">
+            {stats.pendingReturns.toLocaleString("fa-IR")}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-muted">درخواست مرجوعی در انتظار</p>
+        </Link>
       </section>
 
       <section className="flex flex-col gap-3">

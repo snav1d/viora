@@ -11,11 +11,22 @@ export async function getSellerProfile() {
   return prisma.sellerProfile.findUnique({ where: { userId: session.userId } });
 }
 
-/** Every seller API route needs this exact check (logged in + APPROVED SellerProfile) - the
- * page-level gate in app/seller/(panel)/layout.tsx only stops navigation, it doesn't run for
- * fetch() calls hitting these routes directly. Returns null when the check fails. */
+/** Every seller API route that creates something new (a product) needs this exact check (logged
+ * in + APPROVED SellerProfile) - the page-level gate in app/seller/(panel)/layout.tsx only stops
+ * navigation, it doesn't run for fetch() calls hitting these routes directly. Returns null when
+ * the check fails. */
 export async function requireApprovedSeller() {
   const profile = await getSellerProfile();
   if (!profile || profile.status !== "APPROVED") return null;
+  return profile;
+}
+
+/** A SUSPENDED seller keeps managing their existing catalog and fulfilling existing orders -
+ * only creating brand-new products is blocked (docs/decisions.md ADR 38, "سفارش‌های قبلیش
+ * دست‌نخورده می‌مونه"). Every seller route except product creation should gate on this, not
+ * requireApprovedSeller(). */
+export async function requireOperatingSeller() {
+  const profile = await getSellerProfile();
+  if (!profile || (profile.status !== "APPROVED" && profile.status !== "SUSPENDED")) return null;
   return profile;
 }

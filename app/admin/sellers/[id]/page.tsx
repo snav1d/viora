@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ApproveButton } from "@/components/admin/ApproveButton";
 import { RejectForm } from "@/components/admin/RejectForm";
 import { getSellerProfileDetail } from "@/lib/data/admin";
+import { getSellerReturnStats, getSellerReturnRateWarningThreshold } from "@/lib/data/returns";
 import { REFERRAL_SOURCES } from "@/lib/seller/registration";
+import { SELLER_STATUS_LABELS as STATUS_LABELS } from "@/lib/labels";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "بررسی فروشنده",
@@ -12,12 +16,6 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABELS = {
-  PENDING: "در انتظار تایید",
-  APPROVED: "تایید‌شده",
-  REJECTED: "رد‌شده",
-} as const;
 
 function parsePhoneNumbers(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
@@ -29,6 +27,13 @@ export default async function AdminSellerDetailPage({ params }: Props) {
   const { id } = await params;
   const seller = await getSellerProfileDetail(id);
   if (!seller) notFound();
+
+  const [returnStats, returnRateThreshold] = await Promise.all([
+    getSellerReturnStats(seller.id),
+    getSellerReturnRateWarningThreshold(),
+  ]);
+  const returnRatePercent = Math.round(returnStats.rate * 1000) / 10;
+  const returnRateOverThreshold = returnStats.rate > returnRateThreshold;
 
   const phoneNumbers = parsePhoneNumbers(seller.phoneNumbers);
   const referralLabel =
@@ -129,10 +134,47 @@ export default async function AdminSellerDetailPage({ params }: Props) {
         </div>
       ) : null}
 
+      <section
+        className={cn(
+          "space-y-2 rounded-2xl border p-4 text-sm",
+          returnRateOverThreshold ? "border-rose-300 bg-rose-50/60" : "border-border bg-surface",
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-medium text-charcoal">نرخ مرجوعی تاییدشده</p>
+          {returnRateOverThreshold ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-rose-700">
+              <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
+              بالاتر از آستانه‌ی هشدار
+            </span>
+          ) : null}
+        </div>
+        <p className="text-charcoal-muted">
+          {returnStats.approvedReturns.toLocaleString("fa-IR")} از{" "}
+          {returnStats.totalItems.toLocaleString("fa-IR")} آیتم — {returnRatePercent.toLocaleString("fa-IR")}٪
+        </p>
+      </section>
+
       {seller.status === "PENDING" ? (
         <div className="mt-auto flex flex-col gap-2">
           <ApproveButton endpoint={`/api/admin/sellers/${seller.id}/approve`} label="تایید فروشنده" />
           <RejectForm endpoint={`/api/admin/sellers/${seller.id}/reject`} />
+        </div>
+      ) : null}
+
+      {seller.status === "APPROVED" ? (
+        <div className="mt-auto">
+          <ApproveButton
+            endpoint={`/api/admin/sellers/${seller.id}/suspend`}
+            label="تعلیق فروشنده"
+            variant="secondary"
+          />
+        </div>
+      ) : null}
+
+      {seller.status === "SUSPENDED" ? (
+        <div className="mt-auto">
+          <ApproveButton endpoint={`/api/admin/sellers/${seller.id}/unsuspend`} label="رفع تعلیق" />
         </div>
       ) : null}
     </main>

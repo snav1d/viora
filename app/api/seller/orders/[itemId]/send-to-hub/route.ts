@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireApprovedSeller } from "@/lib/auth/seller";
+import { requireOperatingSeller } from "@/lib/auth/seller";
 
 type Params = { params: Promise<{ itemId: string }> };
 
@@ -11,7 +11,7 @@ type Params = { params: Promise<{ itemId: string }> };
 /// declaration that they've shipped it is what advances hubStatus straight to RECEIVED_AT_HUB -
 /// the admin hub queue (/admin/hub) is simply a view of items at or past that state.
 export async function POST(_request: Request, { params }: Params) {
-  const seller = await requireApprovedSeller();
+  const seller = await requireOperatingSeller();
   if (!seller) {
     return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
   }

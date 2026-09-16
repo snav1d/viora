@@ -266,6 +266,13 @@ async function main() {
     update: {},
     create: { key: "print_normal_turnaround_days", value: { minDays: 3, maxDays: 5 } },
   });
+  // The visual (non-automatic) return-rate warning threshold shown on a seller's admin profile -
+  // docs/decisions.md ADR 38. Purely informational; nothing reads this to auto-suspend a seller.
+  await prisma.platformSetting.upsert({
+    where: { key: "seller_return_rate_warning_threshold" },
+    update: {},
+    create: { key: "seller_return_rate_warning_threshold", value: { percent: 10 } },
+  });
 
   console.log("Seed complete.");
 }

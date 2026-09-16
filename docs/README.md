@@ -73,11 +73,20 @@ A Next.js (App Router, TypeScript) skeleton with:
 - Support tickets: open to any account - customer, seller, or print partner alike, all reached
   from the same "تماس با پشتیبانی" entry point on their own profile/dashboard (`/support` list,
   `/support/new`, a per-ticket chat thread). Admin side (`/admin/tickets`, with independent
-  status *and* sender-type filters, a sender badge per row, reply, and status change) shares the
-  same thread-display component, but posts through its own dedicated reply route - a message's
-  customer-vs-staff label is decided by which route handled it, not by comparing user ids (that
-  comparison broke for an account that is both a ticket's owner and an admin - see ADR 34). See
-  `docs/decisions.md` ADR 33, 34.
+  status, sender-type, *and* ticket-type filters, a sender badge per row, reply, and status change)
+  shares the same thread-display component, but posts through its own dedicated reply route - a
+  message's customer-vs-staff label is decided by which route handled it, not by comparing user
+  ids (that comparison broke for an account that is both a ticket's owner and an admin - see
+  ADR 34). See `docs/decisions.md` ADR 33, 34.
+- Product returns, built on the same support-ticket system (`SupportTicket.type` = `RETURN_REQUEST`,
+  wired to the `OrderItem`): a "درخواست مرجوعی" button on a delivered product item creates a
+  return-typed ticket with the customer's reason + an optional photo as its first message; admin
+  approves (posting the seller's address + a cost-coordination note - no real refund flow, since
+  there's no payment/refund infrastructure to plug one into yet) or rejects with a reason, both
+  reusing the existing ticket-reply/status machinery. A seller's admin profile shows their
+  approved-return rate with a visual-only warning past a configurable threshold, and a new
+  `SUSPENDED` `SellerProfile` status (manual-only, never automatic) blocks new product creation
+  while leaving existing orders/products fully manageable. See `docs/decisions.md` ADR 38.
 - Two independent discount mechanisms (docs/decisions.md ADR 35): a seller's own optional
   `Product.discountPrice` (absorbed by the seller - flows straight into `unitPrice`/
   `splitAmount` like the regular price always has, shown strikethrough in the shop), and a
@@ -88,14 +97,15 @@ A Next.js (App Router, TypeScript) skeleton with:
   `OrderItem.splitAmount`.
 - Minimal admin panel (`app/admin/`): access gated on a `User.roles` check (the first `ADMIN` is
   granted by editing the database directly - see ADR 30), seller and print-partner approval queues
-  (approve/reject with a reason, PENDING/APPROVED/REJECTED tabs), city/category active toggles,
-  a print-color catalog (add/remove), a support-ticket queue, coupon management (add +
-  active/inactive toggle), a seasonal-theme editor (`/admin/themes` - full palette override of
-  `app/globals.css`'s tokens, a date window that decides what's live *today* with no manual daily
-  step, and an admin-only preview of a not-yet-public theme), and banner management
-  (`/admin/banners` - image/text/link for a fixed set of UI placements, one to start, same
-  date-window activation) - replacing the direct-DB editing §4 below used to document. See
-  `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36.
+  (approve/reject with a reason; sellers get a fourth SUSPENDED tab/action too, ADR 38),
+  city/category active toggles, a print-color catalog (add/remove), a support-ticket queue
+  (including return-request review, ADR 38), coupon management (add + active/inactive toggle), a
+  seasonal-theme editor (`/admin/themes` - full palette override of `app/globals.css`'s tokens, a
+  date window that decides what's live *today* with no manual daily step, and an admin-only
+  preview of a not-yet-public theme), banner management (`/admin/banners` - image/text/link for a
+  fixed set of UI placements, one to start, same date-window activation), and a processing-hub
+  queue (`/admin/hub`) for multi-seller orders - replacing the direct-DB editing §4 below used to
+  document. See `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36, 37, 38.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`) - the default palette,
   live-overridable site-wide by an admin-scheduled `SeasonalTheme` (ADR 36).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD

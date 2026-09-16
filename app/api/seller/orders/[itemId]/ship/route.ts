@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireApprovedSeller } from "@/lib/auth/seller";
+import { requireOperatingSeller } from "@/lib/auth/seller";
 
 const bodySchema = z.object({
   trackingCode: z.string().min(1).optional(),
@@ -10,7 +10,7 @@ const bodySchema = z.object({
 type Params = { params: Promise<{ itemId: string }> };
 
 export async function POST(request: Request, { params }: Params) {
-  const seller = await requireApprovedSeller();
+  const seller = await requireOperatingSeller();
   if (!seller) {
     return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
   }

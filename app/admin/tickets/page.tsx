@@ -3,9 +3,9 @@ import Link from "next/link";
 import { Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { getAllTickets, classifyTicketSender } from "@/lib/data/support";
-import { TICKET_STATUS_LABELS, TICKET_SENDER_LABELS } from "@/lib/labels";
+import { TICKET_STATUS_LABELS, TICKET_SENDER_LABELS, TICKET_TYPE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/cn";
-import type { TicketStatus } from "@/lib/generated/prisma/client";
+import type { TicketStatus, TicketType } from "@/lib/generated/prisma/client";
 import type { TicketSenderType } from "@/lib/labels";
 
 export const metadata: Metadata = {
@@ -19,22 +19,26 @@ export const dynamic = "force-dynamic";
 const STATUS_TABS: TicketStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 const SENDER_TABS: TicketSenderType[] = ["CUSTOMER", "SELLER", "SERVICE_PROVIDER"];
 
-type Props = { searchParams: Promise<{ status?: string; type?: string }> };
+type Props = { searchParams: Promise<{ status?: string; sender?: string; type?: string }> };
 
 export default async function AdminTicketsPage({ searchParams }: Props) {
-  const { status, type } = await searchParams;
+  const { status, sender, type } = await searchParams;
   const filterStatus: TicketStatus = STATUS_TABS.includes(status as TicketStatus)
     ? (status as TicketStatus)
     : "OPEN";
-  const filterSender: TicketSenderType | undefined = SENDER_TABS.includes(type as TicketSenderType)
-    ? (type as TicketSenderType)
+  const filterSender: TicketSenderType | undefined = SENDER_TABS.includes(sender as TicketSenderType)
+    ? (sender as TicketSenderType)
     : undefined;
-  const tickets = await getAllTickets(filterStatus, filterSender);
+  const filterType: TicketType | undefined = type === "RETURN_REQUEST" ? "RETURN_REQUEST" : undefined;
+  const tickets = await getAllTickets(filterStatus, filterSender, filterType);
 
-  function withParams(next: { status?: TicketStatus; type?: TicketSenderType }) {
+  function withParams(next: { status?: TicketStatus; sender?: TicketSenderType; type?: TicketType }) {
     const params = new URLSearchParams();
     params.set("status", next.status ?? filterStatus);
-    if (next.type ?? filterSender) params.set("type", (next.type ?? filterSender)!);
+    const nextSender = "sender" in next ? next.sender : filterSender;
+    if (nextSender) params.set("sender", nextSender);
+    const nextType = "type" in next ? next.type : filterType;
+    if (nextType) params.set("type", nextType);
     return `/admin/tickets?${params.toString()}`;
   }
 
@@ -61,7 +65,7 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
 
       <div className="flex gap-2 overflow-x-auto">
         <Link
-          href={`/admin/tickets?status=${filterStatus}`}
+          href={withParams({ sender: undefined })}
           className={cn(
             "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
             !filterSender
@@ -69,12 +73,12 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
               : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
           )}
         >
-          همه
+          همه فرستنده‌ها
         </Link>
         {SENDER_TABS.map((value) => (
           <Link
             key={value}
-            href={withParams({ type: value })}
+            href={withParams({ sender: value })}
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
               filterSender === value
@@ -85,6 +89,31 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
             {TICKET_SENDER_LABELS[value]}
           </Link>
         ))}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto">
+        <Link
+          href={withParams({ type: undefined })}
+          className={cn(
+            "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
+            !filterType
+              ? "border-gold-500 bg-gold-100 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+          )}
+        >
+          همه نوع‌ها
+        </Link>
+        <Link
+          href={withParams({ type: "RETURN_REQUEST" })}
+          className={cn(
+            "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
+            filterType === "RETURN_REQUEST"
+              ? "border-gold-500 bg-gold-100 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+          )}
+        >
+          {TICKET_TYPE_LABELS.RETURN_REQUEST}
+        </Link>
       </div>
 
       {tickets.length === 0 ? (
@@ -102,9 +131,16 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-charcoal">{ticket.subject}</p>
-                  <span className="shrink-0 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">
-                    {TICKET_SENDER_LABELS[classifyTicketSender(ticket.user)]}
-                  </span>
+                  <div className="flex shrink-0 gap-1">
+                    {ticket.type === "RETURN_REQUEST" ? (
+                      <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-medium text-gold-600">
+                        {TICKET_TYPE_LABELS.RETURN_REQUEST}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">
+                      {TICKET_SENDER_LABELS[classifyTicketSender(ticket.user)]}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-charcoal-muted">
                   {ticket.user.name ?? "کاربر ویورا"} ·{" "}

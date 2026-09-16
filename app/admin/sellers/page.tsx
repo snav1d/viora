@@ -4,29 +4,31 @@ import { UserCheck } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { getSellerProfiles } from "@/lib/data/admin";
 import { cn } from "@/lib/cn";
-import type { ApprovalStatus } from "@/lib/generated/prisma/client";
+import type { SellerStatus } from "@/lib/generated/prisma/client";
 
 export const metadata: Metadata = {
   title: "فروشنده‌ها",
   robots: { index: false, follow: false },
 };
 
-// SellerProfile.status changes whenever this very panel approves/rejects one - must never be
-// cached/frozen at build time, same reasoning as every other phase-toggle page in this app.
+// SellerProfile.status changes whenever this very panel approves/rejects/suspends one - must
+// never be cached/frozen at build time, same reasoning as every other phase-toggle page in this
+// app.
 export const dynamic = "force-dynamic";
 
-const STATUS_TABS: { value: ApprovalStatus; label: string }[] = [
+const STATUS_TABS: { value: SellerStatus; label: string }[] = [
   { value: "PENDING", label: "در انتظار" },
   { value: "APPROVED", label: "تایید‌شده" },
   { value: "REJECTED", label: "رد‌شده" },
+  { value: "SUSPENDED", label: "تعلیق‌شده" },
 ];
 
 type Props = { searchParams: Promise<{ status?: string }> };
 
 export default async function AdminSellersPage({ searchParams }: Props) {
   const { status } = await searchParams;
-  const filterStatus: ApprovalStatus =
-    status === "APPROVED" || status === "REJECTED" ? status : "PENDING";
+  const filterStatus: SellerStatus =
+    status === "APPROVED" || status === "REJECTED" || status === "SUSPENDED" ? status : "PENDING";
   const sellers = await getSellerProfiles(filterStatus);
 
   return (

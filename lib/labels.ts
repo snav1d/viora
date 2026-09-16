@@ -1,9 +1,12 @@
 import type {
   OrderStatus,
   TicketStatus,
+  TicketType,
   CouponType,
   BannerPlacement,
   HubProcessingStatus,
+  ReturnStatus,
+  SellerStatus,
 } from "@/lib/generated/prisma/client";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -48,4 +51,22 @@ export const HUB_PROCESSING_STATUS_LABELS: Record<HubProcessingStatus, string> =
   RECEIVED_AT_HUB: "دریافت‌شده در مرکز",
   QUALITY_CHECK: "در حال کنترل کیفیت",
   FINAL_SHIPPED: "ارسال نهایی شده",
+};
+
+export const TICKET_TYPE_LABELS: Record<TicketType, string> = {
+  GENERAL: "عمومی",
+  RETURN_REQUEST: "درخواست مرجوعی",
+};
+
+export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
+  REQUESTED: "در حال بررسی",
+  APPROVED: "تایید شده",
+  REJECTED: "رد شده",
+};
+
+export const SELLER_STATUS_LABELS: Record<SellerStatus, string> = {
+  PENDING: "در انتظار تایید",
+  APPROVED: "تایید‌شده",
+  REJECTED: "رد‌شده",
+  SUSPENDED: "تعلیق‌شده",
 };

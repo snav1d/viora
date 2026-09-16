@@ -2363,3 +2363,117 @@ ever observe or act on that distinction, so it would be a state nothing could ev
 of on its own. Threading `sellerId` into the client-side cart so the event-date field could be
 shown conditionally only for a soon-to-be multi-seller order - real added complexity (touching
 `CartContext` and every "add to cart" call site) for a field that's harmless to show unconditionally.
+
+---
+
+## 2026-09-16 — product returns (wired into the existing support-ticket system) + seller suspension
+
+### 38. `SupportTicket.type`/`orderItemId`, `TicketMessage.imageUrl`, `OrderItem.returnStatus`, and
+a dedicated `SellerStatus` enum (not a shared-enum SUSPENDED value)
+**Decision:** A return request is a `SupportTicket` with a new `type` (`GENERAL` | `RETURN_REQUEST`,
+default `GENERAL` so nothing about the existing ticket system changes for anyone), wired to the
+`OrderItem` it's about:
+1. **Customer side** - a "درخواست مرجوعی" button (`ReturnRequestForm`, mirroring
+   `components/admin/RejectForm.tsx`'s open/closed toggle) appears on a delivered product item
+   (`item.deliveredAt` set, `item.product` set - print/service items are out of scope, see below)
+   that has no return yet (`item.returnStatus === null`). Submitting it
+   (`POST /api/support/tickets/returns`) creates the `RETURN_REQUEST` ticket, its first
+   `TicketMessage` (the customer's reason + an optional photo via a new customer-facing upload
+   route, `/api/support/tickets/uploads` - any logged-in user, not role-restricted like
+   `/api/seller/uploads`), and sets `OrderItem.returnStatus = REQUESTED`, all in one transaction.
+   Once a return exists for an item, the button is replaced by its live status
+   (`RETURN_STATUS_LABELS`) and a link into the same `/support/[id]` thread the ticket system
+   already renders - no new customer-facing ticket UI needed at all.
+2. **Admin side** - `/admin/tickets` gains a third filter row (mirroring the existing sender-type
+   row exactly) for `type=RETURN_REQUEST`, plus a badge per ticket row. The ticket detail page
+   shows the item/seller/amount and, while `returnStatus === REQUESTED`, two actions: "تایید
+   مرجوعی" (`POST /api/admin/tickets/[id]/approve-return`) and "رد درخواست" - literally the
+   existing `RejectForm` component reused unchanged, exactly matching the request's own framing
+   ("رد درخواست با دلیل، مثل رد فروشنده"). Approving posts an automatic staff message with the
+   seller's address and states the return-shipping cost is the seller's responsibility to
+   coordinate directly - deliberately **not** a promised automatic cost refund, since this
+   codebase has no real payment/refund infrastructure yet (`PaymentProvider` only ever
+   `charge()`s) to plug a real one into; rejecting posts the reason and sets
+   `returnRejectionReason`, shown back to the customer next to their `REJECTED` status badge.
+**Why `TicketType`/`orderItemId` on `SupportTicket`, not a separate `ReturnRequest` model:** the
+request's own explicit question was how to model "ticket type" - a return request *is* a support
+conversation (reason text, photo evidence, admin replies, a status the admin changes) with two
+extra pieces of structured data (which item, and its own approve/reject state) bolted on, so
+reusing the whole existing thread/reply/status machinery (`TicketThread`, both reply routes,
+`TicketStatusSelect`) costs nothing and a parallel model would have needed to reinvent all of it.
+**Why `TicketMessage.imageUrl`, not a return-specific photo column:** a photo is naturally part of
+"what the customer said" (their reason plus evidence) - putting it on the message means
+`TicketThread` renders it for free wherever it's set, and the field stays available for any future
+use of an image in a ticket message, not hardcoded to returns.
+**Why print/service order items are excluded:** the request's own framing is entirely in terms of
+"فروشنده" (seller) and physical goods; a print order's balloons are custom-made per order, not a
+generic "send it back" case, and have no `sellerId` (only `providerId`) for the approval message's
+seller-address lookup to work against anyway - gated on `item.sellerId !== null`.
+**`SellerProfile.status` becomes a dedicated `SellerStatus` enum** (`PENDING` | `APPROVED` |
+`REJECTED` | `SUSPENDED`), not `SUSPENDED` added to the shared `ApprovalStatus` that
+`ServiceProviderProfile.status` also uses - a print partner has no suspension concept in this
+request at all, and a shared enum would let its own `status` column represent a value that means
+nothing for it. `SUSPENDED` is reachable only via a manual admin action
+(`POST /api/admin/sellers/[id]/suspend`, only from `APPROVED`) and reversible the same way
+(`.../unsuspend`, back to `APPROVED`) - nothing in this codebase ever sets it automatically, per
+the request's explicit "نه خودکار".
+**Why `requireOperatingSeller()` is a new, separate helper from the existing
+`requireApprovedSeller()`, rather than changing what "approved" means:** the request's own
+constraint - "سفارش‌های قبلیش دست‌نخورده می‌مونه" - means a `SUSPENDED` seller must keep shipping,
+sending items to the hub, and editing their existing catalog exactly as before; only *creating a
+new product* is blocked. Rather than loosen `requireApprovedSeller()`'s meaning (used everywhere,
+including product creation) to quietly also accept `SUSPENDED`, a second helper
+(`requireOperatingSeller()`, accepting `APPROVED` or `SUSPENDED`) was added and swapped into every
+call site **except** `POST /api/seller/products` (create) - `requireApprovedSeller()`'s name and
+behavior stay exactly what they've always meant. The seller panel layout renders a persistent
+warning banner while suspended (children and `SellerNav` still render underneath it, unlike the
+`PENDING`/`REJECTED` states which replace the whole panel), and both the dashboard's and the
+product list's "افزودن محصول جدید" entry points are hidden - the `/seller/products/new` page
+itself also redirects away defensively, in case a suspended seller still has the URL bookmarked.
+**Return-rate stat, not auto-suspension:** `getSellerReturnStats()` (`lib/data/returns.ts`) computes
+`approvedReturns / totalPaidOrderItems` for a seller and is shown on their admin profile
+unconditionally, with a visual-only warning (`AlertTriangle`, no action taken) once it exceeds a
+threshold read from `PlatformSetting` (`seller_return_rate_warning_threshold`, seeded at 10% -
+configurable per this project's own "nothing hardcoded" principle, `docs/README.md` §4's own
+section title, even though the request didn't explicitly ask for this one to be configurable, the
+same way `hub_min_days_before_event` already was). Nothing reads this threshold to take any
+action - the request was explicit that suspension is manual-only.
+**Verified**, against the real local MariaDB + the actual compiled `.next/standalone/server.js`,
+using real HTTP and one real Playwright pass:
+- A full return lifecycle on a real delivered item: request (with an uploaded photo) → ticket
+  created with `type=RETURN_REQUEST`, first message carrying the reason and `imageUrl`,
+  `OrderItem.returnStatus=REQUESTED` - confirmed from the database, not just the request
+  succeeding. A second request on the same item was rejected
+  (`"برای این مورد قبلاً درخواست مرجوعی ثبت شده است."`).
+- Admin approval set `returnStatus=APPROVED` and posted a real auto-message containing the
+  seller's actual stored address and the "بر عهده‌ی فروشنده" cost-coordination note - read back
+  from the database. A second, independent return (different item, same seller) was rejected with
+  a reason, correctly setting `returnStatus=REJECTED` + `returnRejectionReason`, both shown back
+  on the customer's own order page next to a "مشاهده‌ی گفتگوی مرجوعی" link into the real ticket.
+- Suspending the seller (`APPROVED → SUSPENDED`) made `POST /api/seller/products` return `403`
+  immediately, while the *same* suspended seller successfully shipped a different, already-placed
+  order's item through the normal ship route in the same session - confirmed both halves of "no
+  new products, but existing orders untouched" directly, not just one side of it. Unsuspending
+  (`SUSPENDED → APPROVED`) immediately restored product creation.
+- The admin seller detail page's real rendered HTML showed the return-rate stat (1 approved out of
+  3 real paid items, 33.3%) and the "بالاتر از آستانه‌ی هشدار" warning, correctly crossing the
+  seeded 10% threshold.
+- Real Playwright pass: the customer's order detail page showed the review form and, independently,
+  the return status + link for an item with an approved return; the admin ticket detail page
+  rendered the uploaded photo inline in the thread (via `TicketThread`'s new `imageUrl` handling),
+  the return-request badge, seller/item context, and the real auto-approval message text.
+- All test rows (every ticket/message/order created during this test, the extra test product made
+  while verifying unsuspend, the admin-bootstrap `ADMIN` grant, and every `OtpCode` row from
+  login) were deleted/reverted afterward; the seller's status confirmed back at `APPROVED`.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new route
+  (`/api/support/tickets/returns`, `/api/support/tickets/uploads`,
+  `/api/admin/tickets/[id]/approve-return`, `/api/admin/tickets/[id]/reject-return`,
+  `/api/admin/sellers/[id]/suspend`, `/api/admin/sellers/[id]/unsuspend`) listed in its output
+  alongside every pre-existing one.
+**Rejected:** a separate `ReturnRequest` model (see above - `SupportTicket` already has everything
+one needs once given a `type` and an `orderItemId`). A real refund-processing flow for return
+shipping costs - this project has no payment/refund infrastructure to build it on yet; the request
+itself offered this exact simplification as an acceptable option. Adding `SUSPENDED` to the shared
+`ApprovalStatus` enum instead of a dedicated `SellerStatus` (see above). Automatically suspending a
+seller once their return rate crosses the warning threshold - the request was explicit this stays
+a human decision.

@@ -1,6 +1,12 @@
 import { cn } from "@/lib/cn";
 
-type Message = { id: string; isFromStaff: boolean; body: string; createdAt: Date };
+type Message = {
+  id: string;
+  isFromStaff: boolean;
+  body: string;
+  imageUrl?: string | null;
+  createdAt: Date;
+};
 
 // Shared by the ticket owner's own page and the admin ticket page - classified by the message's
 // own isFromStaff flag (set at write time by which reply route handled it, not re-derived from
@@ -21,10 +27,18 @@ export function TicketThread({
           <li key={message.id} className={cn("flex flex-col gap-1", fromOwner ? "items-start" : "items-end")}>
             <div
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
+                "max-w-[85%] space-y-2 rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
                 fromOwner ? "border border-border bg-surface text-charcoal" : "bg-gold-100 text-charcoal",
               )}
             >
+              {message.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- remote S3-compatible URL, not a local /public asset next/image can optimize
+                <img
+                  src={message.imageUrl}
+                  alt="پیوست تصویر"
+                  className="h-40 w-full rounded-xl object-cover"
+                />
+              ) : null}
               {message.body}
             </div>
             <p className="px-1 text-[11px] text-charcoal-muted">

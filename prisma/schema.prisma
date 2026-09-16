@@ -124,6 +124,18 @@ enum ApprovalStatus {
   REJECTED
 }
 
+/// SellerProfile's own status set, distinct from ApprovalStatus (still used as-is by
+/// ServiceProviderProfile) - SUSPENDED is a seller-only concept (docs/decisions.md ADR 38), set
+/// only by manual admin action, never automatically. A dedicated enum rather than adding
+/// SUSPENDED to the shared ApprovalStatus so a print partner's status column can never even
+/// represent a value that has no meaning for it.
+enum SellerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
 /// Product seller (fixed monthly subscription) — panels-and-operations-spec.md §2.
 model SellerProfile {
   id           String  @id @default(cuid())
@@ -164,8 +176,8 @@ model SellerProfile {
   /// "set = happened" timestamp, matching OtpCode.consumedAt/OrderItem.shippedAt's convention
   /// elsewhere in this schema, not a boolean.
   termsAcceptedAt         DateTime?
-  status                  ApprovalStatus @default(PENDING)
-  rejectionReason         String?        @db.Text
+  status                  SellerStatus @default(PENDING)
+  rejectionReason         String?      @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -517,9 +529,25 @@ model OrderItem {
 
   review Review?
 
+  /// Set once a customer requests a return via the "درخواست مرجوعی" button on a delivered item
+  /// (docs/decisions.md ADR 38, the 24-hour return window deliveredAt's own comment above
+  /// references) - null means no return was ever requested. A completely separate lifecycle from
+  /// hubStatus (which tracks *getting the item to the customer*, not what happens after).
+  returnStatus ReturnStatus?
+  /// Set together with returnStatus = REJECTED - same "reason accompanies a rejection" convention
+  /// as SellerProfile.rejectionReason/ServiceProviderProfile.rejectionReason.
+  returnRejectionReason String? @db.Text
+  returnTickets         SupportTicket[]
+
   @@index([orderId])
   @@index([sellerId])
   @@index([providerId])
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
 }
 
 // ---------------------------------------------------------------------------
@@ -645,12 +673,26 @@ enum TicketStatus {
   CLOSED
 }
 
+/// Distinguishes a plain support conversation from a structured return request
+/// (docs/decisions.md ADR 38) - drives the admin filter/badge and which extra actions (approve/
+/// reject return) apply to a ticket. GENERAL is the default so every ticket from the plain
+/// "تماس با پشتیبانی" entry point keeps working exactly as before.
+enum TicketType {
+  GENERAL
+  RETURN_REQUEST
+}
+
 model SupportTicket {
   id      String       @id @default(cuid())
   userId  String
   user    User         @relation(fields: [userId], references: [id])
   subject String
   status  TicketStatus @default(OPEN)
+  type    TicketType   @default(GENERAL)
+  /// Set only for RETURN_REQUEST tickets - the OrderItem this return is about. Nullable since a
+  /// GENERAL ticket has no associated order item.
+  orderItemId String?
+  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -658,6 +700,7 @@ model SupportTicket {
   messages TicketMessage[]
 
   @@index([userId, status])
+  @@index([orderItemId])
 }
 
 model TicketMessage {
@@ -675,6 +718,12 @@ model TicketMessage {
   /// in that self-admin case).
   isFromStaff Boolean @default(false)
   body        String  @db.Text
+  /// A photo attached to this message, via the same StorageProvider every other upload in this
+  /// app uses (docs/decisions.md ADR 38) - used today only by the return-request flow's initial
+  /// message ("عکس از کالا"). A general field on the message itself rather than a return-specific
+  /// column elsewhere, since a message is already the right shape for "what was said, plus
+  /// optional evidence."
+  imageUrl String?
 
   createdAt DateTime @default(now())
 

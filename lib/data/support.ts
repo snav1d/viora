@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { TicketStatus } from "@/lib/generated/prisma/client";
+import type { TicketStatus, TicketType } from "@/lib/generated/prisma/client";
 import type { TicketSenderType } from "@/lib/labels";
 
 export function getUserTickets(userId: string) {
@@ -24,10 +24,11 @@ export function classifyTicketSender(user: {
   return "CUSTOMER";
 }
 
-export function getAllTickets(status?: TicketStatus, senderType?: TicketSenderType) {
+export function getAllTickets(status?: TicketStatus, senderType?: TicketSenderType, type?: TicketType) {
   return prisma.supportTicket.findMany({
     where: {
       ...(status ? { status } : {}),
+      ...(type ? { type } : {}),
       ...(senderType === "SELLER" ? { user: { sellerProfile: { isNot: null } } } : {}),
       ...(senderType === "SERVICE_PROVIDER"
         ? { user: { serviceProviderProfile: { isNot: null } } }
@@ -47,6 +48,7 @@ export function getTicketDetail(id: string) {
     include: {
       user: { include: { sellerProfile: true, serviceProviderProfile: true } },
       messages: { orderBy: { createdAt: "asc" } },
+      orderItem: { include: { product: true, seller: true } },
     },
   });
 }

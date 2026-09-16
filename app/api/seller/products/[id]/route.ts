@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireApprovedSeller } from "@/lib/auth/seller";
+import { requireOperatingSeller } from "@/lib/auth/seller";
 import { getSellerProductById } from "@/lib/data/seller";
 import { storageUrlSchema } from "@/lib/validation/url";
 
@@ -30,7 +30,7 @@ const bodySchema = z
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const seller = await requireApprovedSeller();
+  const seller = await requireOperatingSeller();
   if (!seller) {
     return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
   }
@@ -78,7 +78,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const seller = await requireApprovedSeller();
+  const seller = await requireOperatingSeller();
   if (!seller) {
     return NextResponse.json({ error: "دسترسی غیرمجاز." }, { status: 403 });
   }

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { ConfirmDeliveryButton } from "@/components/orders/ConfirmDeliveryButton";
+import { ReturnRequestForm } from "@/components/orders/ReturnRequestForm";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import { StarRating } from "@/components/reviews/StarRating";
 import { getSession } from "@/lib/auth/session";
 import { getOrderDetailForUser } from "@/lib/data/orders";
 import { toNumber } from "@/lib/decimal";
-import { ORDER_STATUS_LABELS } from "@/lib/labels";
+import { ORDER_STATUS_LABELS, RETURN_STATUS_LABELS } from "@/lib/labels";
 
 export const metadata: Metadata = {
   title: "جزئیات سفارش",
@@ -75,6 +77,33 @@ export default async function OrderDetailPage({ params }: Props) {
                   </div>
                 ) : (
                   <ReviewForm orderItemId={item.id} />
+                )
+              ) : null}
+
+              {/* Returns only apply to product-seller items, not print/service ones - see
+                  docs/decisions.md ADR 38. */}
+              {item.deliveredAt && item.product ? (
+                item.returnStatus ? (
+                  <div className="space-y-1 border-t border-border pt-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-charcoal-muted">وضعیت مرجوعی</p>
+                      <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-gold-600">
+                        {RETURN_STATUS_LABELS[item.returnStatus]}
+                      </span>
+                    </div>
+                    {item.returnStatus === "REJECTED" && item.returnRejectionReason ? (
+                      <p className="text-xs text-rose-700">دلیل رد: {item.returnRejectionReason}</p>
+                    ) : null}
+                    {item.returnTickets[0] ? (
+                      <Link href={`/support/${item.returnTickets[0].id}`} className="text-xs text-rose-600">
+                        مشاهده‌ی گفتگوی مرجوعی
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="border-t border-border pt-3">
+                    <ReturnRequestForm orderItemId={item.id} />
+                  </div>
                 )
               ) : null}
             </li>
