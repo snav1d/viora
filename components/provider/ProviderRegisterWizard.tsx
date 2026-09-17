@@ -20,6 +20,7 @@ type Tier = { minQuantity: string; maxQuantity: string; unitPrice: string };
 
 type Answers = {
   businessName: string;
+  contactPersonName: string;
   licenseImageUrl: string | null;
   nationalId: string;
   bankAccountIban: string;
@@ -32,6 +33,7 @@ type Answers = {
 
 const EMPTY_ANSWERS: Answers = {
   businessName: "",
+  contactPersonName: "",
   licenseImageUrl: null,
   nationalId: "",
   bankAccountIban: "",
@@ -66,6 +68,7 @@ function isStepAnswered(step: number, answers: Answers): boolean {
   if (step === 1) {
     return (
       answers.businessName.trim().length >= 2 &&
+      answers.contactPersonName.trim().length >= 2 &&
       answers.licenseImageUrl !== null &&
       /^\d{10}$/.test(answers.nationalId) &&
       /^IR\d{24}$/.test(answers.bankAccountIban)
@@ -171,6 +174,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessName: answers.businessName,
+          contactPersonName: answers.contactPersonName,
           businessLicenseImageUrl: answers.licenseImageUrl,
           nationalId: answers.nationalId,
           bankAccountIban: answers.bankAccountIban,
@@ -234,6 +238,19 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                 type="text"
                 value={answers.businessName}
                 onChange={(event) => update({ businessName: event.target.value })}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="contactPersonName" className="text-sm font-medium text-charcoal">
+                نام و نام‌خانوادگی مسئول کسب‌وکار
+              </label>
+              <input
+                id="contactPersonName"
+                type="text"
+                value={answers.contactPersonName}
+                onChange={(event) => update({ contactPersonName: event.target.value })}
                 className={inputClass}
               />
             </div>

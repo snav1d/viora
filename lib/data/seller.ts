@@ -8,20 +8,30 @@ export function parseProductImages(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-export function getSellerProducts(sellerId: string, filters: { q?: string; status?: "active" | "inactive" } = {}) {
-  return prisma.product.findMany({
+/** A seller's own "my products" list is really their Listings (docs/decisions.md ADR 39) - one
+ * row per catalog Product they currently offer, including a still-PENDING_REVIEW/NEEDS_REVISION
+ * submission's own (inactive-until-approved) Listing, so a seller's own pending submissions show
+ * up in the same list rather than needing a separate view. */
+export function getSellerListings(
+  sellerId: string,
+  filters: { q?: string; status?: "active" | "inactive" } = {},
+) {
+  return prisma.listing.findMany({
     where: {
       sellerId,
-      ...(filters.q ? { title: { contains: filters.q } } : {}),
+      ...(filters.q ? { product: { title: { contains: filters.q } } } : {}),
       ...(filters.status ? { isActive: filters.status === "active" } : {}),
     },
-    include: { category: true, city: true },
+    include: { product: { include: { category: true } }, city: true },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export function getSellerProductById(sellerId: string, productId: string) {
-  return prisma.product.findFirst({ where: { id: productId, sellerId } });
+export function getSellerListingById(sellerId: string, listingId: string) {
+  return prisma.listing.findFirst({
+    where: { id: listingId, sellerId },
+    include: { product: true, city: true },
+  });
 }
 
 // Orders still PENDING_PAYMENT/FAILED never reached the seller in real life (checkout only
@@ -39,7 +49,7 @@ export function getSellerOrderItems(sellerId: string) {
 
 export async function getSellerStats(sellerId: string) {
   const [activeProducts, pendingItems] = await Promise.all([
-    prisma.product.count({ where: { sellerId, isActive: true } }),
+    prisma.listing.count({ where: { sellerId, isActive: true } }),
     // Once an item has been sent to the Viora hub (hubStatus past PENDING_SELLER_SHIPMENT), it's
     // out of this seller's hands - "پنding" here means "this seller still needs to act on it".
     prisma.orderItem.count({

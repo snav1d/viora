@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 
 export type CartItem = {
-  productId: string;
+  listingId: string;
   slug: string;
   title: string;
   price: number;
@@ -13,8 +13,8 @@ export type CartItem = {
 type CartContextValue = {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateQuantity: (listingId: string, quantity: number) => void;
+  removeItem: (listingId: string) => void;
   clear: () => void;
   totalPrice: number;
   totalCount: number;
@@ -52,10 +52,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback<CartContextValue["addItem"]>((item, quantity = 1) => {
     setItems((current) => {
-      const existing = current.find((line) => line.productId === item.productId);
+      const existing = current.find((line) => line.listingId === item.listingId);
       if (existing) {
         return current.map((line) =>
-          line.productId === item.productId
+          line.listingId === item.listingId
             ? { ...line, quantity: line.quantity + quantity }
             : line,
         );
@@ -64,16 +64,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const updateQuantity = useCallback<CartContextValue["updateQuantity"]>((productId, quantity) => {
+  const updateQuantity = useCallback<CartContextValue["updateQuantity"]>((listingId, quantity) => {
     setItems((current) =>
       quantity <= 0
-        ? current.filter((line) => line.productId !== productId)
-        : current.map((line) => (line.productId === productId ? { ...line, quantity } : line)),
+        ? current.filter((line) => line.listingId !== listingId)
+        : current.map((line) => (line.listingId === listingId ? { ...line, quantity } : line)),
     );
   }, []);
 
-  const removeItem = useCallback<CartContextValue["removeItem"]>((productId) => {
-    setItems((current) => current.filter((line) => line.productId !== productId));
+  const removeItem = useCallback<CartContextValue["removeItem"]>((listingId) => {
+    setItems((current) => current.filter((line) => line.listingId !== listingId));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

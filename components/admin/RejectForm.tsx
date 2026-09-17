@@ -4,7 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
-export function RejectForm({ endpoint }: { endpoint: string }) {
+export function RejectForm({
+  endpoint,
+  triggerLabel = "رد درخواست",
+  reasonLabel = "دلیل رد درخواست",
+  submitLabel = "ثبت رد درخواست",
+}: {
+  endpoint: string;
+  /// Overridable for reuse beyond a plain "reject" action (e.g. admin product review's "نیاز به
+  /// بازبینی" - same shape, a required reason posted to a different endpoint - see
+  /// docs/decisions.md ADR 39). Default copy keeps every existing caller unchanged.
+  triggerLabel?: string;
+  reasonLabel?: string;
+  submitLabel?: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -41,7 +54,7 @@ export function RejectForm({ endpoint }: { endpoint: string }) {
         onClick={() => setOpen(true)}
         className="w-full rounded-full border border-rose-200 py-3 text-sm font-medium text-rose-700 hover:bg-rose-50"
       >
-        رد درخواست
+        {triggerLabel}
       </button>
     );
   }
@@ -52,7 +65,7 @@ export function RejectForm({ endpoint }: { endpoint: string }) {
       className="flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50/40 p-4"
     >
       <label htmlFor="reason" className="text-sm font-medium text-charcoal">
-        دلیل رد درخواست
+        {reasonLabel}
       </label>
       <textarea
         id="reason"
@@ -65,7 +78,7 @@ export function RejectForm({ endpoint }: { endpoint: string }) {
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" className="flex-1" disabled={loading}>
-          {loading ? "در حال ثبت…" : "ثبت رد درخواست"}
+          {loading ? "در حال ثبت…" : submitLabel}
         </Button>
         <button
           type="button"

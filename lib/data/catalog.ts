@@ -1,5 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { toNumber } from "@/lib/decimal";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export function getActiveCities() {
   return prisma.city.findMany({
@@ -19,24 +21,49 @@ export function getCategoryBySlug(slug: string) {
   return prisma.category.findUnique({ where: { slug } });
 }
 
-export function getProductsByCategoryId(categoryId: string) {
-  return prisma.product.findMany({
-    where: { categoryId, isActive: true },
-    orderBy: { createdAt: "desc" },
+/// Picks the cheapest currently-active Listing by effective price (discountPrice ?? price) - a
+/// plain JS reduce, not a DB-level ORDER BY, since MySQL/Prisma can't cleanly order by
+/// COALESCE across a nullable and a non-nullable Decimal column through the query builder, and in
+/// practice a Product has only a handful of Listings. See docs/decisions.md ADR 39. Callers
+/// already filter to `isActive: true` listings only, so an empty array here never happens for a
+/// Product that made it through the `listings: { some: { isActive: true } }` where-clause.
+function pickCheapestListing<T extends { price: Prisma.Decimal; discountPrice: Prisma.Decimal | null }>(
+  listings: T[],
+): T {
+  return listings.reduce((cheapest, listing) => {
+    const effective = toNumber(listing.discountPrice ?? listing.price);
+    const cheapestEffective = toNumber(cheapest.discountPrice ?? cheapest.price);
+    return effective < cheapestEffective ? listing : cheapest;
   });
 }
 
-export function getFeaturedProducts(take = 6) {
-  return prisma.product.findMany({
-    where: { isActive: true },
+export async function getProductsByCategoryId(categoryId: string) {
+  const products = await prisma.product.findMany({
+    where: { categoryId, status: "APPROVED", listings: { some: { isActive: true } } },
+    include: { listings: { where: { isActive: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return products.map((product) => ({ ...product, listing: pickCheapestListing(product.listings) }));
+}
+
+export async function getFeaturedProducts(take = 6) {
+  const products = await prisma.product.findMany({
+    where: { status: "APPROVED", listings: { some: { isActive: true } } },
+    include: { listings: { where: { isActive: true } } },
     orderBy: { createdAt: "desc" },
     take,
   });
+  return products.map((product) => ({ ...product, listing: pickCheapestListing(product.listings) }));
 }
 
-export function getProductBySlug(slug: string) {
-  return prisma.product.findUnique({
+export async function getProductBySlug(slug: string) {
+  const product = await prisma.product.findUnique({
     where: { slug },
-    include: { category: true, city: true, seller: true },
+    include: {
+      category: true,
+      listings: { where: { isActive: true }, include: { city: true, seller: true } },
+    },
   });
+  if (!product || product.status !== "APPROVED" || product.listings.length === 0) return null;
+  return { ...product, listing: pickCheapestListing(product.listings) };
 }

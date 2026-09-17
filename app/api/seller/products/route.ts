@@ -10,12 +10,11 @@ const bodySchema = z
     title: z.string().min(2),
     description: z.string().min(1).optional(),
     categoryId: z.string().min(1),
+    images: z.array(storageUrlSchema).max(6),
     cityId: z.string().min(1),
     price: z.number().int().positive(),
     discountPrice: z.number().int().positive().nullable().optional(),
     stock: z.number().int().min(0),
-    images: z.array(storageUrlSchema).max(6),
-    isActive: z.boolean(),
   })
   .superRefine((data, ctx) => {
     if (data.discountPrice != null && data.discountPrice >= data.price) {
@@ -27,6 +26,12 @@ const bodySchema = z
     }
   });
 
+/// A seller couldn't find their product in the existing catalog (see /api/seller/catalog/search)
+/// and is submitting a brand-new one - one unified form for both the catalog fields (title/
+/// description/category/images) and this seller's own listing terms (price/stock/discount/city),
+/// per the confirmed design in docs/decisions.md ADR 39. Creates the Product as PENDING_REVIEW
+/// and this seller's Listing as inactive together, so admin approval alone (no second step, no
+/// need for the seller to come back) makes both live at once.
 export async function POST(request: Request) {
   const seller = await requireApprovedSeller();
   if (!seller) {
@@ -49,21 +54,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "شهر انتخاب‌شده معتبر نیست." }, { status: 400 });
   }
 
-  const product = await prisma.product.create({
-    data: {
-      sellerId: seller.id,
-      categoryId: category.id,
-      cityId: city.id,
-      title: parsed.data.title,
-      slug: randomSlug(parsed.data.title),
-      description: parsed.data.description,
-      price: parsed.data.price,
-      discountPrice: parsed.data.discountPrice ?? null,
-      stock: parsed.data.stock,
-      images: parsed.data.images,
-      isActive: parsed.data.isActive,
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        categoryId: category.id,
+        title: parsed.data.title,
+        slug: randomSlug(parsed.data.title),
+        description: parsed.data.description,
+        images: parsed.data.images,
+        status: "PENDING_REVIEW",
+        submittedBySellerId: seller.id,
+      },
+    });
+    const listing = await tx.listing.create({
+      data: {
+        productId: product.id,
+        sellerId: seller.id,
+        cityId: city.id,
+        price: parsed.data.price,
+        discountPrice: parsed.data.discountPrice ?? null,
+        stock: parsed.data.stock,
+        // Inactive until admin approval flips it (and Product.status) live together - see
+        // app/api/admin/products/[id]/approve/route.ts.
+        isActive: false,
+      },
+    });
+    return { product, listing };
   });
 
-  return NextResponse.json({ ok: true, productId: product.id });
+  return NextResponse.json({
+    ok: true,
+    productId: result.product.id,
+    listingId: result.listing.id,
+  });
 }

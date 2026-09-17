@@ -6,7 +6,7 @@ import { getPaymentProvider } from "@/lib/providers/payment";
 import { validateCoupon } from "@/lib/data/coupons";
 
 const bodySchema = z.object({
-  items: z.array(z.object({ productId: z.string(), quantity: z.number().int().min(1) })).min(1),
+  items: z.array(z.object({ listingId: z.string(), quantity: z.number().int().min(1) })).min(1),
   shippingAddress: z.string().min(5),
   couponCode: z.string().trim().min(1).optional(),
   // Optional - only meaningful for the hub's minimum-lead-time warning (docs/decisions.md
@@ -27,23 +27,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "درخواست نامعتبر است." }, { status: 400 });
   }
 
-  const productIds = parsed.data.items.map((item) => item.productId);
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  const listingIds = parsed.data.items.map((item) => item.listingId);
+  const listings = await prisma.listing.findMany({ where: { id: { in: listingIds } } });
 
-  if (products.length !== productIds.length) {
+  if (listings.length !== listingIds.length) {
     return NextResponse.json({ error: "برخی محصولات دیگر موجود نیستند." }, { status: 400 });
   }
 
   // Prices/sellers are re-read from the DB, never trusted from the client. A seller's own
   // discountPrice (docs/decisions.md ADR 35) - when set - is simply the real price here: it
   // flows straight into unitPrice/splitAmount exactly like the regular price always has, since
-  // it's the seller's own choice, not something a platform coupon should ever touch.
+  // it's the seller's own choice, not something a platform coupon should ever touch. OrderItem
+  // still stores productId/sellerId directly (docs/decisions.md ADR 39) - not listingId - since
+  // that pair alone already identifies which Listing was used.
   const lines = parsed.data.items.map((item) => {
-    const product = products.find((p) => p.id === item.productId)!;
-    const unitPrice = (product.discountPrice ?? product.price).toNumber();
+    const listing = listings.find((l) => l.id === item.listingId)!;
+    const unitPrice = (listing.discountPrice ?? listing.price).toNumber();
     return {
-      productId: product.id,
-      sellerId: product.sellerId,
+      productId: listing.productId,
+      sellerId: listing.sellerId,
       quantity: item.quantity,
       unitPrice,
       splitAmount: unitPrice * item.quantity,

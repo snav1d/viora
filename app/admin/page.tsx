@@ -9,6 +9,7 @@ import {
   Palette,
   Image as ImageIcon,
   Boxes,
+  PackageSearch,
 } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
@@ -82,6 +83,15 @@ export default async function AdminDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">درخواست مرجوعی در انتظار</p>
         </Link>
+        <Link
+          href="/admin/products"
+          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+        >
+          <p className="text-2xl font-semibold text-charcoal">
+            {stats.pendingProducts.toLocaleString("fa-IR")}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-muted">محصول در انتظار بررسی</p>
+        </Link>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -104,6 +114,10 @@ export default async function AdminDashboardPage() {
         <ButtonLink href="/admin/hub" variant="secondary" size="lg" className="w-full gap-2">
           <Boxes className="h-4 w-4" strokeWidth={1.75} />
           مرکز پردازش ویورا
+        </ButtonLink>
+        <ButtonLink href="/admin/products" variant="secondary" size="lg" className="w-full gap-2">
+          <PackageSearch className="h-4 w-4" strokeWidth={1.75} />
+          بررسی محصولات جدید
         </ButtonLink>
         <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
           <Palette className="h-4 w-4" strokeWidth={1.75} />

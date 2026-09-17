@@ -18,6 +18,9 @@ const bodySchema = z
       .min(1, "حداقل یک دسته‌بندی را انتخاب کنید."),
     description: z.string().min(1).optional(),
     businessLicenseImageUrl: storageUrlSchema,
+    contactPersonName: z
+      .string({ error: "نام و نام‌خانوادگی مسئول فروشگاه را وارد کنید." })
+      .min(2, "نام و نام‌خانوادگی مسئول فروشگاه را وارد کنید."),
     nationalId: z
       .string({ error: "کد ملی باید ۱۰ رقم باشد." })
       .regex(/^\d{10}$/, "کد ملی باید ۱۰ رقم باشد."),
@@ -111,6 +114,7 @@ export async function POST(request: Request) {
         avatarUrl: parsed.data.avatarUrl,
         description: parsed.data.description,
         businessLicenseImageUrl: parsed.data.businessLicenseImageUrl,
+        contactPersonName: parsed.data.contactPersonName,
         nationalId: parsed.data.nationalId,
         unionId: parsed.data.unionId,
         bankAccountIban: parsed.data.bankAccountIban,

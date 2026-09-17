@@ -133,25 +133,38 @@ async function pickProduct(
   const category = await prisma.category.findUnique({ where: { slug: categorySlug } });
   if (!category || !category.isActive) return null;
 
-  const products = await prisma.product.findMany({
-    where: { cityId, categoryId: category.id, isActive: true, stock: { gt: 0 } },
+  // Filters by cityId directly on Listing (docs/decisions.md ADR 39) - unlike the plain shop,
+  // which stays city-agnostic (lib/data/catalog.ts), the wizard has always needed the customer's
+  // chosen city to pick a real, deliverable candidate.
+  const listings = await prisma.listing.findMany({
+    where: {
+      cityId,
+      isActive: true,
+      stock: { gt: 0 },
+      product: { categoryId: category.id, status: "APPROVED" },
+    },
+    include: { product: true },
   });
-  if (products.length === 0) return null;
+  if (listings.length === 0) return null;
 
   // Quantity is computed per candidate, not once for the whole category: two products in the
   // same category can state different capacities (a 16- vs. a 32-person tableware set), so each
   // needs its own unit count and lineTotal before ranking - a more precisely-fitting capacity
   // naturally wins on cost without any extra logic once this is right. See ADR 26.
-  const scored = products.map((product) => {
-    const unitPrice = toNumber(product.price);
-    const quantity = requiredQuantity(categorySlug, guestCount, parseGuestCapacity(product.title));
+  const scored = listings.map((listing) => {
+    const unitPrice = toNumber(listing.price);
+    const quantity = requiredQuantity(
+      categorySlug,
+      guestCount,
+      parseGuestCapacity(listing.product.title),
+    );
     const { keywordScore, colorScore } = themeMatchScore(
-      `${product.title} ${product.description ?? ""}`,
+      `${listing.product.title} ${listing.product.description ?? ""}`,
       theme,
       colors,
     );
     return {
-      product,
+      listing,
       unitPrice,
       quantity,
       lineTotal: unitPrice * quantity,
@@ -282,9 +295,9 @@ export async function suggestBundle(input: EngineInput): Promise<SuggestedBundle
     if (picked) {
       items.push({
         kind: "product",
-        id: picked.product.id,
-        slug: picked.product.slug,
-        title: picked.product.title,
+        id: picked.listing.id,
+        slug: picked.listing.product.slug,
+        title: picked.listing.product.title,
         categoryId: category.id,
         categoryLabel: category.label,
         unitPrice: picked.unitPrice,

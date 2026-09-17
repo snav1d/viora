@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
-import { ProductForm } from "@/components/seller/ProductForm";
+import { AddProductFlow } from "@/components/seller/AddProductFlow";
 import { getActiveCities, getActiveProductCategories } from "@/lib/data/catalog";
 import { getSellerProfile } from "@/lib/auth/seller";
 
@@ -24,7 +24,7 @@ export default async function NewSellerProductPage() {
   return (
     <main className="flex flex-1 flex-col">
       <TopBar title="افزودن محصول" backHref="/seller/products" />
-      <ProductForm
+      <AddProductFlow
         cities={cities.map((city) => ({ id: city.id, name: city.name }))}
         categories={categories.map((category) => ({ id: category.id, name: category.name }))}
       />

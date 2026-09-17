@@ -79,7 +79,7 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products         Product[]
+  listings         Listing[]
   serviceOfferings ServiceOffering[]
   partyProfiles    PartyProfile[]
   sellerProfiles   SellerProfile[]
@@ -142,6 +142,11 @@ model SellerProfile {
   userId       String  @unique
   user         User    @relation(fields: [userId], references: [id])
   businessName String
+  /// نام و نام‌خانوادگی مسئول فروشگاه - distinct from businessName (the shop's trade name).
+  /// Nullable only because it's a new column on a table with existing rows (ADR 29's migration
+  /// note convention) - sellers who registered before this field existed simply have it empty.
+  /// See docs/decisions.md ADR 39.
+  contactPersonName String?
   /// Free-text shop description, shown on the seller's own registration/profile - not a
   /// per-product field. See docs/decisions.md ADR 27.
   description  String? @db.Text
@@ -182,9 +187,14 @@ model SellerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products      Product[]
-  subscriptions Subscription[]
-  orderItems    OrderItem[]
+  listings          Listing[]
+  /// Catalog Products this seller originally submitted for admin review (docs/decisions.md
+  /// ADR 39) - kept even after approval as a simple "who proposed this" record. Distinct from
+  /// `listings`, which is every product this seller currently sells (including ones someone
+  /// else's submission created the catalog entry for).
+  submittedProducts Product[]
+  subscriptions     Subscription[]
+  orderItems        OrderItem[]
 
   @@index([status])
 }
@@ -209,6 +219,10 @@ model ServiceProviderProfile {
   userId          String         @unique
   user            User           @relation(fields: [userId], references: [id])
   businessName    String
+  /// نام و نام‌خانوادگی مسئول کسب‌وکار - distinct from businessName. Nullable for the same reason
+  /// as SellerProfile.contactPersonName: existing partners registered before this field existed.
+  /// See docs/decisions.md ADR 39.
+  contactPersonName String?
   /// Photo of the partner's پروانه‌ی کسب/مدارک هویتی, uploaded via StorageProvider - same
   /// convention as SellerProfile.businessLicenseImageUrl (ADR 29).
   businessLicenseImageUrl String?
@@ -233,23 +247,92 @@ model ServiceProviderProfile {
 }
 
 // ---------------------------------------------------------------------------
-// Catalog
+// Catalog — Product (the shared catalog entry: what a product IS) is split from Listing (one
+// seller's price/stock/discount offer against it), so more than one seller can carry the same
+// catalog product. See docs/decisions.md ADR 39.
 // ---------------------------------------------------------------------------
 
+/// PENDING_REVIEW: a seller submitted a brand-new catalog entry, awaiting admin decision.
+/// APPROVED: live in the catalog, has a `code`. REJECTED: admin declined it outright, with
+/// `rejectionReason` - final, the submitting seller cannot resubmit. NEEDS_REVISION: admin wants
+/// changes with `rejectionReason` explaining what; the seller edits and resubmits, which returns
+/// this row to PENDING_REVIEW. A dedicated enum (not the shared ApprovalStatus) since NEEDS_
+/// REVISION has no equivalent there - same "don't widen a shared enum for a concept it can't
+/// represent" reasoning as SellerStatus above.
+enum ProductStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+/// Atomic sequential counter behind Product.code's "VP" + number scheme - a dedicated singleton
+/// row rather than reusing PlatformSetting, since PlatformSetting.value is Json and Prisma's
+/// atomic `increment` only works on a real numeric scalar column. Incremented via upsert +
+/// increment inside a $transaction (docs/decisions.md ADR 39): MySQL/InnoDB row-locks this single
+/// row for the transaction's duration, so concurrent admin approvals still assign distinct,
+/// gapless-in-practice codes instead of racing.
+model ProductCodeCounter {
+  id    String @id @default("singleton")
+  value Int    @default(0)
+}
+
+/// The shared catalog entry - title/description/category/photos - independent of who sells it or
+/// for how much (docs/decisions.md ADR 39). A Product only ever has one approved shape; every
+/// seller carrying it has their own Listing for price/stock/discount/city.
 model Product {
   id          String   @id @default(cuid())
-  sellerId    String
-  seller      SellerProfile @relation(fields: [sellerId], references: [id])
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id])
-  cityId      String
-  city        City     @relation(fields: [cityId], references: [id])
   title       String
   slug        String   @unique
   /// @db.Text: MySQL's default VARCHAR(191) truncates real product descriptions - see ADR 20.
   description String?  @db.Text
+  /// A JSON array of image URLs, not a native list column - see docs/decisions.md ADR 20.
+  images      Json     @default("[]")
+  /// Viora's own product code, "VP" + a sequential number (e.g. VP10042) - assigned only once
+  /// approved, via ProductCodeCounter, and never reused or renumbered afterward. Null while still
+  /// PENDING_REVIEW/NEEDS_REVISION/REJECTED.
+  code   String?       @unique
+  status ProductStatus @default(PENDING_REVIEW)
+  /// Set together with status = REJECTED or NEEDS_REVISION - same "reason accompanies a
+  /// rejection" convention as SellerProfile.rejectionReason.
+  rejectionReason String? @db.Text
+  /// The seller who originally submitted this catalog entry for review - kept even after
+  /// approval as a simple "who proposed this" record. Null for products that entered the catalog
+  /// some other way (e.g. the seeded catalog, migrated in directly as APPROVED).
+  submittedBySellerId String?
+  submittedBySeller   SellerProfile? @relation(fields: [submittedBySellerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings   Listing[]
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@index([categoryId, status])
+  @@index([status])
+  @@index([submittedBySellerId])
+}
+
+/// One seller's price/stock/discount offer against a shared Product (docs/decisions.md ADR 39).
+/// A Product can have several Listings, at most one per seller (`@@unique([productId, sellerId])`).
+/// OrderItem/Review still point directly at productId + a separate sellerId, unchanged - that pair
+/// already uniquely identifies which Listing was used, so no listingId FK was added there.
+model Listing {
+  id        String        @id @default(cuid())
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  sellerId  String
+  seller    SellerProfile @relation(fields: [sellerId], references: [id])
+  cityId    String
+  /// Independent of the seller's own registered city - a seller can list the same product for a
+  /// different city, same per-listing choice this field already allowed on Product before the
+  /// split.
+  city City @relation(fields: [cityId], references: [id])
   /// Toman, whole numbers only.
-  price       Decimal  @db.Decimal(12, 0)
+  price Decimal @db.Decimal(12, 0)
   /// The seller's own optional lower price (docs/decisions.md ADR 35) - entirely absorbed by the
   /// seller, unlike a platform Coupon, so it's simply used in place of `price` everywhere a real
   /// charge/split is computed (checkout, OrderItem.unitPrice/splitAmount) - never a separate
@@ -257,18 +340,14 @@ model Product {
   /// the API layer, not the DB, matching this schema's existing convention of not encoding
   /// cross-field invariants in SQL).
   discountPrice Decimal? @db.Decimal(12, 0)
-  stock       Int      @default(0)
-  /// A JSON array of image URLs, not a native list column - see docs/decisions.md ADR 20.
-  images      Json     @default("[]")
-  isActive    Boolean  @default(true)
+  stock         Int      @default(0)
+  isActive      Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orderItems OrderItem[]
-  reviews    Review[]
-
-  @@index([cityId, categoryId, isActive])
+  @@unique([productId, sellerId])
+  @@index([cityId, isActive])
   @@index([sellerId])
 }
 

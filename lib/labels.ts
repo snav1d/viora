@@ -7,6 +7,7 @@ import type {
   HubProcessingStatus,
   ReturnStatus,
   SellerStatus,
+  ProductStatus,
 } from "@/lib/generated/prisma/client";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -69,4 +70,11 @@ export const SELLER_STATUS_LABELS: Record<SellerStatus, string> = {
   APPROVED: "تایید‌شده",
   REJECTED: "رد‌شده",
   SUSPENDED: "تعلیق‌شده",
+};
+
+export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
+  PENDING_REVIEW: "در انتظار بررسی ادمین",
+  APPROVED: "تایید‌شده",
+  REJECTED: "رد‌شده",
+  NEEDS_REVISION: "نیاز به بازبینی",
 };

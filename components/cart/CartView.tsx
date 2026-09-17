@@ -25,13 +25,13 @@ export function CartView() {
   // moment it was applied - if the cart changes afterward, that number would be stale (still
   // shown, no longer accurate), so any cart edit clears it and the customer re-applies against
   // the new subtotal. The final checkout call always re-validates server-side regardless.
-  function handleUpdateQuantity(productId: string, quantity: number) {
-    updateQuantity(productId, quantity);
+  function handleUpdateQuantity(listingId: string, quantity: number) {
+    updateQuantity(listingId, quantity);
     setCouponCode(null);
     setDiscountAmount(0);
   }
-  function handleRemoveItem(productId: string) {
-    removeItem(productId);
+  function handleRemoveItem(listingId: string) {
+    removeItem(listingId);
     setCouponCode(null);
     setDiscountAmount(0);
   }
@@ -45,7 +45,7 @@ export function CartView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          items: items.map((item) => ({ listingId: item.listingId, quantity: item.quantity })),
           shippingAddress: address,
           paymentMethod,
           couponCode: couponCode ?? undefined,
@@ -91,7 +91,7 @@ export function CartView() {
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <li
-            key={item.productId}
+            key={item.listingId}
             className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3"
           >
             <ProductPlaceholder className="h-16 w-16 shrink-0" />
@@ -102,7 +102,7 @@ export function CartView() {
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
+                  onClick={() => handleUpdateQuantity(item.listingId, item.quantity - 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
                   aria-label="کاهش تعداد"
                 >
@@ -112,7 +112,7 @@ export function CartView() {
                   {item.quantity.toLocaleString("fa-IR")}
                 </span>
                 <button
-                  onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
+                  onClick={() => handleUpdateQuantity(item.listingId, item.quantity + 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
                   aria-label="افزایش تعداد"
                 >
@@ -121,7 +121,7 @@ export function CartView() {
               </div>
             </div>
             <button
-              onClick={() => handleRemoveItem(item.productId)}
+              onClick={() => handleRemoveItem(item.listingId)}
               className="text-charcoal-muted hover:text-rose-600"
               aria-label="حذف از سبد"
             >

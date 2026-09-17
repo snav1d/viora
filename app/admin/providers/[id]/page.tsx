@@ -42,6 +42,10 @@ export default async function AdminProviderDetailPage({ params }: Props) {
       </section>
 
       <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
+        <div className="col-span-2">
+          <dt className="text-charcoal-muted">نام و نام‌خانوادگی مسئول</dt>
+          <dd className="font-medium text-charcoal">{provider.contactPersonName ?? "—"}</dd>
+        </div>
         <div>
           <dt className="text-charcoal-muted">کد ملی</dt>
           <dd dir="ltr" className="text-left font-medium text-charcoal">

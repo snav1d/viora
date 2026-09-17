@@ -28,10 +28,10 @@ This file is the entry point for any human or AI picking up this project without
 A Next.js (App Router, TypeScript) skeleton with:
 
 - Marketplace database schema (Prisma + MySQL) covering users/roles, cities, categories,
-  sellers, service providers, products, service offerings, party profiles, orders/order items
-  (single- and multi-vendor), subscriptions, settlements, reviews, support tickets, and
-  admin-editable settings — see `prisma/schema.prisma`. Every model is commented with which
-  spec section it comes from.
+  sellers, service providers, a shared product catalog with per-seller listings (ADR 39), service
+  offerings, party profiles, orders/order items (single- and multi-vendor), subscriptions,
+  settlements, reviews, support tickets, and admin-editable settings — see
+  `prisma/schema.prisma`. Every model is commented with which spec section it comes from.
 - Phone + OTP auth (mock SMS via `console.log`), session cookie, no passwords.
 - All Sprint 0 pages, mobile-first, RTL, in Persian: splash/onboarding, auth, home, shop
   (category grid → product list → product detail), Build My Party wizard (5 steps + a real
@@ -45,9 +45,17 @@ A Next.js (App Router, TypeScript) skeleton with:
   chosen city, and returns a real suggested bundle with an "add all to cart" action. See
   `docs/decisions.md` ADR 22.
 - Product seller panel (`app/seller/`): a 4-step registration wizard (shop info + avatar,
-  business identity, terms agreement, contact/address) ending in admin approval,
-  product CRUD with image upload (search/filter on the list page), and order fulfillment
-  (mark an order item shipped with a tracking code). See `docs/decisions.md` ADR 27, 29.
+  business identity incl. a required contact-person name, terms agreement, contact/address)
+  ending in admin approval, and order fulfillment (mark an order item shipped with a tracking
+  code). See `docs/decisions.md` ADR 27, 29, 39.
+- Shared product catalog (`docs/decisions.md` ADR 39): `Product` (title/description/category/
+  images/VP-prefixed code) is separate from `Listing` (one seller's own price/stock/discount/city
+  against a Product) - several sellers can carry the same catalog product. Adding a product
+  searches the existing catalog first: a match only asks for this seller's own terms and is live
+  immediately (no review); no match opens a unified form (catalog + this seller's own terms
+  together) that submits the Product for admin review at `/admin/products` (approve - assigns the
+  real VP code and activates both the Product and Listing together; reject with a reason, final;
+  or request revision with a reason, which the seller can edit and resubmit).
 - Single/multi-seller order routing to the Viora processing hub (`docs/decisions.md` ADR 37): a
   checkout mixing products from more than one seller becomes a `MULTI_SELLER` order whose items
   route through the hub's `PENDING_SELLER_SHIPMENT → RECEIVED_AT_HUB → QUALITY_CHECK →
@@ -103,9 +111,11 @@ A Next.js (App Router, TypeScript) skeleton with:
   seasonal-theme editor (`/admin/themes` - full palette override of `app/globals.css`'s tokens, a
   date window that decides what's live *today* with no manual daily step, and an admin-only
   preview of a not-yet-public theme), banner management (`/admin/banners` - image/text/link for a
-  fixed set of UI placements, one to start, same date-window activation), and a processing-hub
-  queue (`/admin/hub`) for multi-seller orders - replacing the direct-DB editing §4 below used to
-  document. See `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36, 37, 38.
+  fixed set of UI placements, one to start, same date-window activation), a processing-hub
+  queue (`/admin/hub`) for multi-seller orders, and a product-catalog review queue
+  (`/admin/products` - status tabs, approve/reject/request-revision, ADR 39) - replacing the
+  direct-DB editing §4 below used to document. See `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36,
+  37, 38, 39.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`) - the default palette,
   live-overridable site-wide by an admin-scheduled `SeasonalTheme` (ADR 36).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD

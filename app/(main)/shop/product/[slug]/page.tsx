@@ -31,10 +31,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
-  if (!product || !product.isActive) notFound();
+  if (!product) notFound();
 
-  const price = toNumber(product.price);
-  const discountPrice = product.discountPrice ? toNumber(product.discountPrice) : null;
+  const { listing } = product;
+  const price = toNumber(listing.price);
+  const discountPrice = listing.discountPrice ? toNumber(listing.discountPrice) : null;
   const effectivePrice = discountPrice ?? price;
   const reviewSummary = await getProductReviewSummary(product.id);
 
@@ -49,7 +50,7 @@ export default async function ProductPage({ params }: Props) {
       priceCurrency: "IRR",
       price: effectivePrice * 10, // Toman -> Rial for schema.org (ISO 4217 has no Toman code)
       availability:
-        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        listing.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
   };
 
@@ -88,16 +89,16 @@ export default async function ProductPage({ params }: Props) {
         <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
           <div>
             <dt className="text-charcoal-muted">فروشنده</dt>
-            <dd className="font-medium text-charcoal">{product.seller.businessName}</dd>
+            <dd className="font-medium text-charcoal">{listing.seller.businessName}</dd>
           </div>
           <div>
             <dt className="text-charcoal-muted">شهر ارسال</dt>
-            <dd className="font-medium text-charcoal">{product.city.name}</dd>
+            <dd className="font-medium text-charcoal">{listing.city.name}</dd>
           </div>
         </dl>
 
         <AddToCartButton
-          productId={product.id}
+          listingId={listing.id}
           slug={product.slug}
           title={product.title}
           price={effectivePrice}

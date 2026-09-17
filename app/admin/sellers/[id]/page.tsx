@@ -76,6 +76,10 @@ export default async function AdminSellerDetailPage({ params }: Props) {
             {new Date(seller.createdAt).toLocaleDateString("fa-IR")}
           </dd>
         </div>
+        <div className="col-span-2">
+          <dt className="text-charcoal-muted">نام و نام‌خانوادگی مسئول</dt>
+          <dd className="font-medium text-charcoal">{seller.contactPersonName ?? "—"}</dd>
+        </div>
         <div>
           <dt className="text-charcoal-muted">کد ملی</dt>
           <dd dir="ltr" className="text-left font-medium text-charcoal">

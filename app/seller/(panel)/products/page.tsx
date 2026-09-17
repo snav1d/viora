@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Plus, Search, Package } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { getSellerProfile } from "@/lib/auth/seller";
-import { getSellerProducts } from "@/lib/data/seller";
+import { getSellerListings } from "@/lib/data/seller";
+import { PRODUCT_STATUS_LABELS } from "@/lib/labels";
 import { toNumber } from "@/lib/decimal";
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default async function SellerProductsPage({ searchParams }: Props) {
   // Never null here: the (panel) layout already redirected/blocked every other case before
   // rendering this page.
   const profile = (await getSellerProfile())!;
-  const products = await getSellerProducts(profile.id, {
+  const listings = await getSellerListings(profile.id, {
     q: q || undefined,
     status: status === "active" || status === "inactive" ? status : undefined,
   });
@@ -62,40 +63,50 @@ export default async function SellerProductsPage({ searchParams }: Props) {
         </select>
       </form>
 
-      {products.length === 0 ? (
+      {listings.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
           <Package className="h-6 w-6 text-charcoal-muted" strokeWidth={1.5} />
           <p className="text-sm text-charcoal-muted">محصولی یافت نشد.</p>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
-          {products.map((product) => (
-            <li key={product.id}>
-              <Link
-                href={`/seller/products/${product.id}`}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-charcoal">{product.title}</p>
-                  <p className="text-charcoal-muted">
-                    {product.category.name} · {product.city.name}
-                  </p>
-                  <p className="font-medium text-rose-700">
-                    {toNumber(product.price).toLocaleString("fa-IR")} تومان
-                  </p>
-                </div>
-                <span
-                  className={
-                    product.isActive
-                      ? "shrink-0 rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700"
-                      : "shrink-0 rounded-full bg-border px-3 py-1 text-xs font-medium text-charcoal-muted"
-                  }
+          {listings.map((listing) => {
+            // A Listing whose Product isn't APPROVED yet is never really "فعال"/"غیرفعال" - show
+            // its review status instead of the plain active toggle (docs/decisions.md ADR 39).
+            const statusLabel =
+              listing.product.status === "APPROVED"
+                ? listing.isActive
+                  ? "فعال"
+                  : "غیرفعال"
+                : PRODUCT_STATUS_LABELS[listing.product.status];
+            return (
+              <li key={listing.id}>
+                <Link
+                  href={`/seller/products/${listing.id}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
                 >
-                  {product.isActive ? "فعال" : "غیرفعال"}
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <div className="space-y-1">
+                    <p className="font-medium text-charcoal">{listing.product.title}</p>
+                    <p className="text-charcoal-muted">
+                      {listing.product.category.name} · {listing.city.name}
+                    </p>
+                    <p className="font-medium text-rose-700">
+                      {toNumber(listing.price).toLocaleString("fa-IR")} تومان
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      listing.product.status === "APPROVED" && listing.isActive
+                        ? "shrink-0 rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700"
+                        : "shrink-0 rounded-full bg-border px-3 py-1 text-xs font-medium text-charcoal-muted"
+                    }
+                  >
+                    {statusLabel}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </main>

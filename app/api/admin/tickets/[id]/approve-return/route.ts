@@ -5,6 +5,10 @@ import { createTicketMessage } from "@/lib/data/support";
 
 type Params = { params: Promise<{ id: string }> };
 
+function parsePhoneNumbers(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
 /// Sets the ticket's OrderItem.returnStatus to APPROVED and posts an automatic staff message
 /// with the seller's address and next steps - deliberately no shipping-cost refund flow, since
 /// this codebase has no real payment/refund infrastructure to plug it into yet (docs/decisions.md
@@ -32,6 +36,17 @@ export async function POST(_request: Request, { params }: Params) {
     ? `آدرس فروشنده برای ارسال کالا:\n${ticket.orderItem.seller.address}`
     : "برای دریافت آدرس فروشنده جهت ارسال کالا، در همین گفتگو پیگیری کنید.";
 
+  // Contact person + phone give the customer someone to actually coordinate the return with -
+  // both can be empty for sellers who registered before contactPersonName existed (ADR 39).
+  const phoneNumbers = parsePhoneNumbers(ticket.orderItem.seller?.phoneNumbers);
+  const contactLineParts = [
+    ticket.orderItem.seller?.contactPersonName
+      ? `نام مسئول: ${ticket.orderItem.seller.contactPersonName}`
+      : null,
+    phoneNumbers.length > 0 ? `شماره تماس: ${phoneNumbers.join("، ")}` : null,
+  ].filter(Boolean);
+  const contactLine = contactLineParts.length > 0 ? `\n\n${contactLineParts.join("\n")}` : "";
+
   await prisma.$transaction([
     prisma.orderItem.update({ where: { id: ticket.orderItem.id }, data: { returnStatus: "APPROVED" } }),
   ]);
@@ -39,7 +54,7 @@ export async function POST(_request: Request, { params }: Params) {
     ticketId: ticket.id,
     authorId: admin.id,
     isFromStaff: true,
-    body: `درخواست مرجوعی شما تایید شد.\n\n${addressLine}\n\nهزینه‌ی ارسال مرجوعی بر عهده‌ی فروشنده است؛ لطفاً برای هماهنگی نحوه‌ی ارسال مستقیماً با فروشنده در ارتباط باشید.`,
+    body: `درخواست مرجوعی شما تایید شد.\n\n${addressLine}${contactLine}\n\nهزینه‌ی ارسال مرجوعی بر عهده‌ی فروشنده است؛ لطفاً برای هماهنگی نحوه‌ی ارسال مستقیماً با فروشنده در ارتباط باشید.`,
   });
 
   return NextResponse.json({ ok: true });

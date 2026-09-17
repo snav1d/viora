@@ -163,7 +163,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
     function addBundleToCart() {
       for (const item of productItems) {
         addItem(
-          { productId: item.id, slug: item.slug, title: item.title, price: item.unitPrice },
+          { listingId: item.id, slug: item.slug, title: item.title, price: item.unitPrice },
           item.quantity,
         );
       }

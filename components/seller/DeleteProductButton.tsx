@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 
-export function DeleteProductButton({ productId }: { productId: string }) {
+export function DeleteProductButton({ listingId }: { listingId: string }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +15,7 @@ export function DeleteProductButton({ productId }: { productId: string }) {
     setError(null);
     setDeleting(true);
     try {
-      const response = await fetch(`/api/seller/products/${productId}`, { method: "DELETE" });
+      const response = await fetch(`/api/seller/listings/${listingId}`, { method: "DELETE" });
       const data = await response.json();
 
       if (!response.ok) {

@@ -35,8 +35,8 @@ export default async function CategoryProductsPage({ params }: Props) {
                 key={product.id}
                 slug={product.slug}
                 title={product.title}
-                price={toNumber(product.price)}
-                discountPrice={product.discountPrice ? toNumber(product.discountPrice) : null}
+                price={toNumber(product.listing.price)}
+                discountPrice={product.listing.discountPrice ? toNumber(product.listing.discountPrice) : null}
               />
             ))}
           </div>

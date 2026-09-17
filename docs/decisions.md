@@ -2477,3 +2477,141 @@ itself offered this exact simplification as an acceptable option. Adding `SUSPEN
 `ApprovalStatus` enum instead of a dedicated `SellerStatus` (see above). Automatically suspending a
 seller once their return rate crosses the warning threshold - the request was explicit this stays
 a human decision.
+
+## 2026-09-17 — contact person name field + Product/Listing catalog split with admin approval
+
+### 39. `SellerProfile`/`ServiceProviderProfile.contactPersonName`; `Product` split into a shared
+catalog entry + per-seller `Listing`, with a `ProductStatus` review workflow and atomic VP codes
+**Decision, part 1 (contact person name):** Both registration wizards
+(`SellerRegisterWizard`/`ProviderRegisterWizard`) gained a required "نام و نام‌خانوادگی مسئول
+فروشگاه/کسب‌وکار" field, stored as a new nullable `contactPersonName String?` on `SellerProfile`/
+`ServiceProviderProfile` - nullable because it's a new column on tables with existing rows (same
+convention as `SellerProfile.avatarUrl`, ADR 29's migration note); existing accounts simply have it
+empty, no backfill. It's shown on both admin profile-detail pages and folded into the return-
+approval auto-message (`POST /api/admin/tickets/[id]/approve-return`) alongside the seller's phone
+numbers, so a customer coordinating a return has an actual person and number to reach, not just an
+address.
+**Decision, part 2 (Product/Listing split):** `Product` (the old model: title, description,
+category, images, **and** price/discountPrice/stock/sellerId/cityId/isActive all on one row) is
+split into `Product` (the shared catalog entry - title/description/categoryId/images/slug, plus a
+`code` ("VP" + a sequential number, e.g. `VP10042`), a `ProductStatus`, and `rejectionReason`) and a
+new `Listing` model (`productId`/`sellerId`/`cityId`/price/discountPrice/stock/isActive,
+`@@unique([productId, sellerId])` - one row per seller who carries a given Product). `OrderItem`/
+`Review` keep their existing `productId` (+ `OrderItem.sellerId`) FKs completely unchanged - that
+pair already uniquely identifies which `Listing` was used, so no `listingId` FK was added anywhere
+near order/review history, and every pre-existing row's FK target (`Product.id` is preserved
+byte-for-byte across the migration) stays valid with zero data migration needed for those tables.
+A seller's "افزودن محصول" flow now branches on whether the catalog already has the product:
+1. **Catalog search** (`GET /api/seller/catalog/search`) first - if found, "claiming" it
+   (`POST /api/seller/listings`) only asks for this seller's own price/stock/discount/city and is
+   live immediately, no admin review, since the catalog entry itself is already `APPROVED`.
+2. **Not found** → "ساخت محصول جدید": one unified form (confirmed with the user via
+   `AskUserQuestion` - see below) collecting both the catalog fields (title/description/category/
+   images) and this seller's own listing terms (price/stock/discount/city) together
+   (`POST /api/seller/products`). This creates the `Product` as `PENDING_REVIEW` **and** this
+   seller's `Listing` (already fully filled in, just `isActive: false`) in the same transaction.
+Admin's new `/admin/products` queue (status tabs, mirroring the seller/provider queue pattern) acts
+on `PENDING_REVIEW` products with three outcomes: **تایید** (`.../approve` - assigns the real VP
+code from `ProductCodeCounter` and flips both `Product.status = APPROVED` and every one of its
+`Listing.isActive = true` together, in one transaction - no second step, nothing for the seller to
+come back and do), **رد** (`.../reject`, required reason, final - the submitting seller cannot
+resubmit), and **نیاز به بررسی مجدد** (`.../request-revision`, required reason - the seller edits
+via `PATCH /api/seller/listings/[id]` and that edit returns the row straight to
+`PENDING_REVIEW`). Editing/deleting an already-`APPROVED` product's `Listing` (price/stock/
+discount/city/active-toggle only, never the shared catalog fields) and editing a still-pending/
+needs-revision submission's full catalog+listing terms both reuse the same `ProductForm`
+component, now generalized with `showCatalogFields`/`showActiveToggle` booleans instead of two
+near-duplicate forms.
+**The one open design question, resolved with the user before writing any code:** whether "ساخت
+محصول جدید" should be one unified form or a two-step "catalog fields now → come back and set your
+own price/stock once approved" flow. Asked via `AskUserQuestion`; the user's answer was explicit:
+one form, and "با تایید ادمین، Product و Listing هم‌زمان و بلافاصله فعال بشن — بدون مرحله‌ی دوم یا
+نیاز به برگشتن فروشنده." This directly shaped the "create the Listing inactive at submission time,
+just flip `isActive` at approval" design above - the alternative (create the `Listing` only after
+approval) would have needed the seller to return and take a second action, which the user
+explicitly rejected.
+**Why a dedicated `ProductCodeCounter` singleton, not `PlatformSetting`:** `PlatformSetting.value`
+is `Json`; Prisma's atomic `increment` only works on a real numeric scalar column. A dedicated
+`{ id: "singleton", value: Int }` row (matching `AiSettings`'s own singleton-row convention),
+incremented via `upsert` + `{ value: { increment: 1 } }` inside the approval's `$transaction`, is
+safe under MySQL/InnoDB row-locking: the row stays exclusively locked for the transaction's
+duration, so concurrent approvals still get distinct, non-colliding codes rather than racing.
+**Why a dedicated `ProductStatus` enum, not the shared `ApprovalStatus`:** `NEEDS_REVISION` has no
+equivalent on `SellerProfile`/`ServiceProviderProfile` - same "don't let a shared enum represent a
+value that has no meaning for one of its users" reasoning as `SellerStatus` (ADR 38). Every value
+in the new enum has a real, observable code path that sets it (`PENDING_REVIEW` at submission,
+`APPROVED`/`REJECTED`/`NEEDS_REVISION` from the three admin actions, `NEEDS_REVISION` → 
+`PENDING_REVIEW` again on resubmit) - the same "never a schema value nothing ever sets" discipline
+first named in ADR 33 and reused for `HubProcessingStatus` in ADR 37.
+**Migration - expand, migrate, contract:** generated with `prisma migrate diff` (this environment's
+`prisma migrate dev` refuses to run non-interactively once a migration involves dropping columns
+with live data, so the SQL was generated via `--from-config-datasource`/`--to-schema` and then
+hand-assembled into a migration folder, applied with `prisma migrate deploy`), the migration adds
+every new column/table first (`Product.code`/`status`/`rejectionReason`/`submittedBySellerId`,
+`Listing`, `ProductCodeCounter`) while the old `Product.sellerId`/`cityId`/`price`/`discountPrice`/
+`stock`/`isActive` columns still exist, then runs a data-migration step entirely in raw SQL: a
+MySQL session-variable increment (`SET @code := 10000; UPDATE Product SET code = CONCAT('VP',
+(@code := @code + 1)), status = 'APPROVED' ORDER BY createdAt ASC;`) assigns every pre-existing
+product a real sequential code and marks it `APPROVED` (it was never "submitted" through this new
+workflow, so there's nothing to review), an `INSERT INTO Listing ... SELECT ... FROM Product`
+carries over each one's old price/stock/discount/seller/city/active state into its own new
+`Listing` row, and `ProductCodeCounter` is seeded with the final assigned value (`10500` for the
+500 pre-existing products) so the very next admin approval continues the same sequence with no
+collision - only *then* does the migration drop the old FK constraints/indexes/columns from
+`Product`. Verified against the real dev database: 500 Products → 500 Listings, codes
+`VP10001`..`VP10500`, all distinct, all `APPROVED`, counter seeded at `10500`.
+**`prisma/seed.ts`'s 500-item fixture catalog deliberately does *not* go through
+`ProductCodeCounter`** - it assigns a fixed, deterministic `VP10001`..`VP10500` range directly
+(matching exactly what the one-time production migration assigned) and only raises the counter to
+that same floor if it's lower. The seed script's own delete-and-recreate-every-run pattern would
+otherwise burn through the shared counter a little further on every single `db:seed` run, drifting
+the fixture's codes upward forever instead of reproducing the same catalog deterministically.
+**Effective-listing resolution stays in plain JS, not SQL:** MySQL/Prisma's query builder can't
+cleanly `ORDER BY COALESCE(discountPrice, price)` across a nullable and a non-nullable `Decimal`
+column, so `lib/data/catalog.ts`'s `pickCheapestListing` fetches every `isActive` `Listing` for a
+`Product` and picks the cheapest by effective price with a plain `reduce` - fine in practice, since
+a `Product` realistically has only a handful of competing `Listing`s.
+**The shop stays city-agnostic; only the wizard engine filters by city** - preserving an asymmetry
+that already existed before this split (`lib/data/catalog.ts` never filtered by city;
+`lib/wizard/engine.ts`'s `pickProduct` always did, since it needs one concrete deliverable
+candidate for the customer's chosen city). `Listing.cityId` stays an explicit, independent field
+(not derived from `SellerProfile.cityId`) since a seller could already list the same product for a
+different city than their own registered one, before this split.
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP:
+- The full migration: 500 pre-existing Products correctly became 500 Products (unchanged ids,
+  `APPROVED`, sequential `VP10001`..`VP10500` codes) + 500 Listings carrying over their old price/
+  stock/seller/city/active data; `ProductCodeCounter` seeded at `10500`. Re-running
+  `npm run db:seed` reproduced the exact same 500 rows and code range without drifting the counter.
+- Shop pages (`/home`, `/shop/[categorySlug]`, `/shop/product/[slug]`) all rendered real prices/
+  seller/city from the new `Listing` model; the product detail page's JSON-LD `availability`
+  correctly reflected `Listing.stock`.
+- The party wizard (`POST /api/party-profile`) returned a real theme-matched, city-filtered bundle
+  whose item ids resolved to real `Listing` rows (not `Product` ids) in the database.
+- A full seller flow with a fresh seller account: catalog search excluded products already listed;
+  claiming an existing product created an active `Listing` immediately and a second claim attempt
+  on the same product was rejected; submitting a brand-new product created a `PENDING_REVIEW`
+  `Product` + inactive `Listing` together, invisible on the shop.
+- A full admin review lifecycle: "نیاز به بررسی مجدد" set `NEEDS_REVISION` with a reason; the
+  seller's `PATCH` resubmission returned it to `PENDING_REVIEW` and cleared the reason; approval
+  assigned a real next-sequence VP code (`VP10501`) and flipped both the `Product` and its
+  `Listing` live together, immediately visible on the shop with no further seller action; a
+  separate rejected submission correctly blocked further edits and its delete cascaded both the
+  `Listing` and the orphaned `Product` together (an already-`APPROVED` product's listing delete
+  never touches the shared `Product`).
+- Checkout (`POST /api/checkout`) accepted `listingId`s, resolved price/seller server-side from
+  `Listing`, and wrote the resulting `OrderItem` with its `productId`/`sellerId` unchanged from
+  before this split.
+- A full return-approval message correctly included the seller's `contactPersonName` and phone
+  numbers alongside the existing address line.
+- `tsc --noEmit` and `eslint .` clean; `npm run build` succeeds, every new/renamed route
+  (`/api/seller/catalog/search`, `/api/seller/listings`, `/api/seller/listings/[id]`,
+  `/api/admin/products/[id]/approve`, `/.../reject`, `/.../request-revision`) listed in its output.
+**Rejected:** the two-step "submit catalog fields now, come back and set your own price/stock once
+approved" alternative for a brand-new product submission - the user explicitly chose the unified
+form (see above). Adding a `listingId` FK to `OrderItem` - `(productId, sellerId)` already
+uniquely identifies the `Listing` that was used, and touching `OrderItem`'s shape would have had a
+large, unjustified blast radius across the seller/hub/returns code already built on top of it
+(ADR 37/38). Deriving `Listing.cityId` from the seller's own registered city instead of keeping it
+independent - sellers already listed products for cities other than their own before this split.
+Auto-merging the two known duplicate test products ("۱۰۰ عددی"/"۱۰۰ تایی" balloon packs) during the
+migration - left for manual cleanup later, per the request.

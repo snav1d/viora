@@ -28,6 +28,7 @@ type Answers = {
   categoryIds: string[];
   description: string;
   businessLicenseImageUrl: string | null;
+  contactPersonName: string;
   nationalId: string;
   unionId: string;
   bankAccountIban: string;
@@ -44,6 +45,7 @@ const EMPTY_ANSWERS: Answers = {
   categoryIds: [],
   description: "",
   businessLicenseImageUrl: null,
+  contactPersonName: "",
   nationalId: "",
   unionId: "",
   bankAccountIban: "",
@@ -236,6 +238,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
           categoryIds: answers.categoryIds,
           description: answers.description || undefined,
           businessLicenseImageUrl: answers.businessLicenseImageUrl,
+          contactPersonName: answers.contactPersonName,
           nationalId: answers.nationalId,
           unionId: answers.unionId,
           bankAccountIban: answers.bankAccountIban,
@@ -431,6 +434,19 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
             </div>
 
             <div className="space-y-1.5">
+              <label htmlFor="contactPersonName" className="text-sm font-medium text-charcoal">
+                نام و نام‌خانوادگی مسئول فروشگاه
+              </label>
+              <input
+                id="contactPersonName"
+                type="text"
+                value={answers.contactPersonName}
+                onChange={(event) => update({ contactPersonName: event.target.value })}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <label htmlFor="nationalId" className="text-sm font-medium text-charcoal">
                 کد ملی
               </label>
@@ -615,6 +631,7 @@ function isStepAnswered(step: number, answers: Answers): boolean {
     case 2:
       return (
         answers.businessLicenseImageUrl !== null &&
+        answers.contactPersonName.trim().length >= 2 &&
         /^\d{10}$/.test(answers.nationalId) &&
         answers.unionId.trim().length >= 1 &&
         /^IR\d{24}$/.test(answers.bankAccountIban)

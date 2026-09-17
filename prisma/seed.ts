@@ -145,41 +145,68 @@ async function main() {
     create: { userId: providerUser.id, ...providerProfileFields },
   });
 
+  const fixtureProducts = productsSeedData as Array<{
+    title: string;
+    categorySlug: string;
+    price: number;
+    description: string;
+    slug: string;
+  }>;
+
   // Deleting first (rather than upserting each row) is what makes this re-runnable as the real
   // catalog changes shape over time: the original Sprint 0 sample set (10 generic products, no
   // theme/category realism) is entirely superseded by prisma/seed-data/products.json's 500 real
-  // titles, and re-running this script should never leave both around side by side. Safe against
-  // existing OrderItem rows referencing these products - see the schema's generated migration:
+  // titles, and re-running this script should never leave both around side by side. Listing is
+  // deleted before its parent Product (docs/decisions.md ADR 39); safe against existing OrderItem
+  // rows referencing these products either way - see the schema's generated migration:
   // `OrderItem_productId_fkey ... ON DELETE SET NULL` (Prisma's default for this optional
   // relation), so deleting a Product nulls out the FK on any OrderItem instead of failing or
   // cascading the delete into order history.
-  await prisma.product.deleteMany({ where: { sellerId: sellerProfile.id } });
-
-  // themeSlug in the source file isn't a Product column (see docs/decisions.md ADR 22 - no
-  // structured theme field exists, matching is text-based against title/description, which
-  // already names the theme in Persian) - only the four real Product fields are used here.
-  await prisma.product.createMany({
-    data: (
-      productsSeedData as Array<{
-        title: string;
-        categorySlug: string;
-        price: number;
-        description: string;
-        slug: string;
-      }>
-    ).map((product) => ({
-      sellerId: sellerProfile.id,
-      categoryId: productCategories[product.categorySlug].id,
-      cityId: tehran.id,
-      title: product.title,
-      slug: product.slug,
-      description: product.description,
-      price: product.price,
-      stock: 25,
-      images: [],
-      isActive: true,
-    })),
+  const fixtureSlugs = fixtureProducts.map((product) => product.slug);
+  await prisma.listing.deleteMany({
+    where: { sellerId: sellerProfile.id, product: { slug: { in: fixtureSlugs } } },
   });
+  await prisma.product.deleteMany({ where: { slug: { in: fixtureSlugs } } });
+
+  // This fixture catalog enters pre-approved with a fixed, deterministic VP-code range
+  // (VP10001..VP10500) rather than going through ProductCodeCounter (docs/decisions.md ADR 39) -
+  // re-running this idempotent delete+recreate script must reproduce the exact same codes every
+  // time, not burn through the shared counter a little further on every `db:seed`. themeSlug in
+  // the source file isn't a Product column (ADR 22 - no structured theme field exists, matching
+  // is text-based against title/description, which already names the theme in Persian).
+  for (const [index, product] of fixtureProducts.entries()) {
+    const created = await prisma.product.create({
+      data: {
+        categoryId: productCategories[product.categorySlug].id,
+        title: product.title,
+        slug: product.slug,
+        description: product.description,
+        images: [],
+        code: `VP${10001 + index}`,
+        status: "APPROVED",
+      },
+    });
+    await prisma.listing.create({
+      data: {
+        productId: created.id,
+        sellerId: sellerProfile.id,
+        cityId: tehran.id,
+        price: product.price,
+        stock: 25,
+        isActive: true,
+      },
+    });
+  }
+
+  // Keep ProductCodeCounter clear of the fixture's own fixed range so the first real admin
+  // approval in a freshly-seeded dev DB can never collide with a VP10001..VP10500 fixture code.
+  const codeFloor = 10000 + fixtureProducts.length;
+  const existingCounter = await prisma.productCodeCounter.findUnique({ where: { id: "singleton" } });
+  if (!existingCounter) {
+    await prisma.productCodeCounter.create({ data: { id: "singleton", value: codeFloor } });
+  } else if (existingCounter.value < codeFloor) {
+    await prisma.productCodeCounter.update({ where: { id: "singleton" }, data: { value: codeFloor } });
+  }
 
   // The admin-curated print-color catalog (docs/decisions.md ADR 32) - the same names the
   // seeded offering below selects from, so seed data stays internally consistent.

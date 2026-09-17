@@ -5,12 +5,12 @@ import { useCart } from "@/lib/cart/CartContext";
 import { Button } from "@/components/ui/Button";
 
 export function AddToCartButton({
-  productId,
+  listingId,
   slug,
   title,
   price,
 }: {
-  productId: string;
+  listingId: string;
   slug: string;
   title: string;
   price: number;
@@ -23,7 +23,7 @@ export function AddToCartButton({
       size="lg"
       className="w-full"
       onClick={() => {
-        addItem({ productId, slug, title, price });
+        addItem({ listingId, slug, title, price });
         setAdded(true);
         setTimeout(() => setAdded(false), 1500);
       }}

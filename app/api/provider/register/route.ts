@@ -17,6 +17,9 @@ const bodySchema = z
     businessName: z
       .string({ error: "نام کسب‌وکار را وارد کنید." })
       .min(2, "نام کسب‌وکار را وارد کنید."),
+    contactPersonName: z
+      .string({ error: "نام و نام‌خانوادگی مسئول کسب‌وکار را وارد کنید." })
+      .min(2, "نام و نام‌خانوادگی مسئول کسب‌وکار را وارد کنید."),
     businessLicenseImageUrl: storageUrlSchema,
     nationalId: z
       .string({ error: "کد ملی باید ۱۰ رقم باشد." })
@@ -113,6 +116,7 @@ export async function POST(request: Request) {
       data: {
         userId: session.userId,
         businessName: parsed.data.businessName,
+        contactPersonName: parsed.data.contactPersonName,
         businessLicenseImageUrl: parsed.data.businessLicenseImageUrl,
         nationalId: parsed.data.nationalId,
         bankAccountIban: parsed.data.bankAccountIban,

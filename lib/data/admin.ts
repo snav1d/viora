@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { ApprovalStatus, SellerStatus } from "@/lib/generated/prisma/client";
+import type { ApprovalStatus, SellerStatus, ProductStatus } from "@/lib/generated/prisma/client";
 
 export function getSellerProfiles(status?: SellerStatus) {
   return prisma.sellerProfile.findMany({
@@ -44,6 +44,7 @@ export async function getAdminStats() {
     liveTheme,
     hubItems,
     pendingReturns,
+    pendingProducts,
   ] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
     prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
@@ -56,6 +57,7 @@ export async function getAdminStats() {
     }),
     prisma.orderItem.count({ where: { hubStatus: { in: ["RECEIVED_AT_HUB", "QUALITY_CHECK"] } } }),
     prisma.orderItem.count({ where: { returnStatus: "REQUESTED" } }),
+    prisma.product.count({ where: { status: "PENDING_REVIEW" } }),
   ]);
   return {
     pendingSellers,
@@ -67,7 +69,29 @@ export async function getAdminStats() {
     liveThemeName: liveTheme?.name ?? null,
     hubItems,
     pendingReturns,
+    pendingProducts,
   };
+}
+
+export function getProductsByStatus(status: ProductStatus) {
+  return prisma.product.findMany({
+    where: { status },
+    include: { category: true, submittedBySeller: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export function getProductReviewDetail(id: string) {
+  return prisma.product.findUnique({
+    where: { id },
+    include: {
+      category: true,
+      submittedBySeller: true,
+      // Every Listing, not just active ones - admin needs to see the submitter's own terms even
+      // while it's still inactive-pending-approval (docs/decisions.md ADR 39).
+      listings: { include: { seller: true, city: true }, orderBy: { createdAt: "asc" } },
+    },
+  });
 }
 
 export function getAllSeasonalThemes() {
