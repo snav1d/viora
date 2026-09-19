@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
+import { OtherSellersList } from "@/components/shop/OtherSellersList";
 import { ReviewList } from "@/components/reviews/ReviewList";
 import { getProductBySlug } from "@/lib/data/catalog";
 import { getProductReviewSummary } from "@/lib/data/reviews";
@@ -102,6 +103,17 @@ export default async function ProductPage({ params }: Props) {
           slug={product.slug}
           title={product.title}
           price={effectivePrice}
+        />
+
+        <OtherSellersList
+          listings={product.otherListings.map((other) => ({
+            id: other.id,
+            price: toNumber(other.price),
+            discountPrice: other.discountPrice ? toNumber(other.discountPrice) : null,
+            sellerName: other.seller.businessName,
+          }))}
+          productSlug={product.slug}
+          productTitle={product.title}
         />
 
         <ReviewList summary={reviewSummary} />

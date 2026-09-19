@@ -27,7 +27,7 @@ function summarize(
 
 export async function getProductReviewSummary(productId: string): Promise<ReviewSummary> {
   const rows = await prisma.review.findMany({
-    where: { productId },
+    where: { productId, isApproved: true },
     include: { user: true },
     orderBy: { createdAt: "desc" },
   });
@@ -36,9 +36,19 @@ export async function getProductReviewSummary(productId: string): Promise<Review
 
 export async function getServiceOfferingReviewSummary(serviceOfferingId: string): Promise<ReviewSummary> {
   const rows = await prisma.review.findMany({
-    where: { serviceOfferingId },
+    where: { serviceOfferingId, isApproved: true },
     include: { user: true },
     orderBy: { createdAt: "desc" },
   });
   return summarize(rows);
+}
+
+/// Admin moderation queue (docs/decisions.md ADR 40) - every review starts `isApproved: false`
+/// and never appears in the two summaries above until approved here.
+export function getPendingReviews() {
+  return prisma.review.findMany({
+    where: { isApproved: false },
+    include: { user: true, product: true, serviceOffering: true },
+    orderBy: { createdAt: "asc" },
+  });
 }

@@ -733,11 +733,17 @@ model Review {
   orderItem         OrderItem?       @relation(fields: [orderItemId], references: [id])
   rating            Int
   comment           String?          @db.Text
+  /// Moderation gate - a new review is never shown on a public product page until an admin
+  /// approves it (docs/decisions.md ADR 40). Reviews that already existed before this field was
+  /// added were backfilled `true` (they were already publicly visible) - only genuinely new
+  /// reviews start out pending.
+  isApproved        Boolean          @default(false)
 
   createdAt DateTime @default(now())
 
   @@index([productId])
   @@index([serviceOfferingId])
+  @@index([isApproved])
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   Boxes,
   PackageSearch,
+  MessageSquareWarning,
 } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
@@ -92,6 +93,15 @@ export default async function AdminDashboardPage() {
           </p>
           <p className="mt-1 text-xs text-charcoal-muted">محصول در انتظار بررسی</p>
         </Link>
+        <Link
+          href="/admin/reviews"
+          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+        >
+          <p className="text-2xl font-semibold text-charcoal">
+            {stats.pendingReviews.toLocaleString("fa-IR")}
+          </p>
+          <p className="mt-1 text-xs text-charcoal-muted">نظر در انتظار تایید</p>
+        </Link>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -118,6 +128,10 @@ export default async function AdminDashboardPage() {
         <ButtonLink href="/admin/products" variant="secondary" size="lg" className="w-full gap-2">
           <PackageSearch className="h-4 w-4" strokeWidth={1.75} />
           بررسی محصولات جدید
+        </ButtonLink>
+        <ButtonLink href="/admin/reviews" variant="secondary" size="lg" className="w-full gap-2">
+          <MessageSquareWarning className="h-4 w-4" strokeWidth={1.75} />
+          نظرات در انتظار تایید
         </ButtonLink>
         <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
           <Palette className="h-4 w-4" strokeWidth={1.75} />

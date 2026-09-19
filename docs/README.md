@@ -34,8 +34,10 @@ A Next.js (App Router, TypeScript) skeleton with:
   `prisma/schema.prisma`. Every model is commented with which spec section it comes from.
 - Phone + OTP auth (mock SMS via `console.log`), session cookie, no passwords.
 - All Sprint 0 pages, mobile-first, RTL, in Persian: splash/onboarding, auth, home, shop
-  (category grid → product list → product detail), Build My Party wizard (5 steps + a real
-  suggested bundle), cart/checkout (mock payment), profile + order history.
+  (category grid → product list → product detail, plus a `?q=` title search - ADR 41), Build My
+  Party wizard (5 steps + a real suggested bundle), cart/checkout (mock payment), profile + order
+  history. A product with more than one seller's `Listing` shows the cheapest as its default
+  price/buy action and the rest in a compact "سایر فروشنده‌های این محصول" accordion (ADR 41).
 - A real (if minimal) checkout: adding a product to cart and completing checkout creates an
   actual `Order`/`OrderItem` row and shows up in the profile's order history. This is the one
   piece of Sprint 0 that's more than a pure UI skeleton — it exists to prove the schema, auth,
@@ -76,8 +78,9 @@ A Next.js (App Router, TypeScript) skeleton with:
 - Reviews & ratings: a customer's own order detail page (`app/(main)/orders/[id]/`, linked from
   `/profile`'s order history) gets a "سفارش رو دریافت کردم" delivery-confirmation button once
   shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
-  print-service alike - one review per item, ever). Reviews show with an average + count on the
-  product detail page. See `docs/decisions.md` ADR 33.
+  print-service alike - one review per item, ever). A submitted review is held (`isApproved:
+  false`) until an admin approves it at `/admin/reviews` - only then does it count toward the
+  average + count shown on the product detail page. See `docs/decisions.md` ADR 33, 40.
 - Support tickets: open to any account - customer, seller, or print partner alike, all reached
   from the same "تماس با پشتیبانی" entry point on their own profile/dashboard (`/support` list,
   `/support/new`, a per-ticket chat thread). Admin side (`/admin/tickets`, with independent
@@ -112,10 +115,11 @@ A Next.js (App Router, TypeScript) skeleton with:
   date window that decides what's live *today* with no manual daily step, and an admin-only
   preview of a not-yet-public theme), banner management (`/admin/banners` - image/text/link for a
   fixed set of UI placements, one to start, same date-window activation), a processing-hub
-  queue (`/admin/hub`) for multi-seller orders, and a product-catalog review queue
-  (`/admin/products` - status tabs, approve/reject/request-revision, ADR 39) - replacing the
-  direct-DB editing §4 below used to document. See `docs/decisions.md` ADR 30, 31, 32, 33, 35, 36,
-  37, 38, 39.
+  queue (`/admin/hub`) for multi-seller orders, a product-catalog review queue
+  (`/admin/products` - status tabs, approve/reject/request-revision, ADR 39), and a review
+  moderation queue (`/admin/reviews` - approve or reject/delete a pending review, ADR 40) -
+  replacing the direct-DB editing §4 below used to document. See `docs/decisions.md` ADR 30, 31,
+  32, 33, 35, 36, 37, 38, 39, 40.
 - Champagne Rose brand theme (Tailwind v4 tokens in `app/globals.css`) - the default palette,
   live-overridable site-wide by an admin-scheduled `SeasonalTheme` (ADR 36).
 - SEO baseline on every page: per-page metadata, `sitemap.xml`, `robots.txt`, JSON-LD

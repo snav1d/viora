@@ -43,7 +43,12 @@ export function TicketThread({
             </div>
             <p className="px-1 text-[11px] text-charcoal-muted">
               {fromOwner ? ownerLabel : "پشتیبانی ویورا"} ·{" "}
-              {new Date(message.createdAt).toLocaleDateString("fa-IR")}
+              {new Date(message.createdAt).toLocaleDateString("fa-IR")}{" "}
+              <span dir="ltr">
+                {new Date(message.createdAt)
+                  .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+                  .toLowerCase()}
+              </span>
             </p>
           </li>
         );

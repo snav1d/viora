@@ -2615,3 +2615,93 @@ large, unjustified blast radius across the seller/hub/returns code already built
 independent - sellers already listed products for cities other than their own before this split.
 Auto-merging the two known duplicate test products ("۱۰۰ عددی"/"۱۰۰ تایی" balloon packs) during the
 migration - left for manual cleanup later, per the request.
+
+## 2026-09-19 — review moderation queue
+
+### 40. `Review.isApproved` (default `false`, existing rows backfilled `true`) + `/admin/reviews`
+**Decision:** A submitted review (`POST /api/reviews`) now lands with `isApproved: false` and is
+invisible on the public product page until an admin approves it. `getProductReviewSummary`/
+`getServiceOfferingReviewSummary` (`lib/data/reviews.ts`) both gained an `isApproved: true` filter
+- the only change either needed, since neither ever offered a way to bypass the summary query. A
+new `/admin/reviews` page (mirroring the seller/provider/product queue's list-of-cards shape, not
+their tabbed-by-status layout, since there's only ever one queue here - approved reviews have
+nowhere further to review) lists every pending review with the product/service title, rating,
+comment, and reviewer name, each with two actions: **تایید** (`POST /api/admin/reviews/[id]/
+approve`, sets `isApproved: true`) and **رد کردن** (`POST /api/admin/reviews/[id]/reject`).
+**Why reject deletes the row instead of a `REJECTED` status:** unlike a rejected Product/seller/
+provider application, a rejected review has no lifecycle to come back to - the customer is never
+asked to "fix and resubmit" a star rating and comment, so keeping a permanently-invisible
+`REJECTED` row around forever would be dead weight with no code path ever reading it again. This
+is the same "every enum value needs an observable code path" discipline (ADR 33/37/39), applied in
+the opposite direction: since there's genuinely nothing for a `REJECTED` state to *do*, there's no
+state at all - just delete.
+**Why a plain `isApproved` boolean, not a dedicated enum:** unlike `ProductStatus`/`SellerStatus`
+(which need `NEEDS_REVISION`/`SUSPENDED`/rejection-reason-bearing states with their own further
+transitions), review moderation genuinely is a two-state toggle - pending or approved - matching
+this schema's own existing convention for plain toggles (`City`/`Category`/`Coupon`/`Listing`'s
+`isActive`), not the enum convention reserved for genuinely multi-state review workflows.
+**Existing reviews backfilled `isApproved = true`:** every review that existed before this gate
+shipped was already publicly visible - the migration's `UPDATE Review SET isApproved = true`
+(after the `ADD COLUMN ... DEFAULT false`) grandfathers them in exactly once, so this feature never
+retroactively hides real customer reviews already live on a product page. Only genuinely new
+reviews, inserted after the migration, start out pending. Same "backfill true for what was already
+live, default false going forward" shape as ADR 39's Product/Listing migration.
+**Verified**, against the real local MariaDB + a real running dev server: a fresh review was
+created `isApproved: false`, absent from its product's public page, and present in `/admin/
+reviews`; approving it made it appear on the product page and disappear from the queue; a second
+review, rejected, was deleted outright (confirmed absent from the database, not merely hidden).
+**Rejected:** a `ReviewStatus` enum with a `REJECTED` value (see above - no code path would ever
+read it). Requiring a rejection reason, matching Product/seller rejection - a review has no
+resubmission flow for a reason to explain anything to.
+
+## 2026-09-19 — six small fixes: other-sellers list, ticket timestamps, product search,
+fixed IBAN prefix, admin seller-detail cleanup
+
+### 41. Per-product "سایر فروشنده‌های این محصول", shop search, ticket message time, a fixed `IR`
+IBAN prefix, and hiding the return-rate stat for a `PENDING` seller
+**Decision (other sellers):** `getProductBySlug` (`lib/data/catalog.ts`) now returns every active
+`Listing` for a product sorted cheapest-first, not just the cheapest - the page's main price/buy
+section still defaults to the cheapest one exactly as before, but a new `OtherSellersList` client
+component renders the rest (seller name + effective price) in a collapsed-by-default accordion
+directly below it, only when at least one other `Listing` exists. Picking a row calls the same
+`useCart().addItem` `AddToCartButton` already uses, with that row's own `listingId`/price - it adds
+straight to the cart without disturbing the page's own default selection or requiring a page
+reload.
+**Decision (ticket message time):** `TicketThread` now renders a `toLocaleTimeString("en-US", {
+hour: "numeric", minute: "2-digit", hour12: true })` (lower-cased to match the requested
+`11:47 am` shape, e.g. `4:59 am`) next to the existing `fa-IR` date - wrapped in its own
+`dir="ltr"` span so the Latin digits/letters don't get bidi-reordered inside the otherwise-Persian
+line.
+**Decision (shop search):** `/shop` gained a `?q=` search box; a query of two or more characters
+runs a new `searchProducts()` (title `contains`, `status: APPROVED`, at least one active `Listing`
+- the same shape `getProductsByCategoryId` already used) and renders results as the same
+`ProductCard` grid the category page uses, replacing the category grid for the duration of the
+search rather than living alongside it.
+**Decision (fixed IBAN prefix):** Both registration wizards' `شماره شبا` field is now a compound
+control - a non-editable `IR` chip followed by a digits-only input - instead of one free-text
+field. The wizard's own `bankAccountIban` state still always holds the full `IR` + digits string
+(initialized to `"IR"` in `EMPTY_ANSWERS`, unchanged validation regex, unchanged submit payload) -
+only the *input's displayed value* is the string with `IR` sliced off, and every keystroke
+reconstructs the full value as `` `IR${digitsOnly(event.target.value)}` ``. Pasting a full IBAN
+(including a literal "IR") into the digits field still works correctly for free, since
+`digitsOnly` already strips non-digit characters - the pasted letters simply vanish, leaving just
+the number.
+**Decision (admin seller-detail cleanup):** The "نرخ مرجوعی تاییدشده" section on
+`/admin/sellers/[id]` (and the `getSellerReturnStats`/`getSellerReturnRateWarningThreshold` queries
+that feed it) now only run/render when `seller.status` is `APPROVED` or `SUSPENDED` - both of
+which can have real order history; a `PENDING` (or `REJECTED`) seller never has any, so the stat
+row is skipped entirely instead of showing a meaningless "۰ از ۰ آیتم — ۰٪".
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP: a
+product with two active `Listing`s showed "سایر فروشنده‌های این محصول (۱)"; a single-`Listing`
+product rendered no such section at all. `/shop?q=...` returned real matching products as
+`ProductCard`s, an empty result showed the "پیدا نشد" message, and no query still rendered the
+category grid unchanged. A real ticket thread's rendered HTML included real `h:mm am/pm` times
+(`4:59 am`, `5:00 am`) alongside their Persian dates. A provider registration submitted with a
+reconstructed `IR` + digits value round-tripped through the unchanged `/^IR\d{24}$/` server-side
+validation successfully. A `PENDING` seller's admin detail page rendered with zero occurrences of
+"نرخ مرجوعی تاییدشده"; the same page for an `APPROVED` seller still rendered it once. `tsc
+--noEmit` and `eslint .` clean; `npm run build` succeeds.
+**Rejected:** showing *every* active Listing (including the cheapest) in the "سایر فروشنده‌ها"
+list - the request's own framing ("سایر", other) implies excluding whichever one is already shown
+as the default above it. A non-collapsible always-visible seller list - the request explicitly
+asked for compact/collapsed, not a section competing with the primary buy action for attention.

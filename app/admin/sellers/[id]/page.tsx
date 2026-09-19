@@ -28,12 +28,15 @@ export default async function AdminSellerDetailPage({ params }: Props) {
   const seller = await getSellerProfileDetail(id);
   if (!seller) notFound();
 
-  const [returnStats, returnRateThreshold] = await Promise.all([
-    getSellerReturnStats(seller.id),
-    getSellerReturnRateWarningThreshold(),
-  ]);
-  const returnRatePercent = Math.round(returnStats.rate * 1000) / 10;
-  const returnRateOverThreshold = returnStats.rate > returnRateThreshold;
+  // A PENDING (or REJECTED) seller has never had a real order - showing a "0 of 0 - 0%" return
+  // rate for them is meaningless noise, not a real stat. Only ever fetched/shown once a seller
+  // has actually operated (APPROVED or SUSPENDED, which still has past order history).
+  const showReturnStats = seller.status === "APPROVED" || seller.status === "SUSPENDED";
+  const [returnStats, returnRateThreshold] = showReturnStats
+    ? await Promise.all([getSellerReturnStats(seller.id), getSellerReturnRateWarningThreshold()])
+    : [null, null];
+  const returnRatePercent = returnStats ? Math.round(returnStats.rate * 1000) / 10 : 0;
+  const returnRateOverThreshold = returnStats !== null && returnStats.rate > (returnRateThreshold ?? 0);
 
   const phoneNumbers = parsePhoneNumbers(seller.phoneNumbers);
   const referralLabel =
@@ -138,26 +141,28 @@ export default async function AdminSellerDetailPage({ params }: Props) {
         </div>
       ) : null}
 
-      <section
-        className={cn(
-          "space-y-2 rounded-2xl border p-4 text-sm",
-          returnRateOverThreshold ? "border-rose-300 bg-rose-50/60" : "border-border bg-surface",
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <p className="font-medium text-charcoal">نرخ مرجوعی تاییدشده</p>
-          {returnRateOverThreshold ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-rose-700">
-              <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
-              بالاتر از آستانه‌ی هشدار
-            </span>
-          ) : null}
-        </div>
-        <p className="text-charcoal-muted">
-          {returnStats.approvedReturns.toLocaleString("fa-IR")} از{" "}
-          {returnStats.totalItems.toLocaleString("fa-IR")} آیتم — {returnRatePercent.toLocaleString("fa-IR")}٪
-        </p>
-      </section>
+      {returnStats ? (
+        <section
+          className={cn(
+            "space-y-2 rounded-2xl border p-4 text-sm",
+            returnRateOverThreshold ? "border-rose-300 bg-rose-50/60" : "border-border bg-surface",
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-charcoal">نرخ مرجوعی تاییدشده</p>
+            {returnRateOverThreshold ? (
+              <span className="flex items-center gap-1 text-xs font-medium text-rose-700">
+                <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
+                بالاتر از آستانه‌ی هشدار
+              </span>
+            ) : null}
+          </div>
+          <p className="text-charcoal-muted">
+            {returnStats.approvedReturns.toLocaleString("fa-IR")} از{" "}
+            {returnStats.totalItems.toLocaleString("fa-IR")} آیتم — {returnRatePercent.toLocaleString("fa-IR")}٪
+          </p>
+        </section>
+      ) : null}
 
       {seller.status === "PENDING" ? (
         <div className="mt-auto flex flex-col gap-2">

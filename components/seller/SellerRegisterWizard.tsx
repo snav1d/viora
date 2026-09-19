@@ -48,7 +48,7 @@ const EMPTY_ANSWERS: Answers = {
   contactPersonName: "",
   nationalId: "",
   unionId: "",
-  bankAccountIban: "",
+  bankAccountIban: "IR",
   termsAccepted: false,
   address: "",
   phoneNumbers: [""],
@@ -479,15 +479,26 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
               <label htmlFor="bankAccountIban" className="text-sm font-medium text-charcoal">
                 شماره شبا
               </label>
-              <input
-                id="bankAccountIban"
-                type="text"
+              <div
                 dir="ltr"
-                placeholder="IR000000000000000000000000"
-                value={answers.bankAccountIban}
-                onChange={(event) => update({ bankAccountIban: event.target.value.toUpperCase() })}
-                className={inputClass}
-              />
+                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-rose-400"
+              >
+                <span className="flex items-center border-l border-border bg-border/30 px-3 text-charcoal-muted">
+                  IR
+                </span>
+                <input
+                  id="bankAccountIban"
+                  type="text"
+                  inputMode="numeric"
+                  dir="ltr"
+                  maxLength={24}
+                  value={answers.bankAccountIban.slice(2)}
+                  onChange={(event) =>
+                    update({ bankAccountIban: `IR${digitsOnly(event.target.value)}` })
+                  }
+                  className="flex-1 min-w-0 bg-transparent px-4 py-3 text-charcoal focus:outline-none"
+                />
+              </div>
               <p className="text-xs text-charcoal-muted">
                 این شماره فقط برای واریز مستقیم درآمد فروش شما استفاده می‌شود.
               </p>

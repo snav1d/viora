@@ -45,6 +45,7 @@ export async function getAdminStats() {
     hubItems,
     pendingReturns,
     pendingProducts,
+    pendingReviews,
   ] = await Promise.all([
     prisma.sellerProfile.count({ where: { status: "PENDING" } }),
     prisma.serviceProviderProfile.count({ where: { status: "PENDING" } }),
@@ -58,6 +59,7 @@ export async function getAdminStats() {
     prisma.orderItem.count({ where: { hubStatus: { in: ["RECEIVED_AT_HUB", "QUALITY_CHECK"] } } }),
     prisma.orderItem.count({ where: { returnStatus: "REQUESTED" } }),
     prisma.product.count({ where: { status: "PENDING_REVIEW" } }),
+    prisma.review.count({ where: { isApproved: false } }),
   ]);
   return {
     pendingSellers,
@@ -70,6 +72,7 @@ export async function getAdminStats() {
     hubItems,
     pendingReturns,
     pendingProducts,
+    pendingReviews,
   };
 }
 

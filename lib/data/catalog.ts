@@ -56,6 +56,9 @@ export async function getFeaturedProducts(take = 6) {
   return products.map((product) => ({ ...product, listing: pickCheapestListing(product.listings) }));
 }
 
+/// Every product page needs the cheapest active Listing as its default selection, and - when more
+/// than one seller carries the same Product - the rest sorted cheapest-first so a customer can
+/// pick a different seller instead (docs/decisions.md ADR 41's "سایر فروشنده‌های این محصول").
 export async function getProductBySlug(slug: string) {
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -65,5 +68,22 @@ export async function getProductBySlug(slug: string) {
     },
   });
   if (!product || product.status !== "APPROVED" || product.listings.length === 0) return null;
-  return { ...product, listing: pickCheapestListing(product.listings) };
+
+  const sortedListings = [...product.listings].sort((a, b) => {
+    const effectiveA = toNumber(a.discountPrice ?? a.price);
+    const effectiveB = toNumber(b.discountPrice ?? b.price);
+    return effectiveA - effectiveB;
+  });
+  const [listing, ...otherListings] = sortedListings;
+  return { ...product, listing, otherListings };
+}
+
+export async function searchProducts(query: string) {
+  const products = await prisma.product.findMany({
+    where: { status: "APPROVED", title: { contains: query }, listings: { some: { isActive: true } } },
+    include: { listings: { where: { isActive: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+  });
+  return products.map((product) => ({ ...product, listing: pickCheapestListing(product.listings) }));
 }
