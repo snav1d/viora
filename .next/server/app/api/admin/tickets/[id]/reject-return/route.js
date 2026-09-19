@@ -1,0 +1,10 @@
+var R=require("../../../../../../chunks/[turbopack]_runtime.js")("server/app/api/admin/tickets/[id]/reject-return/route.js")
+R.c("server/chunks/[externals]__1v_jht0._.js")
+R.c("server/chunks/_19xtul_._.js")
+R.c("server/chunks/[root-of-the-server]__02rpm9i._.js")
+R.c("server/chunks/node_modules_zod_v4_classic_external_1-pw2v2.js")
+R.c("server/chunks/[root-of-the-server]__0l3yhx4._.js")
+R.c("server/chunks/_1ct0-x3._.js")
+R.c("server/chunks/1oeh_server_app_api_admin_tickets_[id]_reject-return_route_actions_00t0cbf.js")
+R.m(27840)
+module.exports=R.m(27840).exports

@@ -1,0 +1,3 @@
+module.exports=[66445,a=>{"use strict";a.s(["BottomNav",()=>b]);let b=(0,a.i(11857).registerClientReference)(function(){throw Error("Attempted to call BottomNav() from the server but BottomNav is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.")},"[project]/components/nav/BottomNav.tsx","BottomNav")},16371,a=>{"use strict";var b=a.i(66445);a.n(b)},66062,a=>{"use strict";var b=a.i(7997),c=a.i(16371);a.s(["default",0,function({children:a}){return(0,b.jsxs)("div",{className:"mx-auto flex w-full max-w-md flex-1 flex-col pb-20",children:[a,(0,b.jsx)(c.BottomNav,{})]})}])},79156,function(a){a.n(a.i(66062))}];
+
+//# sourceMappingURL=_0wxse-a._.js.map
