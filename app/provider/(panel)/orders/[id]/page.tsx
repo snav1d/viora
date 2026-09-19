@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { AcceptOrderButton } from "@/components/provider/AcceptOrderButton";
 import { ShipOrderForm } from "@/components/provider/ShipOrderForm";
+import { RequestReassignmentButton } from "@/components/provider/RequestReassignmentButton";
 import { getServiceProviderProfile } from "@/lib/auth/provider";
 import { getProviderOrderItemDetail } from "@/lib/data/provider";
 import { toNumber } from "@/lib/decimal";
@@ -107,7 +108,15 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
               ) : null}
             </div>
           ) : (
-            <div className="mt-auto">
+            <div className="mt-auto flex flex-col gap-3">
+              {item.reassignmentRequestedAt ? (
+                <p className="rounded-2xl border border-gold-200 bg-gold-100/60 p-3 text-center text-xs text-gold-600">
+                  این سفارش برای واگذاری به پارتنرهای دیگر در دسترس قرار گرفته است - تا وقتی کسی
+                  آن را نپذیرفته، همچنان می‌توانید خودتان تحویل نهایی را ثبت کنید.
+                </p>
+              ) : (
+                <RequestReassignmentButton itemId={item.id} />
+              )}
               <ShipOrderForm itemId={item.id} />
             </div>
           )}

@@ -37,7 +37,14 @@ export default async function AdminProviderDetailPage({ params }: Props) {
       <TopBar title="بررسی پارتنر تولید" backHref="/admin/providers" />
 
       <section className="rounded-2xl border border-border bg-surface p-4">
-        <p className="font-medium text-charcoal">{provider.businessName}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-charcoal">{provider.businessName}</p>
+          {provider.isVerifiedByViora ? (
+            <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-gold-600">
+              تاییدیه‌ی ویژه‌ی ویورا
+            </span>
+          ) : null}
+        </div>
         <p className="text-sm text-charcoal-muted">{STATUS_LABELS[provider.status]}</p>
       </section>
 
@@ -149,6 +156,16 @@ export default async function AdminProviderDetailPage({ params }: Props) {
         <div className="mt-auto flex flex-col gap-2">
           <ApproveButton endpoint={`/api/admin/providers/${provider.id}/approve`} label="تایید پارتنر" />
           <RejectForm endpoint={`/api/admin/providers/${provider.id}/reject`} />
+        </div>
+      ) : null}
+
+      {provider.status === "APPROVED" ? (
+        <div className="mt-auto">
+          <ApproveButton
+            endpoint={`/api/admin/providers/${provider.id}/toggle-verified`}
+            label={provider.isVerifiedByViora ? "غیرفعال‌سازی تاییدیه‌ی ویژه" : "فعال‌سازی تاییدیه‌ی ویژه"}
+            variant={provider.isVerifiedByViora ? "secondary" : "primary"}
+          />
         </div>
       ) : null}
     </main>

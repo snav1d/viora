@@ -235,6 +235,11 @@ model ServiceProviderProfile {
   commissionRate  Decimal        @default(10.00) @db.Decimal(5, 2)
   status          ApprovalStatus @default(PENDING)
   rejectionReason String?        @db.Text
+  /// "تاییدیه‌ی ویژه‌ی ویورا" badge (docs/decisions.md ADR 42) - manually toggled by an admin only,
+  /// no real payment behind it yet since this project's whole payment layer is still a mock
+  /// (PaymentProvider.charge()). Shown in the customer-facing partner list and given a positive
+  /// ranking weight in getMatchingPrintProviders.
+  isVerifiedByViora Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -603,6 +608,13 @@ model OrderItem {
   /// printColor/customerNotes at all (panels-and-operations-spec.md §3's two-stage visibility).
   /// Nullable "set = happened" timestamp, same convention as shippedAt above.
   acceptedAt DateTime?
+  /// Set when the currently-assigned provider requests this already-accepted print order be
+  /// picked up by a different partner instead (docs/decisions.md ADR 42's "بازار واگذاری
+  /// سفارش") - null means not up for reassignment. Only meaningful between acceptedAt and
+  /// shippedAt; whichever other eligible provider claims it first gets providerId/
+  /// serviceOfferingId reassigned to them and this cleared back to null - the original provider
+  /// keeps full access (can still ship it themselves) for as long as nobody else has claimed it.
+  reassignmentRequestedAt DateTime?
 
   createdAt DateTime @default(now())
 

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FileUp } from "lucide-react";
+import { ChevronRight, FileUp, BadgeCheck } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
 import { JalaliDatePicker } from "@/components/ui/JalaliDatePicker";
@@ -377,9 +377,17 @@ export function PrintOrderFlow({
                     onClick={() => selectProvider(provider.offeringId)}
                     className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-right text-sm hover:border-rose-300"
                   >
-                    <p className="font-medium text-charcoal">{provider.businessName}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-charcoal">{provider.businessName}</p>
+                      {provider.isVerifiedByViora ? (
+                        <span className="flex items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-600">
+                          <BadgeCheck className="h-3 w-3" strokeWidth={2} />
+                          تاییدیه‌ی ویژه
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-charcoal-muted">
-                      {provider.completedOrderCount.toLocaleString("fa-IR")} سفارش قبلی · امتیاز —
+                      {provider.completedOrderCount.toLocaleString("fa-IR")} سفارش قبلی
                     </p>
                     <p className="font-semibold text-rose-700">
                       {provider.totalPrice.toLocaleString("fa-IR")} تومان

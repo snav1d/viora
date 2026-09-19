@@ -4,6 +4,7 @@ import { TopBar } from "@/components/nav/TopBar";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
 import { OtherSellersList } from "@/components/shop/OtherSellersList";
+import { SellerAvatar } from "@/components/shop/SellerAvatar";
 import { ReviewList } from "@/components/reviews/ReviewList";
 import { getProductBySlug } from "@/lib/data/catalog";
 import { getProductReviewSummary } from "@/lib/data/reviews";
@@ -90,7 +91,10 @@ export default async function ProductPage({ params }: Props) {
         <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
           <div>
             <dt className="text-charcoal-muted">فروشنده</dt>
-            <dd className="font-medium text-charcoal">{listing.seller.businessName}</dd>
+            <dd className="flex items-center gap-2 font-medium text-charcoal">
+              <SellerAvatar url={listing.seller.avatarUrl} name={listing.seller.businessName} className="h-6 w-6" />
+              {listing.seller.businessName}
+            </dd>
           </div>
           <div>
             <dt className="text-charcoal-muted">شهر ارسال</dt>
@@ -111,6 +115,7 @@ export default async function ProductPage({ params }: Props) {
             price: toNumber(other.price),
             discountPrice: other.discountPrice ? toNumber(other.discountPrice) : null,
             sellerName: other.seller.businessName,
+            sellerAvatarUrl: other.seller.avatarUrl,
           }))}
           productSlug={product.slug}
           productTitle={product.title}

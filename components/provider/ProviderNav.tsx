@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, ClipboardList } from "lucide-react";
+import { LayoutGrid, ClipboardList, Boxes } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const TABS = [
   { href: "/provider", label: "داشبورد", icon: LayoutGrid },
   { href: "/provider/orders", label: "سفارش‌ها", icon: ClipboardList },
+  { href: "/provider/available-orders", label: "در دسترس", icon: Boxes },
 ] as const;
 
 export function ProviderNav() {

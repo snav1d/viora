@@ -36,12 +36,14 @@ export type MatchedPrintProvider = {
   unitPrice: number;
   totalPrice: number;
   completedOrderCount: number;
+  isVerifiedByViora: boolean;
 };
 
 /** panels-and-operations-spec.md §3's matching step: partners who (a) support the requested
  * finish, (b) support the requested color, (c) accept this quantity (at or above their own
- * minimum), ranked by completed-order count (a real signal to show today) since the "تاییدیه‌ی
- * ویژه"/real star rating this section also describes are both out of scope for this phase. */
+ * minimum), ranked by "تاییدیه‌ی ویژه‌ی ویورا" first (docs/decisions.md ADR 42's positive ranking
+ * weight for the badge), then completed-order count as the tiebreaker - a real star rating is
+ * still out of scope for this phase. */
 export async function getMatchingPrintProviders(params: {
   cityId: string;
   finish: BalloonFinish;
@@ -79,10 +81,101 @@ export async function getMatchingPrintProviders(params: {
       unitPrice,
       totalPrice: unitPrice * params.quantity,
       completedOrderCount,
+      isVerifiedByViora: offering.provider.isVerifiedByViora,
     });
   }
 
-  return results.sort((a, b) => b.completedOrderCount - a.completedOrderCount);
+  return results.sort((a, b) => {
+    if (a.isVerifiedByViora !== b.isVerifiedByViora) return a.isVerifiedByViora ? -1 : 1;
+    return b.completedOrderCount - a.completedOrderCount;
+  });
+}
+
+type PrintOfferingWithTiers = Prisma.ServiceOfferingGetPayload<{ include: { pricingTiers: true } }>;
+
+/** Shared by getAvailableReassignmentOrders (list) and claimReassignmentItem (act on one) so both
+ * always agree on exactly which orders a given offering can actually take - see
+ * getMatchingPrintProviders's own matching rules, applied here against one offering instead of
+ * ranking many. */
+function offeringCanTakeItem(
+  offering: PrintOfferingWithTiers,
+  item: { quantity: number; printFinish: BalloonFinish | null; printColor: string | null },
+): boolean {
+  if (!item.printFinish || !item.printColor) return false;
+  if (item.quantity < offering.minOrderQuantity!) return false;
+  if (item.printFinish === "CHROME" ? !offering.supportsChrome : !offering.supportsMatte) return false;
+  if (!parseColors(offering.printableColors).includes(item.printColor)) return false;
+  return offering.pricingTiers.some(
+    (tier) => item.quantity >= tier.minQuantity && (tier.maxQuantity === null || item.quantity <= tier.maxQuantity),
+  );
+}
+
+/** A provider only ever has one active print ServiceOffering in this phase (see the registration
+ * flow, which creates exactly one), so there's no ambiguity about "which of my offerings". */
+function getMyActivePrintOffering(providerId: string) {
+  return prisma.serviceOffering.findFirst({
+    where: { providerId, ...activePrintOfferingFilter },
+    include: { pricingTiers: true },
+  });
+}
+
+/** panels-and-operations-spec.md's "بازار واگذاری سفارش" (docs/decisions.md ADR 42): every print
+ * OrderItem another provider has put up for reassignment, filtered down to the ones this
+ * provider's own offering could actually take. */
+export async function getAvailableReassignmentOrders(providerId: string) {
+  const myOffering = await getMyActivePrintOffering(providerId);
+  if (!myOffering) return [];
+
+  const candidates = await prisma.orderItem.findMany({
+    where: {
+      reassignmentRequestedAt: { not: null },
+      providerId: { not: providerId },
+      shippedAt: null,
+      order: { paymentStatus: "PAID" },
+    },
+    orderBy: { reassignmentRequestedAt: "asc" },
+  });
+
+  return candidates.filter((item) => offeringCanTakeItem(myOffering, item));
+}
+
+/** Claims one specific up-for-reassignment OrderItem for this provider - re-validates everything
+ * server-side (never trusts an earlier /available-orders list fetch) and reassigns
+ * providerId/serviceOfferingId/acceptedAt together, atomically. The `updateMany`'s own
+ * `reassignmentRequestedAt: { not: null }` guard is what makes this race-safe: MySQL row-locks the
+ * row for the update's duration, so if two providers claim the same item at once, only the first
+ * actually changes anything - the loser's `count` comes back 0. */
+export async function claimReassignmentItem(
+  providerId: string,
+  itemId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const myOffering = await getMyActivePrintOffering(providerId);
+  if (!myOffering) {
+    return { ok: false, error: "شما پیشنهاد چاپ فعالی ندارید." };
+  }
+
+  const item = await prisma.orderItem.findUnique({ where: { id: itemId } });
+  if (!item || !item.reassignmentRequestedAt || item.providerId === providerId) {
+    return { ok: false, error: "این سفارش دیگر برای واگذاری در دسترس نیست." };
+  }
+  if (!offeringCanTakeItem(myOffering, item)) {
+    return { ok: false, error: "این سفارش با پیشنهاد چاپ شما مطابقت ندارد." };
+  }
+
+  const result = await prisma.orderItem.updateMany({
+    where: { id: item.id, reassignmentRequestedAt: { not: null } },
+    data: {
+      providerId,
+      serviceOfferingId: myOffering.id,
+      acceptedAt: new Date(),
+      reassignmentRequestedAt: null,
+    },
+  });
+  if (result.count === 0) {
+    return { ok: false, error: "این سفارش توسط پارتنر دیگری برداشته شد." };
+  }
+
+  return { ok: true };
 }
 
 /** normalDeliveryFromDate/ToDate are real calendar dates (today + the configured day range),

@@ -2705,3 +2705,75 @@ validation successfully. A `PENDING` seller's admin detail page rendered with ze
 list - the request's own framing ("سایر", other) implies excluding whichever one is already shown
 as the default above it. A non-collapsible always-visible seller list - the request explicitly
 asked for compact/collapsed, not a section competing with the primary buy action for attention.
+
+## 2026-09-19 — other-sellers list refinements + print-partner reassignment marketplace and
+verified badge
+
+### 42. Open-by-default other-sellers list with avatars; `OrderItem.reassignmentRequestedAt`
+reassignment marketplace; `ServiceProviderProfile.isVerifiedByViora` badge with ranking weight
+**Decision (other-sellers list, refining ADR 41):** `OtherSellersList` is no longer a closed
+accordion - it now always shows at least its first `INITIAL_VISIBLE_COUNT` (4) rows (already
+sorted cheapest-first), with a "مشاهده‌ی همه" button appearing only when there are more than that,
+revealing the rest in place. A shared `SellerAvatar` component (a plain placeholder circle when
+`avatarUrl` is null, matching this schema's existing nullable-for-legacy-rows convention) now
+renders next to the seller name both in the product page's main "فروشنده" card and in every row of
+this list.
+**Decision (order-reassignment marketplace):** panels-and-operations-spec.md's originally-deferred
+"بازار واگذاری سفارش" is now built. A provider who already accepted a print `OrderItem`
+(`acceptedAt` set) but hasn't shipped it yet can call `POST /api/provider/orders/[itemId]/
+request-reassignment`, which sets a new `reassignmentRequestedAt` timestamp - the requesting
+provider keeps full access/ownership (can still ship it themselves) for as long as nobody else has
+claimed it. Every other eligible provider (matched against their own single print `ServiceOffering`
+using the exact same finish/color/quantity-tier rules `getMatchingPrintProviders` already applies,
+factored out into a shared `offeringCanTakeItem` helper) sees it in a new "سفارش‌های در دسترس" page
+(`/provider/available-orders`, a new third `ProviderNav` tab) with only the same limited fields a
+brand-new unaccepted order would show (quantity/finish/color/price) - not the design file or
+customer notes, which stay behind the two-stage-visibility gate exactly as they already do for any
+other order, until this provider actually claims it. Whoever claims it first via `POST /api/
+provider/orders/[itemId]/claim` gets `providerId` **and** `serviceOfferingId` reassigned to their
+own offering (never the customer's already-fixed `unitPrice`/`splitAmount` - a hand-off doesn't
+re-price an already-paid order) and a fresh `acceptedAt`, while `reassignmentRequestedAt` clears;
+the original provider's own `GET`s for that item now come back 404.
+**Why the claim is race-safe by construction:** `claimReassignmentItem` re-validates everything
+server-side (never trusts an earlier `/available-orders` list fetch) and performs the actual
+reassignment as a single `updateMany` whose `WHERE` clause includes `reassignmentRequestedAt: {
+not: null }` - MySQL/InnoDB row-locks that row for the update's duration, so if two providers
+race to claim the same item, only the first succeeds and the loser's `count` comes back `0`
+(surfaced as "این سفارش توسط پارتنر دیگری برداشته شد."), the same "encode the safety in the
+`WHERE` clause, not in application-level check-then-write logic" reasoning this codebase has used
+before (e.g. the unique-listing constraint in ADR 39's claim route).
+**Why design file/customer notes stay hidden until claimed:** the whole point of the two-stage
+visibility gate (panels-and-operations-spec.md §3, ADR 31) is that a provider shouldn't see a
+customer's real design file before committing to the order - showing it to every browsing provider
+in the "available" pool before they've actually taken it would undermine that reasoning for
+exactly the providers who *haven't* committed yet. The listing only ever includes the same
+already-public-once-matched fields a brand-new order shows.
+**Decision (verified badge):** `ServiceProviderProfile.isVerifiedByViora` (default `false`) is a
+plain admin-only manual toggle (`POST /api/admin/providers/[id]/toggle-verified`, `APPROVED`
+providers only) - no real payment behind it, since this project's whole payment layer
+(`PaymentProvider.charge()`) is still a mock. It's shown as a badge on the admin provider list/
+detail pages, and - the actual point of it - in the customer-facing partner list
+(`PrintOrderFlow`'s step 2, replacing the "امتیاز —" placeholder that `getMatchingPrintProviders`'s
+own comment had named as future work) and in `getMatchingPrintProviders`'s own ranking:
+verified partners now sort strictly above non-verified ones, with completed-order-count staying
+the tiebreaker exactly as it already was. Verified, against a real match call: a verified partner
+priced *higher* than a non-verified one still ranked first.
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP: the
+other-sellers list showed exactly 4 rows open by default for a 5-other-seller product, with a
+"مشاهده‌ی همه (۵)" button, and correctly rendered a placeholder circle for a seller with no
+avatar. A full reassignment lifecycle: requesting it before acceptance was rejected, after
+acceptance it succeeded and appeared (with only limited fields) in a second provider's own
+available-orders list; claiming it reassigned `providerId`/`serviceOfferingId`/`acceptedAt`
+together and cleared `reassignmentRequestedAt`; the original provider's own order-detail fetch
+came back `404` immediately after; a second claim attempt (by either provider) was correctly
+rejected as no longer available. Toggling the verified badge flipped it in the database, showed it
+on both admin pages, and changed a real `/api/print-orders/match` ranking (the pricier verified
+partner outranking a cheaper unverified one). `tsc --noEmit` and `eslint .` clean; `npm run build`
+succeeds, every new route (`/api/provider/orders/[itemId]/request-reassignment`, `/.../claim`,
+`/api/admin/providers/[id]/toggle-verified`) listed in its output.
+**Rejected:** an automatic reassignment timeout - the request was explicit this isn't needed yet.
+A `listingId`-style new FK for the claim (see ADR 39's precedent) - `providerId`/`serviceOfferingId`
+are already independent fields on `OrderItem`, so reassignment is just updating both together, no
+schema change needed beyond the one new nullable timestamp. Showing full order details (design
+file, customer notes) in the available-orders list before a claim - would defeat the entire reason
+two-stage visibility exists.

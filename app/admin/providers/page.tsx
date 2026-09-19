@@ -65,7 +65,14 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
                   href={`/admin/providers/${provider.id}`}
                   className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
                 >
-                  <p className="font-medium text-charcoal">{provider.businessName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-charcoal">{provider.businessName}</p>
+                    {provider.isVerifiedByViora ? (
+                      <span className="rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-600">
+                        تاییدیه‌ی ویژه
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-charcoal-muted">
                     {offering
                       ? [offering.supportsChrome && "کروم", offering.supportsMatte && "مات"]

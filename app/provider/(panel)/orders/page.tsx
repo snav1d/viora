@@ -39,6 +39,10 @@ export default async function ProviderOrdersPage() {
                     <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700">
                       ارسال شده
                     </span>
+                  ) : item.reassignmentRequestedAt ? (
+                    <span className="rounded-full bg-gold-100 px-3 py-1 text-xs font-medium text-gold-600">
+                      در دسترس واگذاری
+                    </span>
                   ) : item.acceptedAt ? (
                     <span className="rounded-full bg-gold-100 px-3 py-1 text-xs font-medium text-gold-600">
                       در حال آماده‌سازی

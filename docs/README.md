@@ -37,7 +37,9 @@ A Next.js (App Router, TypeScript) skeleton with:
   (category grid → product list → product detail, plus a `?q=` title search - ADR 41), Build My
   Party wizard (5 steps + a real suggested bundle), cart/checkout (mock payment), profile + order
   history. A product with more than one seller's `Listing` shows the cheapest as its default
-  price/buy action and the rest in a compact "سایر فروشنده‌های این محصول" accordion (ADR 41).
+  price/buy action, with each seller's avatar shown next to their name, and the rest (at least
+  the first 4, "مشاهده‌ی همه" for more) open by default in a compact "سایر فروشنده‌های این
+  محصول" list (ADR 41, 42).
 - A real (if minimal) checkout: adding a product to cart and completing checkout creates an
   actual `Order`/`OrderItem` row and shows up in the profile's order history. This is the one
   piece of Sprint 0 that's more than a pure UI skeleton — it exists to prove the schema, auth,
@@ -69,12 +71,17 @@ A Next.js (App Router, TypeScript) skeleton with:
 - Print-partner panel (`app/provider/`): registration (business identity + printable balloon
   types/colors chosen from an admin-curated catalog + self-defined tiered pricing by quantity
   band) ending in admin approval, an order queue with two-stage visibility (limited info until the
-  partner accepts, full design-file/color/notes after), and shipping with a tracking code.
-  Customer side (`app/(main)/print/`): a design-file upload + finish/color/quantity/delivery form
-  (a real Jalali date picker for express delivery, a computed calendar-date range for normal
-  delivery) that matches against qualified partners and places a real `Order` (reusing the same
+  partner accepts, full design-file/color/notes after), and shipping with a tracking code. An
+  already-accepted, not-yet-shipped order can be put up for reassignment ("درخواست واگذاری
+  سفارش") - every other eligible partner sees it (limited info only, same two-stage-visibility
+  gate) at `/provider/available-orders`, and whoever claims it first gets full ownership
+  transferred to them (docs/decisions.md ADR 42). Customer side (`app/(main)/print/`): a
+  design-file upload + finish/color/quantity/delivery form (a real Jalali date picker for express
+  delivery, a computed calendar-date range for normal delivery) that matches against qualified
+  partners - each shown with a "تاییدیه‌ی ویژه‌ی ویورا" badge when the admin has manually granted
+  one, ranked above non-badged partners (ADR 42) - and places a real `Order` (reusing the same
   `Order`/`OrderItem` models every other order uses, not a parallel schema). See
-  `docs/decisions.md` ADR 31, 32.
+  `docs/decisions.md` ADR 31, 32, 42.
 - Reviews & ratings: a customer's own order detail page (`app/(main)/orders/[id]/`, linked from
   `/profile`'s order history) gets a "سفارش رو دریافت کردم" delivery-confirmation button once
   shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
@@ -130,13 +137,14 @@ the AI free-text entry point for Build My Party (the plain multi-step form + rul
 the whole of phase 1 — see ADR 22), and — within the seller panel — sales analytics, subscription
 management, and a seller-facing view of their own reviews (ADR 27, 33 - customers can review and
 see reviews on the product page; sellers have no dashboard for it yet); within the print-partner
-panel — the order-reassignment marketplace, the paid "تاییدیه‌ی ویژه‌ی ویورا" badge, a visual
-partner calendar, and a real rating *shown in the partner-matching list* (ADR 31 - print
-offerings can now genuinely be reviewed the same as products via ADR 33's generic order-item
-review flow, but `getMatchingPrintProviders`'s "امتیاز —" slot doesn't read that data yet); within
-the admin panel — user/customer management, order operations, reports, and an audit log (all
-named but deliberately deferred in `panels-and-operations-spec.md` §4 — see ADR 30; discount
-codes and seasonal themes/banners, also named there, are now built — see ADR 35, 36). The
+panel — a visual partner calendar, and a real star rating *shown in the partner-matching list*
+(ADR 31 - print offerings can now genuinely be reviewed the same as products via ADR 33's generic
+order-item review flow, and the matching list's old "امتیاز —" placeholder is now a real
+"تاییدیه‌ی ویژه‌ی ویورا" badge with ranking weight - ADR 42 - but an actual star-rating average
+still isn't read there); within the admin panel — user/customer management, order operations,
+reports, and an audit log (all named but deliberately deferred in
+`panels-and-operations-spec.md` §4 — see ADR 30; discount codes and seasonal themes/banners, also
+named there, are now built — see ADR 35, 36). The
 database has placeholders for most of this
 (see `docs/decisions.md` ADR 4, 6) so building it later doesn't require a schema rewrite.
 
