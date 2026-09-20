@@ -53,12 +53,20 @@ export default async function ProviderOrdersPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-charcoal-muted">تیراژ: {item.quantity.toLocaleString("fa-IR")} عدد</p>
-                <p className="text-xs text-charcoal-muted">
-                  {item.isExpressDelivery && item.requestedDeliveryDate
-                    ? `تحویل فوری: ${new Date(item.requestedDeliveryDate).toLocaleDateString("fa-IR")}`
-                    : "تحویل عادی"}
-                </p>
+                {item.printFinish !== null ? (
+                  <>
+                    <p className="text-charcoal-muted">تیراژ: {item.quantity.toLocaleString("fa-IR")} عدد</p>
+                    <p className="text-xs text-charcoal-muted">
+                      {item.isExpressDelivery && item.requestedDeliveryDate
+                        ? `تحویل فوری: ${new Date(item.requestedDeliveryDate).toLocaleDateString("fa-IR")}`
+                        : "تحویل عادی"}
+                    </p>
+                  </>
+                ) : item.order.eventDate ? (
+                  <p className="text-charcoal-muted">
+                    تاریخ رویداد: {new Date(item.order.eventDate).toLocaleDateString("fa-IR")}
+                  </p>
+                ) : null}
               </Link>
             </li>
           ))}

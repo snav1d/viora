@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClipboardList, Headset } from "lucide-react";
+import { ClipboardList, Images, Settings, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getServiceProviderProfile } from "@/lib/auth/provider";
@@ -43,6 +43,14 @@ export default async function ProviderDashboardPage() {
       <ButtonLink href="/provider/orders" size="lg" className="w-full gap-2">
         <ClipboardList className="h-4 w-4" strokeWidth={1.75} />
         مشاهده سفارش‌ها
+      </ButtonLink>
+      <ButtonLink href="/provider/offering" variant="secondary" size="lg" className="w-full gap-2">
+        <Settings className="h-4 w-4" strokeWidth={1.75} />
+        تعرفه و تنظیمات پیشنهاد
+      </ButtonLink>
+      <ButtonLink href="/provider/portfolio" variant="secondary" size="lg" className="w-full gap-2">
+        <Images className="h-4 w-4" strokeWidth={1.75} />
+        پورتفولیو
       </ButtonLink>
       <ButtonLink href="/support" variant="secondary" size="lg" className="w-full gap-2">
         <Headset className="h-4 w-4" strokeWidth={1.75} />

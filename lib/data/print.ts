@@ -37,6 +37,9 @@ export type MatchedPrintProvider = {
   totalPrice: number;
   completedOrderCount: number;
   isVerifiedByViora: boolean;
+  /// "پورتفولیو" image URLs (docs/decisions.md ADR 43) - for the "مشاهده‌ی نمونه‌کار" button's
+  /// gallery modal. Can be empty (a provider isn't required to add any).
+  portfolioImages: string[];
 };
 
 /** panels-and-operations-spec.md §3's matching step: partners who (a) support the requested
@@ -57,7 +60,7 @@ export async function getMatchingPrintProviders(params: {
       minOrderQuantity: { lte: params.quantity },
       ...(params.finish === "CHROME" ? { supportsChrome: true } : { supportsMatte: true }),
     },
-    include: { provider: true, pricingTiers: true },
+    include: { provider: { include: { portfolioImages: true } }, pricingTiers: true },
   });
 
   const matched = offerings.filter((offering) => parseColors(offering.printableColors).includes(params.color));
@@ -82,6 +85,7 @@ export async function getMatchingPrintProviders(params: {
       totalPrice: unitPrice * params.quantity,
       completedOrderCount,
       isVerifiedByViora: offering.provider.isVerifiedByViora,
+      portfolioImages: offering.provider.portfolioImages.map((image) => image.imageUrl),
     });
   }
 

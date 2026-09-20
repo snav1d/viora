@@ -247,8 +247,25 @@ model ServiceProviderProfile {
   serviceOfferings ServiceOffering[]
   settlements      Settlement[]
   orderItems       OrderItem[]
+  portfolioImages  ProviderPortfolioImage[]
 
   @@index([status])
+}
+
+/// One work-sample photo in a provider's "پورتفولیو" (docs/decisions.md ADR 43) - a generic
+/// model attached to ServiceProviderProfile only (never SellerProfile, which sells physical
+/// catalog products rather than a bespoke service), independent of which service category the
+/// provider belongs to. Capped at 15 rows per provider, enforced in lib/data/provider.ts rather
+/// than here (Prisma has no row-count constraint).
+model ProviderPortfolioImage {
+  id         String                 @id @default(cuid())
+  providerId String
+  provider   ServiceProviderProfile @relation(fields: [providerId], references: [id])
+  imageUrl   String
+
+  createdAt DateTime @default(now())
+
+  @@index([providerId])
 }
 
 // ---------------------------------------------------------------------------

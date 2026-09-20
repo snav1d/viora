@@ -111,7 +111,7 @@ export default async function AdminDashboardPage() {
         </ButtonLink>
         <ButtonLink href="/admin/providers" variant="secondary" size="lg" className="w-full gap-2">
           <Printer className="h-4 w-4" strokeWidth={1.75} />
-          تایید پارتنرهای تولید
+          تایید پارتنرهای خدماتی
         </ButtonLink>
         <ButtonLink href="/admin/tickets" variant="secondary" size="lg" className="w-full gap-2">
           <Headset className="h-4 w-4" strokeWidth={1.75} />

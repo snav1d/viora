@@ -10,6 +10,7 @@ import { PrismaClient } from "../lib/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import productsSeedData from "./seed-data/products.json";
 import { DEFAULT_AVATARS } from "../lib/avatars";
+import { SIMPLE_SERVICE_CATEGORIES } from "../lib/serviceCategories";
 
 const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
@@ -161,10 +162,14 @@ async function main() {
   // rows referencing these products either way - see the schema's generated migration:
   // `OrderItem_productId_fkey ... ON DELETE SET NULL` (Prisma's default for this optional
   // relation), so deleting a Product nulls out the FK on any OrderItem instead of failing or
-  // cascading the delete into order history.
+  // cascading the delete into order history. Not scoped to sellerProfile.id: ADR 39's own
+  // "claim an existing catalog product" flow lets ANY seller hold a Listing against a fixture
+  // product, and Listing_productId_fkey is RESTRICT (unlike OrderItem/Review's SET NULL) - since
+  // the fixture Product row itself is unconditionally destroyed and recreated below, every
+  // Listing against it must go first, regardless of which seller created it.
   const fixtureSlugs = fixtureProducts.map((product) => product.slug);
   await prisma.listing.deleteMany({
-    where: { sellerId: sellerProfile.id, product: { slug: { in: fixtureSlugs } } },
+    where: { product: { slug: { in: fixtureSlugs } } },
   });
   await prisma.product.deleteMany({ where: { slug: { in: fixtureSlugs } } });
 
@@ -259,6 +264,91 @@ async function main() {
       { serviceOfferingId: balloonPrintOffering.id, minQuantity: 500, maxQuantity: 999, unitPrice: 4900 },
       { serviceOfferingId: balloonPrintOffering.id, minQuantity: 1000, maxQuantity: null, unitPrice: 4200 },
     ],
+  });
+
+  // Two new SERVICE categories, using the same ServiceProviderProfile+ServiceOffering
+  // architecture as print but without any pricing-tier/color/finish structure - a provider's own
+  // ServiceOffering.basePrice is the entire flat package price (docs/decisions.md ADR 43,
+  // confirmed "Option A"). Slugs/labels come from lib/serviceCategories.ts so seed data and app
+  // code never drift apart.
+  const [balloonDecorDef, photographyDef] = SIMPLE_SERVICE_CATEGORIES;
+  const balloonDecorCategory = await prisma.category.upsert({
+    where: { slug: balloonDecorDef.slug },
+    update: { isActive: true },
+    create: { name: balloonDecorDef.label, slug: balloonDecorDef.slug, type: "SERVICE", isActive: true, sortOrder: 1 },
+  });
+  const photographyCategory = await prisma.category.upsert({
+    where: { slug: photographyDef.slug },
+    update: { isActive: true },
+    create: { name: photographyDef.label, slug: photographyDef.slug, type: "SERVICE", isActive: true, sortOrder: 2 },
+  });
+
+  const balloonDecorUser = await prisma.user.upsert({
+    where: { phone: "09120000003" },
+    update: {},
+    create: { phone: "09120000003", name: "بادکنک‌آرایی رویا", roles: ["SERVICE_PROVIDER"] },
+  });
+  const balloonDecorProviderFields = {
+    businessName: "بادکنک‌آرایی رویا",
+    businessLicenseImageUrl: "/avatars/avatar-03.svg",
+    nationalId: "3333333333",
+    bankAccountIban: "IR000000000000000000000003",
+    commissionRate: 12.5,
+    status: "APPROVED" as const,
+  };
+  const balloonDecorProvider = await prisma.serviceProviderProfile.upsert({
+    where: { userId: balloonDecorUser.id },
+    update: balloonDecorProviderFields,
+    create: { userId: balloonDecorUser.id, ...balloonDecorProviderFields },
+  });
+  await prisma.serviceOffering.upsert({
+    where: { slug: "roya-balloon-decor-standard" },
+    update: { basePrice: 3500000, isActive: true },
+    create: {
+      providerId: balloonDecorProvider.id,
+      categoryId: balloonDecorCategory.id,
+      cityId: tehran.id,
+      title: "بادکنک‌آرایی مجالس (پکیج استاندارد)",
+      slug: "roya-balloon-decor-standard",
+      description: "اجرای بادکنک‌آرایی حرفه‌ای برای جشن تولد و مراسم، شامل طراحی و اجرای کامل در محل.",
+      basePrice: 3500000,
+      isActive: true,
+    },
+  });
+
+  const photographerUser = await prisma.user.upsert({
+    where: { phone: "09120000004" },
+    update: {},
+    create: { phone: "09120000004", name: "استودیو عکس آرمان", roles: ["SERVICE_PROVIDER"] },
+  });
+  const photographerProviderFields = {
+    businessName: "استودیو عکس آرمان",
+    businessLicenseImageUrl: "/avatars/avatar-04.svg",
+    nationalId: "4444444444",
+    bankAccountIban: "IR000000000000000000000004",
+    commissionRate: 12.5,
+    status: "APPROVED" as const,
+  };
+  const photographerProvider = await prisma.serviceProviderProfile.upsert({
+    where: { userId: photographerUser.id },
+    update: photographerProviderFields,
+    create: { userId: photographerUser.id, ...photographerProviderFields },
+  });
+  const photographyCustomFields = { coverageHours: 4, editedPhotoCount: 50 };
+  await prisma.serviceOffering.upsert({
+    where: { slug: "arman-photography-standard" },
+    update: { basePrice: 6500000, customFieldsSchema: photographyCustomFields, isActive: true },
+    create: {
+      providerId: photographerProvider.id,
+      categoryId: photographyCategory.id,
+      cityId: tehran.id,
+      title: "عکاسی جشن تولد (پکیج استاندارد)",
+      slug: "arman-photography-standard",
+      description: "پوشش عکاسی حرفه‌ای مراسم به همراه ادیت و تحویل فایل نهایی.",
+      basePrice: 6500000,
+      customFieldsSchema: photographyCustomFields,
+      isActive: true,
+    },
   });
 
   await prisma.aiSettings.upsert({

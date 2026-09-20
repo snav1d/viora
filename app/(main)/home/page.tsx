@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sparkles, Printer } from "lucide-react";
+import { Sparkles, Printer, PartyPopper, Camera } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { HomeBanner } from "@/components/home/HomeBanner";
@@ -15,6 +15,30 @@ export const metadata: Metadata = {
 
 // Catalog/category data is admin-editable and must never be frozen at build time.
 export const dynamic = "force-dynamic";
+
+// Each active SERVICE category's customer-facing shortcut (docs/decisions.md ADR 43) - print
+// keeps its own dedicated /print flow, balloon-decor/photography use the shared /services/[slug]
+// route. Adding a future service category here is one array entry, not a new section block.
+const SERVICE_SHORTCUTS = [
+  {
+    href: "/print",
+    icon: Printer,
+    title: "چاپ بادکنک تبلیغاتی",
+    subtitle: "طرح خودتون رو بفرستید، بهترین پارتنر رو پیدا کنید.",
+  },
+  {
+    href: "/services/balloon-decor",
+    icon: PartyPopper,
+    title: "بادکنک‌آرایی مجالس",
+    subtitle: "اجرای حرفه‌ای بادکنک‌آرایی رو برای جشن‌تون رزرو کنید.",
+  },
+  {
+    href: "/services/photography",
+    icon: Camera,
+    title: "عکاسی جشن",
+    subtitle: "بهترین عکاس‌ها رو برای ثبت لحظه‌های جشن‌تون پیدا کنید.",
+  },
+] as const;
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -63,18 +87,23 @@ export default async function HomePage() {
         </ButtonLink>
       </section>
 
-      <section className="flex items-center gap-3 rounded-3xl border border-border bg-surface p-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-          <Printer className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div className="flex-1 space-y-0.5">
-          <h2 className="text-sm font-semibold text-charcoal">چاپ بادکنک تبلیغاتی</h2>
-          <p className="text-xs text-charcoal-muted">طرح خودتون رو بفرستید، بهترین پارتنر رو پیدا کنید.</p>
-        </div>
-        <ButtonLink href="/print" variant="secondary" size="md" className="shrink-0">
-          سفارش
-        </ButtonLink>
-      </section>
+      {SERVICE_SHORTCUTS.map((shortcut) => (
+        <section
+          key={shortcut.href}
+          className="flex items-center gap-3 rounded-3xl border border-border bg-surface p-4"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+            <shortcut.icon className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="flex-1 space-y-0.5">
+            <h2 className="text-sm font-semibold text-charcoal">{shortcut.title}</h2>
+            <p className="text-xs text-charcoal-muted">{shortcut.subtitle}</p>
+          </div>
+          <ButtonLink href={shortcut.href} variant="secondary" size="md" className="shrink-0">
+            سفارش
+          </ButtonLink>
+        </section>
+      ))}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">

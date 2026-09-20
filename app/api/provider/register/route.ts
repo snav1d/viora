@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { parseRoles } from "@/lib/auth/roles";
 import { storageUrlSchema } from "@/lib/validation/url";
 import { randomSlug } from "@/lib/slug";
+import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
 
 const tierSchema = z.object({
   minQuantity: z.number({ error: "بازه‌ی تیراژ نامعتبر است." }).int().positive(),
@@ -90,15 +91,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "یک یا چند رنگ انتخاب‌شده دیگر معتبر نیست." }, { status: 400 });
   }
 
-  // Print-partner phase currently has exactly one SERVICE category (چاپ بادکنک تبلیغاتی) and one
-  // active city (Tehran) - auto-assigned server-side rather than asked of the partner, same
-  // reasoning as seller registration's city auto-assignment (docs/decisions.md ADR 29): asking
-  // someone to "choose" between one available option is friction with no real decision behind
-  // it. Revisit this one query if a second SERVICE category ever launches.
-  const category = await prisma.category.findFirst({ where: { type: "SERVICE", isActive: true } });
+  // This route only ever registers a print partner - the category is the fixed print category,
+  // not "any active SERVICE category" (that assumption held when print was the only SERVICE
+  // category, but broke the moment balloon-decor/photography launched alongside it - docs/
+  // decisions.md ADR 43). One active city (Tehran) is still auto-assigned server-side, same
+  // reasoning as seller registration's city auto-assignment (ADR 29).
+  const category = await prisma.category.findFirst({
+    where: { slug: PRINT_CATEGORY_SLUG, isActive: true },
+  });
   if (!category) {
     return NextResponse.json(
-      { error: "در حال حاضر هیچ دسته‌بندی خدماتی فعال نیست." },
+      { error: "در حال حاضر امکان ثبت‌نام پارتنر چاپ وجود ندارد." },
       { status: 400 },
     );
   }

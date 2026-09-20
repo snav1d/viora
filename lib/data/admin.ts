@@ -17,10 +17,16 @@ export function getSellerProfileDetail(id: string) {
   });
 }
 
-export function getServiceProviderProfiles(status?: ApprovalStatus) {
+/// categorySlug narrows to providers whose (one) ServiceOffering belongs to that category -
+/// docs/decisions.md ADR 43's admin queue filter, now that print/balloon-decor/photography all
+/// share this same queue.
+export function getServiceProviderProfiles(status?: ApprovalStatus, categorySlug?: string) {
   return prisma.serviceProviderProfile.findMany({
-    where: status ? { status } : undefined,
-    include: { serviceOfferings: { include: { pricingTiers: true } } },
+    where: {
+      ...(status ? { status } : undefined),
+      ...(categorySlug ? { serviceOfferings: { some: { category: { slug: categorySlug } } } } : undefined),
+    },
+    include: { serviceOfferings: { include: { pricingTiers: true, category: true } } },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -28,7 +34,7 @@ export function getServiceProviderProfiles(status?: ApprovalStatus) {
 export function getServiceProviderProfileDetail(id: string) {
   return prisma.serviceProviderProfile.findUnique({
     where: { id },
-    include: { serviceOfferings: { include: { pricingTiers: true } } },
+    include: { serviceOfferings: { include: { pricingTiers: true, category: true } } },
   });
 }
 

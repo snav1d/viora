@@ -31,3 +31,26 @@ export async function getProviderStats(providerId: string) {
   ]);
   return { awaitingAcceptance, inProgress };
 }
+
+/// "پورتفولیو" cap (docs/decisions.md ADR 43) - enforced here (both the upload route and the
+/// panel UI import this same constant) rather than in the schema, since Prisma has no row-count
+/// constraint.
+export const MAX_PORTFOLIO_IMAGES = 15;
+
+export function getProviderPortfolio(providerId: string) {
+  return prisma.providerPortfolioImage.findMany({
+    where: { providerId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/// A provider only ever has one ServiceOffering in this phase (see every registration route,
+/// which creates exactly one) - used by the offering-settings page (docs/decisions.md ADR 43) to
+/// show/edit it regardless of category (print keeps its pricingTiers; a "simple" category reads
+/// basePrice/customFieldsSchema directly off the offering itself).
+export function getMyServiceOffering(providerId: string) {
+  return prisma.serviceOffering.findFirst({
+    where: { providerId },
+    include: { category: true, pricingTiers: true },
+  });
+}

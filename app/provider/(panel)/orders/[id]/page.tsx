@@ -36,24 +36,41 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
           <dt className="text-charcoal-muted">مشتری</dt>
           <dd className="font-medium text-charcoal">{item.order.user.name ?? "مشتری ویورا"}</dd>
         </div>
-        <div>
-          <dt className="text-charcoal-muted">تیراژ</dt>
-          <dd className="font-medium text-charcoal">{item.quantity.toLocaleString("fa-IR")} عدد</dd>
-        </div>
+        {item.printFinish !== null ? (
+          <div>
+            <dt className="text-charcoal-muted">تیراژ</dt>
+            <dd className="font-medium text-charcoal">{item.quantity.toLocaleString("fa-IR")} عدد</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-charcoal-muted">مبلغ</dt>
           <dd className="font-medium text-charcoal">
             {(toNumber(item.unitPrice) * item.quantity).toLocaleString("fa-IR")} تومان
           </dd>
         </div>
-        <div className="col-span-2">
-          <dt className="text-charcoal-muted">تاریخ تحویل</dt>
-          <dd className="font-medium text-charcoal">
-            {item.isExpressDelivery && item.requestedDeliveryDate
-              ? `فوری - ${new Date(item.requestedDeliveryDate).toLocaleDateString("fa-IR")}`
-              : "عادی"}
-          </dd>
-        </div>
+        {item.printFinish !== null ? (
+          <div className="col-span-2">
+            <dt className="text-charcoal-muted">تاریخ تحویل</dt>
+            <dd className="font-medium text-charcoal">
+              {item.isExpressDelivery && item.requestedDeliveryDate
+                ? `فوری - ${new Date(item.requestedDeliveryDate).toLocaleDateString("fa-IR")}`
+                : "عادی"}
+            </dd>
+          </div>
+        ) : item.order.eventDate ? (
+          <div className="col-span-2">
+            <dt className="text-charcoal-muted">تاریخ رویداد</dt>
+            <dd className="font-medium text-charcoal">
+              {new Date(item.order.eventDate).toLocaleDateString("fa-IR")}
+            </dd>
+          </div>
+        ) : null}
+        {item.order.shippingAddress ? (
+          <div className="col-span-2">
+            <dt className="text-charcoal-muted">آدرس محل برگزاری</dt>
+            <dd className="font-medium text-charcoal">{item.order.shippingAddress}</dd>
+          </div>
+        ) : null}
       </dl>
 
       {!item.acceptedAt ? (
@@ -68,24 +85,28 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
         </>
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
-            <div>
-              <dt className="text-charcoal-muted">نوع بادکنک</dt>
-              <dd className="font-medium text-charcoal">
-                {item.printFinish ? FINISH_LABELS[item.printFinish] : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-charcoal-muted">رنگ</dt>
-              <dd className="font-medium text-charcoal">{item.printColor ?? "—"}</dd>
-            </div>
-            {item.customerNotes ? (
-              <div className="col-span-2">
-                <dt className="text-charcoal-muted">توضیحات مشتری</dt>
-                <dd className="font-medium text-charcoal">{item.customerNotes}</dd>
-              </div>
-            ) : null}
-          </dl>
+          {item.printFinish !== null || item.customerNotes ? (
+            <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
+              {item.printFinish !== null ? (
+                <>
+                  <div>
+                    <dt className="text-charcoal-muted">نوع بادکنک</dt>
+                    <dd className="font-medium text-charcoal">{FINISH_LABELS[item.printFinish]}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-charcoal-muted">رنگ</dt>
+                    <dd className="font-medium text-charcoal">{item.printColor ?? "—"}</dd>
+                  </div>
+                </>
+              ) : null}
+              {item.customerNotes ? (
+                <div className="col-span-2">
+                  <dt className="text-charcoal-muted">توضیحات مشتری</dt>
+                  <dd className="font-medium text-charcoal">{item.customerNotes}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
 
           {item.designFileUrl ? (
             <a
@@ -109,14 +130,18 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
             </div>
           ) : (
             <div className="mt-auto flex flex-col gap-3">
-              {item.reassignmentRequestedAt ? (
-                <p className="rounded-2xl border border-gold-200 bg-gold-100/60 p-3 text-center text-xs text-gold-600">
-                  این سفارش برای واگذاری به پارتنرهای دیگر در دسترس قرار گرفته است - تا وقتی کسی
-                  آن را نپذیرفته، همچنان می‌توانید خودتان تحویل نهایی را ثبت کنید.
-                </p>
-              ) : (
-                <RequestReassignmentButton itemId={item.id} />
-              )}
+              {/* "بازار واگذاری سفارش" only ever matches print orders (docs/decisions.md ADR 42's
+                  matching logic is print-shaped) - never offer it for a non-print order, which no
+                  other partner could ever actually claim. See ADR 43. */}
+              {item.printFinish !== null &&
+                (item.reassignmentRequestedAt ? (
+                  <p className="rounded-2xl border border-gold-200 bg-gold-100/60 p-3 text-center text-xs text-gold-600">
+                    این سفارش برای واگذاری به پارتنرهای دیگر در دسترس قرار گرفته است - تا وقتی کسی
+                    آن را نپذیرفته، همچنان می‌توانید خودتان تحویل نهایی را ثبت کنید.
+                  </p>
+                ) : (
+                  <RequestReassignmentButton itemId={item.id} />
+                ))}
               <ShipOrderForm itemId={item.id} />
             </div>
           )}

@@ -5,9 +5,10 @@ import { ApproveButton } from "@/components/admin/ApproveButton";
 import { RejectForm } from "@/components/admin/RejectForm";
 import { getServiceProviderProfileDetail } from "@/lib/data/admin";
 import { toNumber } from "@/lib/decimal";
+import { PRINT_CATEGORY_SLUG, getSimpleServiceCategory, parseCustomFieldValues } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
-  title: "بررسی پارتنر تولید",
+  title: "بررسی پارتنر خدماتی",
   robots: { index: false, follow: false },
 };
 
@@ -31,14 +32,22 @@ export default async function AdminProviderDetailPage({ params }: Props) {
   if (!provider) notFound();
 
   const offering = provider.serviceOfferings[0];
+  const isPrint = offering?.category.slug === PRINT_CATEGORY_SLUG;
+  const simpleCategoryDef = offering && !isPrint ? getSimpleServiceCategory(offering.category.slug) : undefined;
+  const customFieldValues = offering ? parseCustomFieldValues(offering.customFieldsSchema) : {};
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-4 py-5">
-      <TopBar title="بررسی پارتنر تولید" backHref="/admin/providers" />
+      <TopBar title="بررسی پارتنر خدماتی" backHref="/admin/providers" />
 
       <section className="rounded-2xl border border-border bg-surface p-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-charcoal">{provider.businessName}</p>
+          {offering ? (
+            <span className="rounded-full border border-border bg-warm-white px-2.5 py-0.5 text-xs text-charcoal-muted">
+              {offering.category.name}
+            </span>
+          ) : null}
           {provider.isVerifiedByViora ? (
             <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-gold-600">
               تاییدیه‌ی ویژه‌ی ویورا
@@ -91,7 +100,7 @@ export default async function AdminProviderDetailPage({ params }: Props) {
         </div>
       ) : null}
 
-      {offering ? (
+      {offering && isPrint ? (
         <>
           <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
             <div>
@@ -143,6 +152,21 @@ export default async function AdminProviderDetailPage({ params }: Props) {
             </div>
           </div>
         </>
+      ) : offering ? (
+        <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
+          <div className="col-span-2">
+            <dt className="text-charcoal-muted">قیمت پکیج</dt>
+            <dd className="font-medium text-charcoal">{toNumber(offering.basePrice).toLocaleString("fa-IR")} تومان</dd>
+          </div>
+          {(simpleCategoryDef?.customFields ?? []).map((field) => (
+            <div key={field.key}>
+              <dt className="text-charcoal-muted">{field.label}</dt>
+              <dd className="font-medium text-charcoal">
+                {customFieldValues[field.key]?.toLocaleString("fa-IR") ?? "—"}
+              </dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
 
       {provider.status === "REJECTED" && provider.rejectionReason ? (

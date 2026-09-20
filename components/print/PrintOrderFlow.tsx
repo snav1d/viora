@@ -2,11 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FileUp, BadgeCheck } from "lucide-react";
+import { ChevronRight, FileUp, BadgeCheck, Images } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
 import { JalaliDatePicker } from "@/components/ui/JalaliDatePicker";
 import { CouponInput } from "@/components/checkout/CouponInput";
+import { PortfolioGalleryModal } from "@/components/ui/PortfolioGalleryModal";
 import { cn } from "@/lib/cn";
 import { formatJalaliLong, formatJalaliRange } from "@/lib/jalali";
 import type { MatchedPrintProvider } from "@/lib/data/print";
@@ -71,6 +72,7 @@ export function PrintOrderFlow({
   const [matching, setMatching] = useState(false);
   const [providers, setProviders] = useState<MatchedPrintProvider[]>([]);
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(null);
+  const [galleryProvider, setGalleryProvider] = useState<MatchedPrintProvider | null>(null);
   const [couponCode, setCouponCode] = useState<string | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -371,28 +373,42 @@ export function PrintOrderFlow({
             ) : (
               <div className="flex flex-col gap-3">
                 {providers.map((provider) => (
-                  <button
+                  <div
                     key={provider.offeringId}
-                    type="button"
-                    onClick={() => selectProvider(provider.offeringId)}
-                    className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-right text-sm hover:border-rose-300"
+                    className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 text-sm hover:border-rose-300"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-medium text-charcoal">{provider.businessName}</p>
-                      {provider.isVerifiedByViora ? (
-                        <span className="flex items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-600">
-                          <BadgeCheck className="h-3 w-3" strokeWidth={2} />
-                          تاییدیه‌ی ویژه
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="text-charcoal-muted">
-                      {provider.completedOrderCount.toLocaleString("fa-IR")} سفارش قبلی
-                    </p>
-                    <p className="font-semibold text-rose-700">
-                      {provider.totalPrice.toLocaleString("fa-IR")} تومان
-                    </p>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => selectProvider(provider.offeringId)}
+                      className="flex flex-col gap-1 text-right"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-charcoal">{provider.businessName}</p>
+                        {provider.isVerifiedByViora ? (
+                          <span className="flex items-center gap-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-600">
+                            <BadgeCheck className="h-3 w-3" strokeWidth={2} />
+                            تاییدیه‌ی ویژه
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-charcoal-muted">
+                        {provider.completedOrderCount.toLocaleString("fa-IR")} سفارش قبلی
+                      </p>
+                      <p className="font-semibold text-rose-700">
+                        {provider.totalPrice.toLocaleString("fa-IR")} تومان
+                      </p>
+                    </button>
+                    {provider.portfolioImages.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setGalleryProvider(provider)}
+                        className="flex items-center gap-1.5 self-start rounded-full border border-border px-3 py-1.5 text-xs text-charcoal-muted hover:border-rose-300"
+                      >
+                        <Images className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        مشاهده‌ی نمونه‌کار
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             )}
@@ -473,6 +489,14 @@ export function PrintOrderFlow({
           )}
         </div>
       </div>
+
+      {galleryProvider ? (
+        <PortfolioGalleryModal
+          businessName={galleryProvider.businessName}
+          images={galleryProvider.portfolioImages}
+          onClose={() => setGalleryProvider(null)}
+        />
+      ) : null}
     </div>
   );
 }

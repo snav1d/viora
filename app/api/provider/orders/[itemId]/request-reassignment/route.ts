@@ -19,6 +19,12 @@ export async function POST(_request: Request, { params }: Params) {
   if (!item) {
     return NextResponse.json({ error: "سفارش پیدا نشد." }, { status: 404 });
   }
+  if (item.printFinish === null) {
+    // "بازار واگذاری سفارش" only ever matches print orders (its own matching logic in
+    // lib/data/print.ts is print-shaped) - never let a non-print order get stuck up for
+    // reassignment with no partner able to claim it. See docs/decisions.md ADR 43.
+    return NextResponse.json({ error: "این نوع سفارش قابل واگذاری نیست." }, { status: 400 });
+  }
   if (!item.acceptedAt) {
     return NextResponse.json({ error: "ابتدا باید سفارش را بپذیرید." }, { status: 400 });
   }

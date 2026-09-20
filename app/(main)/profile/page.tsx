@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { User as UserIcon, Package, Store, ShieldCheck, Printer, Headset } from "lucide-react";
+import { User as UserIcon, Package, Store, ShieldCheck, Printer, PartyPopper, Camera, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
@@ -12,11 +12,31 @@ import { prisma } from "@/lib/prisma";
 import { getOrdersForUser } from "@/lib/data/orders";
 import { toNumber } from "@/lib/decimal";
 import { ORDER_STATUS_LABELS } from "@/lib/labels";
+import { SIMPLE_SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "پروفایل",
   robots: { index: false, follow: false },
 };
+
+const SIMPLE_CATEGORY_ICONS: Record<string, typeof PartyPopper> = {
+  "balloon-decor-service": PartyPopper,
+  photography: Camera,
+};
+
+// One registration entry point per provider category (docs/decisions.md ADR 43) - print's own
+// route is fixed and untouched, the rest come straight from lib/serviceCategories.ts so a future
+// new category needs no change here. Shown only when the user has no ServiceProviderProfile yet;
+// once they have one (of any type), routing to its panel is already generic regardless of
+// category, so a single "پنل پارتنر" link covers all of these.
+const PROVIDER_REGISTER_OPTIONS = [
+  { href: "/provider/register", label: "ثبت‌نام به‌عنوان پارتنر چاپ", icon: Printer },
+  ...SIMPLE_SERVICE_CATEGORIES.map((category) => ({
+    href: category.registerPath,
+    label: `ثبت‌نام به‌عنوان پارتنر ${category.label}`,
+    icon: SIMPLE_CATEGORY_ICONS[category.slug] ?? Store,
+  })),
+];
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -125,15 +145,21 @@ export default async function ProfilePage() {
         {sellerProfile ? "پنل فروشنده" : "ثبت‌نام به‌عنوان فروشنده"}
       </ButtonLink>
 
-      <ButtonLink
-        href={providerProfile ? "/provider" : "/provider/register"}
-        variant="secondary"
-        size="md"
-        className="w-full gap-2"
-      >
-        <Printer className="h-4 w-4" strokeWidth={1.75} />
-        {providerProfile ? "پنل پارتنر تولید" : "ثبت‌نام به‌عنوان پارتنر تولید"}
-      </ButtonLink>
+      {providerProfile ? (
+        <ButtonLink href="/provider" variant="secondary" size="md" className="w-full gap-2">
+          <Printer className="h-4 w-4" strokeWidth={1.75} />
+          پنل پارتنر
+        </ButtonLink>
+      ) : (
+        <div className="space-y-2">
+          {PROVIDER_REGISTER_OPTIONS.map((option) => (
+            <ButtonLink key={option.href} href={option.href} variant="secondary" size="md" className="w-full gap-2">
+              <option.icon className="h-4 w-4" strokeWidth={1.75} />
+              {option.label}
+            </ButtonLink>
+          ))}
+        </div>
+      )}
 
       <ButtonLink href="/support" variant="secondary" size="md" className="w-full gap-2">
         <Headset className="h-4 w-4" strokeWidth={1.75} />

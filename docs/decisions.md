@@ -2777,3 +2777,125 @@ are already independent fields on `OrderItem`, so reassignment is just updating 
 schema change needed beyond the one new nullable timestamp. Showing full order details (design
 file, customer notes) in the available-orders list before a claim - would defeat the entire reason
 two-stage visibility exists.
+
+## 2026-09-20 — provider portfolio; balloon-decor/photography service categories; generic
+offering-settings
+
+### 43. `ProviderPortfolioImage` gallery for every service-provider type; two new "simple" SERVICE
+categories with provider-set fixed packages ("Option A"); one offering-settings page for all three
+provider types
+**Decision (portfolio):** A new `ProviderPortfolioImage` model (`id`, `providerId` FK to
+`ServiceProviderProfile`, `imageUrl`, `createdAt`) is attached to `ServiceProviderProfile` only -
+never `SellerProfile`, which sells physical catalog products rather than a bespoke service. Capped
+at `MAX_PORTFOLIO_IMAGES` (15), enforced in the create route (`POST /api/provider/portfolio`, which
+also gates on `requireApprovedProvider()` - unlike the pre-approval `register/uploads` routes,
+this is a post-approval panel feature) rather than in the schema, since Prisma has no row-count
+constraint. `/provider/portfolio` is a plain thumbnail grid with upload/delete
+(`components/provider/PortfolioManager.tsx`), linked from the provider dashboard - it inherits
+correct PENDING/REJECTED gating for free from the existing `app/provider/(panel)/layout.tsx`,
+same as every other panel route. `getMatchingPrintProviders` now includes each result's
+`portfolioImages: string[]`, and a new reusable `PortfolioGalleryModal` (full-screen, scrollable,
+`components/ui/PortfolioGalleryModal.tsx`) opens from a "مشاهده‌ی نمونه‌کار" button on each partner
+card in `PrintOrderFlow`'s step 2 - the same modal is reused, unmodified, by the new "simple"
+service booking flow below.
+**Decision (new categories, confirmed "Option A"):** Two new SERVICE categories - بادکنک‌آرا
+(`balloon-decor-service`) and عکاسی (`photography`) - reuse `ServiceProviderProfile` +
+`ServiceOffering` exactly as print does, but never touch print's own dedicated color/finish/
+pricing-tier structure or its registration wizard/route. The user explicitly confirmed (after a
+clarifying question about `customFieldsSchema`'s semantics) that these categories' packages are
+**fixed by the provider, not chosen by the customer**: a provider sets `basePrice` plus, for
+categories that have them, a small set of extra attributes (photography: "تعداد ساعت پوشش" /
+"تعداد عکس ادیت‌شده") as real values at registration - never a schema the customer later fills in.
+This is why `ServiceOffering.customFieldsSchema` (a `Json?` column that had existed, unused, since
+Sprint 0) now stores plain `{key: number}` value pairs for these categories instead of the
+field-*definition* shape print's own fixture data happens to leave sitting in that same column
+(dead weight, read by nothing). A new `lib/serviceCategories.ts` registry
+(`SIMPLE_SERVICE_CATEGORIES`, `PRINT_CATEGORY_SLUG`, `parseCustomFieldValues`) is the single source
+of truth for which categories exist, their register/service paths, and their fixed field
+definitions - `prisma/seed.ts`, the registration route, the offering-settings route, the admin
+pages, and the customer service pages all read from it rather than repeating slugs. One shared
+`SimpleServiceRegisterWizard` + `POST /api/provider/register/service` (a `categorySlug`
+discriminator, zod-validated against the registry's own field list) serve every category in the
+registry - adding a future one needs no new wizard or route, only a new array entry (and a seeded
+`Category` row). The wizard engine (`lib/wizard/engine.ts`'s `pickAuxiliaryService`) needed zero
+changes: it already queries "whatever active SERVICE categories exist in the city," so both new
+categories are automatically eligible for the party wizard's auxiliary-service suggestion the
+moment an offering is seeded/approved.
+**Decision (offering-settings, closing a real gap):** The user's own confirming answer explicitly
+compared these new categories' required "editable anytime from the panel" behavior to print's
+supposed ability to do the same - investigation found print actually had **no** such capability at
+all (only set once, at registration). A new generic `PATCH /api/provider/offering` now lets any
+APPROVED provider edit their own single `ServiceOffering` anytime, for all three provider types:
+which shape to validate is decided from the **provider's own existing offering's category**
+(server-side, never trusted from the request body) - print gets its full chrome/matte/colors/
+minOrderQuantity/pricingTiers shape (recomputing `basePrice` from the new lowest tier, replacing
+`PrintPricingTier` rows wholesale, same as registration), everything else gets `basePrice` +
+whatever fixed fields its category registry entry defines. `/provider/offering` renders
+`PrintOfferingSettingsForm` or `SimpleOfferingSettingsForm` accordingly - both new, standalone
+components; the existing `ProviderRegisterWizard`/`SimpleServiceRegisterWizard` are untouched.
+**Decision (admin queue):** `/admin/providers` and its detail page are now category-aware rather
+than print-shaped-by-assumption: a category filter row (built from whatever SERVICE categories
+exist, so a new one needs no code change) sits alongside the existing status tabs, every row/detail
+shows a category badge, and the offering-detail block branches on `PRINT_CATEGORY_SLUG` - print's
+existing chrome/matte/colors/tiers table for print, a `basePrice` + registry-driven custom-field
+key/value list for everything else. `getServiceProviderProfiles`/`getServiceProviderProfileDetail`
+gained a `categorySlug` filter and now include each offering's `category`. The approve/reject
+routes needed no changes - already fully category-agnostic (approve just flips every one of a
+provider's offerings `isActive: true` regardless of shape).
+**Decision (safety fix - non-print orders and the reassignment marketplace):** ADR 42's
+"بازار واگذاری سفارش" matching logic (`offeringCanTakeItem`, `getAvailableReassignmentOrders`) is
+entirely print-shaped (hard-requires `printFinish`/`printColor`) - without a guard, a balloon-decor
+or photography order put up for reassignment could never be claimed by anyone, permanently
+stranding it. Both `POST /api/provider/orders/[itemId]/request-reassignment` (server-side, the
+real guard) and its UI button on `/provider/orders/[id]` now check `item.printFinish !== null`
+first. The same page (and the orders list) also stopped showing print-only "تیراژ"/"نوع بادکنک"/
+"رنگ"/delivery-date rows for a non-print item, showing "تاریخ رویداد" (from the now-populated
+`Order.eventDate`) and "آدرس محل برگزاری" (`Order.shippingAddress`) instead - both columns already
+existed and needed no schema change, just a customer-facing booking route that actually populates
+them for a service booking.
+**Decision (proactive fix - print's own category lookup):** `POST /api/provider/register`
+previously resolved its SERVICE category with `category.findFirst({where:{type:"SERVICE",
+isActive:true}})`, whose own code comment explicitly flagged it as only correct while print was
+the *only* SERVICE category. With balloon-decor/photography now active, this would have
+non-deterministically assigned a brand-new print partner to any one of the three categories - now
+fixed to filter by `PRINT_CATEGORY_SLUG` explicitly. Found and fixed before it could ever manifest
+as a real bug; verified directly (a freshly-registered print partner still landed in
+`promotional-balloon-printing`, not one of the other two, with all three categories active).
+**New customer routes:** `/services/[category]` (matched against the registry, `notFound()`
+otherwise) lists every active offering in that category for the one active city, ranked
+verified-first-then-cheapest (`getActiveSimpleServiceOfferings`, the same ranking philosophy as
+`getMatchingPrintProviders`) - each card shows the fixed package price/attributes and, when the
+provider has any, the same portfolio-gallery button as `/print`. `SimpleServiceOrderFlow` is a
+two-step flow (pick a partner's already-fixed package -> event date/address/notes/coupon -> pay),
+much simpler than `PrintOrderFlow` since there's no per-order customization to collect. `POST /api/
+service-bookings` re-verifies the offering server-side and creates a `SERVICE` order exactly like
+`/api/print-orders` does, just without any finish/color/tier matching. The home page's print
+shortcut card is now one of three, generated from a small array so a future category is one entry,
+not a new section block; `/profile`'s single provider-registration button became three (print's
+fixed link + one per registry entry) whenever the user has no `ServiceProviderProfile` yet, and
+stays a single generic "پنل پارتنر" link once they have one of any type.
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP: uploaded
+and deleted a portfolio image (double-delete correctly 404s); a real `/api/print-orders/match` call
+returned each provider's real `portfolioImages`. Registered a balloon-decor and a photography
+partner (a submission with a wrong custom-field key was correctly rejected); the admin queue's
+category filter correctly isolated each from the other, and the photography detail page rendered
+its real `coverageHours`/`editedPhotoCount` values. Approving both flipped their offerings active;
+both then appeared, with correct prices, on their `/services/*` pages. A real booking created a
+`PAID`/`PROCESSING` `SERVICE` order with the right `eventDate`/`shippingAddress` and a
+`printFinish: null` item; the provider's order list/detail correctly showed event-date/address
+instead of print fields, showed no reassignment button, and a direct API call to request
+reassignment on it was rejected server-side. `PATCH /api/provider/offering` was verified against
+all three provider types, including print's tiers being fully replaced and its `basePrice`
+recomputed. A freshly-registered print partner still landed in the correct print category with all
+three SERVICE categories active. `tsc --noEmit`, `eslint .`, and `npm run build` all clean, every
+new route present in the build output.
+**Rejected:** letting the customer choose/fill any per-order attributes for these categories -
+explicitly ruled out by the user's own confirming answer ("مشتری فقط می‌بینه و می‌خره"). A new
+generic value-storage column on `OrderItem` for customer-filled fields - unnecessary once Option A
+was confirmed, since nothing is ever filled per-order. Reusing `ProviderRegisterWizard`/`/api/
+provider/register` for the new categories - print's own step 2 has no equivalent for a flat
+package, and the user's request itself asked for these as parallel, independent registration
+paths. A per-category admin-configurable field builder for `customFieldsSchema` - the two
+categories' fixed field sets are small, known upfront, and defined once in
+`lib/serviceCategories.ts`; a dynamic builder would be speculative complexity for a need that
+doesn't exist yet.

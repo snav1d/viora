@@ -82,6 +82,19 @@ A Next.js (App Router, TypeScript) skeleton with:
   one, ranked above non-badged partners (ADR 42) - and places a real `Order` (reusing the same
   `Order`/`OrderItem` models every other order uses, not a parallel schema). See
   `docs/decisions.md` ADR 31, 32, 42.
+- Portfolio + two new service-provider categories (docs/decisions.md ADR 43): any approved
+  `ServiceProviderProfile` (print, or either of the two below) can upload up to 15 work-sample
+  photos at `/provider/portfolio`, shown via a full-screen gallery modal from a "مشاهده‌ی نمونه‌کار"
+  button next to that partner on `/print` or `/services/[category]`. Two new SERVICE categories -
+  بادکنک‌آرا (`/provider/register/balloon-decor`, `/services/balloon-decor`) and عکاسی
+  (`/provider/register/photography`, `/services/photography`, with provider-set "تعداد ساعت
+  پوشش"/"تعداد عکس ادیت‌شده") - reuse the exact same `ServiceProviderProfile`/`ServiceOffering`
+  models as print, but sell one fixed flat-price package a customer just views and buys (no
+  per-order customization, unlike print's finish/color/quantity/tiers). Both share `/admin/
+  providers`' one approval queue with print (now category-filterable, with category-aware detail
+  rendering), and every approved provider - print included - can now edit their own offering's
+  price/settings anytime from `/provider/offering` (previously only possible once, at
+  registration, for print).
 - Reviews & ratings: a customer's own order detail page (`app/(main)/orders/[id]/`, linked from
   `/profile`'s order history) gets a "سفارش رو دریافت کردم" delivery-confirmation button once
   shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
