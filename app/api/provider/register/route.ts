@@ -6,6 +6,7 @@ import { parseRoles } from "@/lib/auth/roles";
 import { storageUrlSchema } from "@/lib/validation/url";
 import { randomSlug } from "@/lib/slug";
 import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
+import { MIN_REGISTRATION_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
 const tierSchema = z.object({
   minQuantity: z.number({ error: "بازه‌ی تیراژ نامعتبر است." }).int().positive(),
@@ -37,6 +38,9 @@ const bodySchema = z
     pricingTiers: z
       .array(tierSchema, { error: "حداقل یک بازه‌ی قیمتی لازم است." })
       .min(1, "حداقل یک بازه‌ی قیمتی لازم است."),
+    portfolioImageUrls: z
+      .array(storageUrlSchema, { error: `حداقل ${MIN_REGISTRATION_PORTFOLIO_IMAGES} نمونه‌کار لازم است.` })
+      .min(MIN_REGISTRATION_PORTFOLIO_IMAGES, `حداقل ${MIN_REGISTRATION_PORTFOLIO_IMAGES} نمونه‌کار لازم است.`),
   })
   .superRefine((data, ctx) => {
     if (!data.supportsChrome && !data.supportsMatte) {
@@ -118,6 +122,7 @@ export async function POST(request: Request) {
     const profile = await tx.serviceProviderProfile.create({
       data: {
         userId: session.userId,
+        categoryId: category.id,
         businessName: parsed.data.businessName,
         contactPersonName: parsed.data.contactPersonName,
         businessLicenseImageUrl: parsed.data.businessLicenseImageUrl,
@@ -125,6 +130,10 @@ export async function POST(request: Request) {
         bankAccountIban: parsed.data.bankAccountIban,
         status: "PENDING",
       },
+    });
+
+    await tx.providerPortfolioImage.createMany({
+      data: parsed.data.portfolioImageUrls.map((imageUrl) => ({ providerId: profile.id, imageUrl })),
     });
 
     const offering = await tx.serviceOffering.create({

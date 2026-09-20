@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Sparkles, Printer, PartyPopper, Camera } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { HomeBanner } from "@/components/home/HomeBanner";
 import { ProductCard } from "@/components/shop/ProductCard";
-import { getActiveProductCategories, getFeaturedProducts } from "@/lib/data/catalog";
+import { getActiveProductCategories, getActiveServiceCategories, getFeaturedProducts } from "@/lib/data/catalog";
 import { getActiveBanner } from "@/lib/data/banners";
 import { toNumber } from "@/lib/decimal";
 import { siteConfig } from "@/lib/config/site";
+import { PRINT_CATEGORY_SLUG, SIMPLE_SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "خانه",
@@ -16,29 +17,14 @@ export const metadata: Metadata = {
 // Catalog/category data is admin-editable and must never be frozen at build time.
 export const dynamic = "force-dynamic";
 
-// Each active SERVICE category's customer-facing shortcut (docs/decisions.md ADR 43) - print
-// keeps its own dedicated /print flow, balloon-decor/photography use the shared /services/[slug]
-// route. Adding a future service category here is one array entry, not a new section block.
-const SERVICE_SHORTCUTS = [
-  {
-    href: "/print",
-    icon: Printer,
-    title: "چاپ بادکنک تبلیغاتی",
-    subtitle: "طرح خودتون رو بفرستید، بهترین پارتنر رو پیدا کنید.",
-  },
-  {
-    href: "/services/balloon-decor",
-    icon: PartyPopper,
-    title: "بادکنک‌آرایی مجالس",
-    subtitle: "اجرای حرفه‌ای بادکنک‌آرایی رو برای جشن‌تون رزرو کنید.",
-  },
-  {
-    href: "/services/photography",
-    icon: Camera,
-    title: "عکاسی جشن",
-    subtitle: "بهترین عکاس‌ها رو برای ثبت لحظه‌های جشن‌تون پیدا کنید.",
-  },
-] as const;
+// Where each SERVICE category's own browse page lives (docs/decisions.md ADR 44 item 5) - print
+// keeps its own dedicated partner-first browse page, every "simple" category uses the shared
+// /services/[slug] route. A future new category needs no change here beyond its own registry
+// entry.
+const SERVICE_CATEGORY_HREFS: Record<string, string> = {
+  [PRINT_CATEGORY_SLUG]: "/print/partners",
+  ...Object.fromEntries(SIMPLE_SERVICE_CATEGORIES.map((category) => [category.slug, category.servicePath])),
+};
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -50,11 +36,21 @@ const organizationJsonLd = {
 };
 
 export default async function HomePage() {
-  const [categories, products, banner] = await Promise.all([
+  const [productCategories, serviceCategories, products, banner] = await Promise.all([
     getActiveProductCategories(),
+    getActiveServiceCategories(),
     getFeaturedProducts(6),
     getActiveBanner("HOME_TOP"),
   ]);
+
+  const gridCategories = [
+    ...productCategories.map((category) => ({ slug: category.slug, name: category.name })),
+    ...serviceCategories.map((category) => ({
+      slug: category.slug,
+      name: category.name,
+      href: SERVICE_CATEGORY_HREFS[category.slug],
+    })),
+  ];
 
   return (
     <main className="flex flex-1 flex-col gap-8 px-4 pb-6 pt-5">
@@ -87,24 +83,6 @@ export default async function HomePage() {
         </ButtonLink>
       </section>
 
-      {SERVICE_SHORTCUTS.map((shortcut) => (
-        <section
-          key={shortcut.href}
-          className="flex items-center gap-3 rounded-3xl border border-border bg-surface p-4"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-            <shortcut.icon className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          <div className="flex-1 space-y-0.5">
-            <h2 className="text-sm font-semibold text-charcoal">{shortcut.title}</h2>
-            <p className="text-xs text-charcoal-muted">{shortcut.subtitle}</p>
-          </div>
-          <ButtonLink href={shortcut.href} variant="secondary" size="md" className="shrink-0">
-            سفارش
-          </ButtonLink>
-        </section>
-      ))}
-
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-charcoal">دسته‌بندی‌ها</h2>
@@ -112,7 +90,7 @@ export default async function HomePage() {
             مشاهده فروشگاه
           </ButtonLink>
         </div>
-        <CategoryGrid categories={categories} />
+        <CategoryGrid categories={gridCategories} />
       </section>
 
       <section className="space-y-3">

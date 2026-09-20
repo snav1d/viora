@@ -43,6 +43,19 @@ export async function getServiceOfferingReviewSummary(serviceOfferingId: string)
   return summarize(rows);
 }
 
+/// Aggregated across every one of a provider's ServiceOfferings (docs/decisions.md ADR 44) -
+/// unlike getServiceOfferingReviewSummary, which is scoped to one offering, this is what the
+/// customer-facing partner-profile page shows, since a "simple" category provider can have any
+/// number of offerings and a customer reviewing one of them is really reviewing that provider.
+export async function getProviderReviewSummary(providerId: string): Promise<ReviewSummary> {
+  const rows = await prisma.review.findMany({
+    where: { isApproved: true, serviceOffering: { providerId } },
+    include: { user: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return summarize(rows);
+}
+
 /// Admin moderation queue (docs/decisions.md ADR 40) - every review starts `isApproved: false`
 /// and never appears in the two summaries above until approved here.
 export function getPendingReviews() {

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { TopBar } from "@/components/nav/TopBar";
 import { PortfolioManager } from "@/components/provider/PortfolioManager";
 import { getServiceProviderProfile } from "@/lib/auth/provider";
-import { getProviderPortfolio, MAX_PORTFOLIO_IMAGES } from "@/lib/data/provider";
+import { getProviderPortfolio } from "@/lib/data/provider";
+import { MAX_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
 export const metadata: Metadata = {
   title: "پورتفولیو",

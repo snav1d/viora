@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Gift, CakeSlice, UtensilsCrossed, PartyPopper, Shirt, Sparkle } from "lucide-react";
+import { Gift, CakeSlice, UtensilsCrossed, PartyPopper, Shirt, Printer, Camera, Sparkle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -8,12 +8,17 @@ const ICONS: Record<string, LucideIcon> = {
   "cake-sweets": CakeSlice,
   "guest-gifts": Gift,
   "costume-accessories": Shirt,
+  "promotional-balloon-printing": Printer,
+  "balloon-decor-service": PartyPopper,
+  photography: Camera,
 };
 
 export function CategoryGrid({
   categories,
 }: {
-  categories: { slug: string; name: string }[];
+  /// href defaults to the product-shop route - service categories (docs/decisions.md ADR 44
+  /// item 5) pass their own browse-page path explicitly.
+  categories: { slug: string; name: string; href?: string }[];
 }) {
   return (
     <div className="grid grid-cols-3 gap-3">
@@ -22,7 +27,7 @@ export function CategoryGrid({
         return (
           <Link
             key={category.slug}
-            href={`/shop/${category.slug}`}
+            href={category.href ?? `/shop/${category.slug}`}
             className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface py-4 text-center transition-shadow hover:shadow-md"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-rose-600">

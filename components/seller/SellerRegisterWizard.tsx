@@ -491,10 +491,9 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                   type="text"
                   inputMode="numeric"
                   dir="ltr"
-                  maxLength={24}
                   value={answers.bankAccountIban.slice(2)}
                   onChange={(event) =>
-                    update({ bankAccountIban: `IR${digitsOnly(event.target.value)}` })
+                    update({ bankAccountIban: `IR${digitsOnly(event.target.value).slice(0, 24)}` })
                   }
                   className="flex-1 min-w-0 bg-transparent px-4 py-3 text-charcoal focus:outline-none"
                 />

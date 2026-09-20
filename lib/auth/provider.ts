@@ -8,7 +8,10 @@ import { getSession } from "@/lib/auth/session";
 export async function getServiceProviderProfile() {
   const session = await getSession();
   if (!session) return null;
-  return prisma.serviceProviderProfile.findUnique({ where: { userId: session.userId } });
+  return prisma.serviceProviderProfile.findUnique({
+    where: { userId: session.userId },
+    include: { category: true },
+  });
 }
 
 /** Every provider API route needs this exact check (logged in + APPROVED ServiceProviderProfile)

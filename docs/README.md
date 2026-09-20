@@ -82,19 +82,29 @@ A Next.js (App Router, TypeScript) skeleton with:
   one, ranked above non-badged partners (ADR 42) - and places a real `Order` (reusing the same
   `Order`/`OrderItem` models every other order uses, not a parallel schema). See
   `docs/decisions.md` ADR 31, 32, 42.
-- Portfolio + two new service-provider categories (docs/decisions.md ADR 43): any approved
-  `ServiceProviderProfile` (print, or either of the two below) can upload up to 15 work-sample
-  photos at `/provider/portfolio`, shown via a full-screen gallery modal from a "مشاهده‌ی نمونه‌کار"
-  button next to that partner on `/print` or `/services/[category]`. Two new SERVICE categories -
-  بادکنک‌آرا (`/provider/register/balloon-decor`, `/services/balloon-decor`) and عکاسی
-  (`/provider/register/photography`, `/services/photography`, with provider-set "تعداد ساعت
-  پوشش"/"تعداد عکس ادیت‌شده") - reuse the exact same `ServiceProviderProfile`/`ServiceOffering`
-  models as print, but sell one fixed flat-price package a customer just views and buys (no
-  per-order customization, unlike print's finish/color/quantity/tiers). Both share `/admin/
-  providers`' one approval queue with print (now category-filterable, with category-aware detail
-  rendering), and every approved provider - print included - can now edit their own offering's
-  price/settings anytime from `/provider/offering` (previously only possible once, at
-  registration, for print).
+- Portfolio + two new service-provider categories (docs/decisions.md ADR 43, 44): every
+  registration wizard (print's or a "simple" category's) now requires at least 5 work-sample
+  photos before it can be submitted at all - these become the provider's own portfolio the moment
+  they're approved, editable/extendable (up to 15) afterward from `/provider/portfolio`, and shown
+  via a full-screen gallery on `/print` or a hero/thumbnail strip on the new browse pages below.
+  Two new SERVICE categories exist - بادکنک‌آرا (`/provider/register/balloon-decor`) and عکاسی
+  (`/provider/register/photography`) - sharing `ServiceProviderProfile` with print but not its
+  pricing model: print keeps its own dedicated color/finish/quantity-tier structure entirely
+  untouched, while a "simple" category's registration collects only identity/license info (no
+  price at all), and the provider self-manages any number of independently titled/described/priced
+  `ServiceOffering`s from `/provider/services` once approved - each one auto-active immediately,
+  no admin review per offering, since the provider itself already was reviewed. `/provider/
+  offering` is print-only now (its own tariff, editable anytime - closing a real gap print used to
+  have); `ServiceProviderProfile.categoryId` is a real column so a "simple" provider's category is
+  still known even with zero offerings yet. All three share `/admin/providers`' one approval queue
+  (category-filterable, with category-aware detail rendering - a portfolio review instead of
+  pricing for a "simple" category, since none exists at approval time). Customer-facing:
+  `/services/[category]` and print's own `/print/partners` are Snapp Food-style vertical partner
+  lists (a portfolio-photo hero + swipeable thumbnail strip per card); tapping a "simple" category
+  partner opens a profile page (full portfolio, aggregated reviews, their own priced offerings,
+  each bookable directly), while tapping a print partner jumps into the existing finish/color/
+  quantity form pre-scoped to that one partner - `/print`'s own full auto-matching flow ("ثبت
+  سفارش جدید") still exists side by side, unchanged.
 - Reviews & ratings: a customer's own order detail page (`app/(main)/orders/[id]/`, linked from
   `/profile`'s order history) gets a "سفارش رو دریافت کردم" delivery-confirmation button once
   shipped, which unlocks a 1-5 star + optional-comment review prompt per order item (product or
@@ -255,6 +265,11 @@ Unlike the Postgres/Neon setup this replaced, there's no reason this can't be ru
 host itself** now (no cross-border connection needed) as well as from a developer machine or CI
 — either works; the `deploy` branch's own stripped-down bundle still has no `prisma` CLI in it
 either way (see below), so run it from a full checkout of the source branch, not from `deploy`.
+**A migration only changes table structure — if the phase also added new seed-only rows (a
+`Category`, a `PlatformSetting`, ...), re-run `npm run db:seed` too** (also from a full source
+checkout), or the app will behave as if that data doesn't exist yet even though the schema is
+current — the exact shape of the "این دسته‌بندی خدماتی فعال نیست" symptom docs/decisions.md ADR 44
+tracked down.
 
 **Locally, for testing production mode end to end:**
 

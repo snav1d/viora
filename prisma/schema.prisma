@@ -103,9 +103,10 @@ model Category {
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
 
-  products         Product[]
-  serviceOfferings ServiceOffering[]
-  sellerCategories SellerCategory[]
+  products                Product[]
+  serviceOfferings        ServiceOffering[]
+  sellerCategories        SellerCategory[]
+  serviceProviderProfiles ServiceProviderProfile[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -219,6 +220,15 @@ model ServiceProviderProfile {
   userId          String         @unique
   user            User           @relation(fields: [userId], references: [id])
   businessName    String
+  /// Which SERVICE category this provider belongs to (print, بادکنک‌آرا, عکاسی, ...) - a property
+  /// of the provider itself, set once at registration, independent of how many (if any)
+  /// ServiceOffering rows they currently have. Needed because, from ADR 44 onward, a "simple"
+  /// (non-print) provider's registration no longer creates any ServiceOffering at all (they
+  /// create their own, any time, post-approval) - so this can no longer be read via
+  /// serviceOfferings[0].category the way it could before. Backfilled from each row's existing
+  /// offering as part of this migration (docs/decisions.md ADR 44).
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
   /// نام و نام‌خانوادگی مسئول کسب‌وکار - distinct from businessName. Nullable for the same reason
   /// as SellerProfile.contactPersonName: existing partners registered before this field existed.
   /// See docs/decisions.md ADR 39.
@@ -250,6 +260,7 @@ model ServiceProviderProfile {
   portfolioImages  ProviderPortfolioImage[]
 
   @@index([status])
+  @@index([categoryId])
 }
 
 /// One work-sample photo in a provider's "پورتفولیو" (docs/decisions.md ADR 43) - a generic

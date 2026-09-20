@@ -38,11 +38,7 @@ export default async function SimpleServiceRegisterPage({ params }: Props) {
 
   return (
     <main className="flex flex-1 flex-col">
-      <SimpleServiceRegisterWizard
-        categorySlug={categoryDef.slug}
-        categoryLabel={categoryDef.label}
-        customFields={categoryDef.customFields}
-      />
+      <SimpleServiceRegisterWizard categorySlug={categoryDef.slug} categoryLabel={categoryDef.label} />
     </main>
   );
 }

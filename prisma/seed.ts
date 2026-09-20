@@ -130,6 +130,7 @@ async function main() {
     create: { phone: "09120000002", name: "چاپخانه گلرنگ", roles: ["SERVICE_PROVIDER"] },
   });
   const providerProfileFields = {
+    categoryId: balloonPrintingCategory.id,
     businessName: "چاپخانه گلرنگ",
     businessLicenseImageUrl: "/avatars/avatar-02.svg",
     nationalId: "2222222222",
@@ -145,6 +146,19 @@ async function main() {
     update: providerProfileFields,
     create: { userId: providerUser.id, ...providerProfileFields },
   });
+
+  // Every registered provider now needs at least MIN_REGISTRATION_PORTFOLIO_IMAGES portfolio
+  // photos (docs/decisions.md ADR 44 item 4, applies to print too) - reusing the existing avatar
+  // SVG set as stand-in work-sample images, the same "reuse an existing fixture asset" convention
+  // this script already uses for businessLicenseImageUrl above. Deleted and recreated per
+  // provider on every re-run, same idempotent-reseed reasoning as the print pricing tiers below.
+  async function seedPortfolio(providerId: string, avatarIndexes: number[]) {
+    await prisma.providerPortfolioImage.deleteMany({ where: { providerId } });
+    await prisma.providerPortfolioImage.createMany({
+      data: avatarIndexes.map((index) => ({ providerId, imageUrl: DEFAULT_AVATARS[index].url })),
+    });
+  }
+  await seedPortfolio(providerProfile.id, [10, 11, 0, 1, 2]);
 
   const fixtureProducts = productsSeedData as Array<{
     title: string;
@@ -266,11 +280,12 @@ async function main() {
     ],
   });
 
-  // Two new SERVICE categories, using the same ServiceProviderProfile+ServiceOffering
-  // architecture as print but without any pricing-tier/color/finish structure - a provider's own
-  // ServiceOffering.basePrice is the entire flat package price (docs/decisions.md ADR 43,
-  // confirmed "Option A"). Slugs/labels come from lib/serviceCategories.ts so seed data and app
-  // code never drift apart.
+  // Two new SERVICE categories, using the same ServiceProviderProfile as print but NOT its
+  // pricing-tier/color/finish structure: a "simple" category provider self-manages any number of
+  // independently titled/described/priced ServiceOfferings from their own panel, any time, with
+  // no admin review per offering (docs/decisions.md ADR 44, superseding ADR 43's single
+  // fixed-package-at-registration model). Slugs/labels come from lib/serviceCategories.ts so seed
+  // data and app code never drift apart.
   const [balloonDecorDef, photographyDef] = SIMPLE_SERVICE_CATEGORIES;
   const balloonDecorCategory = await prisma.category.upsert({
     where: { slug: balloonDecorDef.slug },
@@ -289,6 +304,7 @@ async function main() {
     create: { phone: "09120000003", name: "بادکنک‌آرایی رویا", roles: ["SERVICE_PROVIDER"] },
   });
   const balloonDecorProviderFields = {
+    categoryId: balloonDecorCategory.id,
     businessName: "بادکنک‌آرایی رویا",
     businessLicenseImageUrl: "/avatars/avatar-03.svg",
     nationalId: "3333333333",
@@ -301,20 +317,43 @@ async function main() {
     update: balloonDecorProviderFields,
     create: { userId: balloonDecorUser.id, ...balloonDecorProviderFields },
   });
-  await prisma.serviceOffering.upsert({
-    where: { slug: "roya-balloon-decor-standard" },
-    update: { basePrice: 3500000, isActive: true },
-    create: {
-      providerId: balloonDecorProvider.id,
-      categoryId: balloonDecorCategory.id,
-      cityId: tehran.id,
-      title: "بادکنک‌آرایی مجالس (پکیج استاندارد)",
+  await seedPortfolio(balloonDecorProvider.id, [0, 1, 2, 3, 4]);
+  const balloonDecorOfferings = [
+    {
       slug: "roya-balloon-decor-standard",
+      title: "بادکنک‌آرایی تم استاندارد",
       description: "اجرای بادکنک‌آرایی حرفه‌ای برای جشن تولد و مراسم، شامل طراحی و اجرای کامل در محل.",
       basePrice: 3500000,
-      isActive: true,
     },
-  });
+    {
+      slug: "roya-balloon-decor-barbie",
+      title: "بادکنک‌آرایی تم باربی",
+      description: "تم اختصاصی باربی با ترکیب رنگ صورتی/طلایی، شامل بک‌دراپ و آرایش کامل سالن.",
+      basePrice: 4200000,
+    },
+    {
+      slug: "roya-balloon-decor-arch",
+      title: "آرک بادکنک ورودی",
+      description: "اجرای آرک بادکنک برای ورودی مراسم، قابل‌سفارش به‌صورت جداگانه از سایر خدمات.",
+      basePrice: 1800000,
+    },
+  ];
+  for (const offering of balloonDecorOfferings) {
+    await prisma.serviceOffering.upsert({
+      where: { slug: offering.slug },
+      update: { title: offering.title, description: offering.description, basePrice: offering.basePrice, isActive: true },
+      create: {
+        providerId: balloonDecorProvider.id,
+        categoryId: balloonDecorCategory.id,
+        cityId: tehran.id,
+        title: offering.title,
+        slug: offering.slug,
+        description: offering.description,
+        basePrice: offering.basePrice,
+        isActive: true,
+      },
+    });
+  }
 
   const photographerUser = await prisma.user.upsert({
     where: { phone: "09120000004" },
@@ -322,6 +361,7 @@ async function main() {
     create: { phone: "09120000004", name: "استودیو عکس آرمان", roles: ["SERVICE_PROVIDER"] },
   });
   const photographerProviderFields = {
+    categoryId: photographyCategory.id,
     businessName: "استودیو عکس آرمان",
     businessLicenseImageUrl: "/avatars/avatar-04.svg",
     nationalId: "4444444444",
@@ -334,22 +374,43 @@ async function main() {
     update: photographerProviderFields,
     create: { userId: photographerUser.id, ...photographerProviderFields },
   });
-  const photographyCustomFields = { coverageHours: 4, editedPhotoCount: 50 };
-  await prisma.serviceOffering.upsert({
-    where: { slug: "arman-photography-standard" },
-    update: { basePrice: 6500000, customFieldsSchema: photographyCustomFields, isActive: true },
-    create: {
-      providerId: photographerProvider.id,
-      categoryId: photographyCategory.id,
-      cityId: tehran.id,
-      title: "عکاسی جشن تولد (پکیج استاندارد)",
+  await seedPortfolio(photographerProvider.id, [5, 6, 7, 8, 9]);
+  const photographyOfferings = [
+    {
       slug: "arman-photography-standard",
-      description: "پوشش عکاسی حرفه‌ای مراسم به همراه ادیت و تحویل فایل نهایی.",
+      title: "پکیج عکاسی ۴ ساعته",
+      description: "پوشش عکاسی حرفه‌ای مراسم به مدت ۴ ساعت، شامل ۵۰ قطعه عکس ادیت‌شده و تحویل فایل نهایی.",
       basePrice: 6500000,
-      customFieldsSchema: photographyCustomFields,
-      isActive: true,
     },
-  });
+    {
+      slug: "arman-photography-6h",
+      title: "پکیج عکاسی ۶ ساعته",
+      description: "پوشش عکاسی حرفه‌ای مراسم به مدت ۶ ساعت، شامل ۸۰ قطعه عکس ادیت‌شده و تحویل فایل نهایی.",
+      basePrice: 9000000,
+    },
+    {
+      slug: "arman-videography",
+      title: "پکیج فیلم‌برداری",
+      description: "فیلم‌برداری کامل مراسم به همراه تدوین و تحویل فایل نهایی با کیفیت بالا.",
+      basePrice: 7500000,
+    },
+  ];
+  for (const offering of photographyOfferings) {
+    await prisma.serviceOffering.upsert({
+      where: { slug: offering.slug },
+      update: { title: offering.title, description: offering.description, basePrice: offering.basePrice, isActive: true },
+      create: {
+        providerId: photographerProvider.id,
+        categoryId: photographyCategory.id,
+        cityId: tehran.id,
+        title: offering.title,
+        slug: offering.slug,
+        description: offering.description,
+        basePrice: offering.basePrice,
+        isActive: true,
+      },
+    });
+  }
 
   await prisma.aiSettings.upsert({
     where: { id: "singleton" },

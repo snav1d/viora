@@ -13,11 +13,15 @@ export const metadata: Metadata = {
 // build time - same reasoning as every other phase-toggle page in this app.
 export const dynamic = "force-dynamic";
 
-export default async function PrintOrderPage() {
+type Props = { searchParams: Promise<{ offering?: string }> };
+
+export default async function PrintOrderPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session) {
     redirect("/auth?redirect=%2Fprint");
   }
+
+  const { offering } = await searchParams;
 
   const [colors, deliverySettings] = await Promise.all([
     getPrintColorNames(),
@@ -26,7 +30,7 @@ export default async function PrintOrderPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <PrintOrderFlow colors={colors} deliverySettings={deliverySettings} />
+      <PrintOrderFlow colors={colors} deliverySettings={deliverySettings} preselectedOfferingId={offering} />
     </main>
   );
 }

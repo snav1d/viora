@@ -29,6 +29,47 @@ export async function getPrintColorNames(): Promise<string[]> {
   return colors.map((c) => c.name);
 }
 
+export type PrintPartnerCard = {
+  providerId: string;
+  offeringId: string;
+  businessName: string;
+  isVerifiedByViora: boolean;
+  completedOrderCount: number;
+  portfolioImages: string[];
+};
+
+/** Every active print partner in one city, for the new partner-first browse page (docs/
+ * decisions.md ADR 44 item 5) - ranked verified-first then by completed-order count, the same
+ * ranking philosophy as getMatchingPrintProviders, but with no finish/color/quantity to match
+ * against yet since the customer hasn't answered those questions on this page (they will, once
+ * they pick a partner and land on the pre-selected order flow). */
+export async function getActivePrintPartners(cityId: string): Promise<PrintPartnerCard[]> {
+  const offerings = await prisma.serviceOffering.findMany({
+    where: { ...activePrintOfferingFilter, cityId },
+    include: { provider: { include: { portfolioImages: true } } },
+  });
+
+  const results: PrintPartnerCard[] = [];
+  for (const offering of offerings) {
+    const completedOrderCount = await prisma.orderItem.count({
+      where: { providerId: offering.providerId, shippedAt: { not: null } },
+    });
+    results.push({
+      providerId: offering.providerId,
+      offeringId: offering.id,
+      businessName: offering.provider.businessName,
+      isVerifiedByViora: offering.provider.isVerifiedByViora,
+      completedOrderCount,
+      portfolioImages: offering.provider.portfolioImages.map((image) => image.imageUrl),
+    });
+  }
+
+  return results.sort((a, b) => {
+    if (a.isVerifiedByViora !== b.isVerifiedByViora) return a.isVerifiedByViora ? -1 : 1;
+    return b.completedOrderCount - a.completedOrderCount;
+  });
+}
+
 export type MatchedPrintProvider = {
   offeringId: string;
   providerId: string;

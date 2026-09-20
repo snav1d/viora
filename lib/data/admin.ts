@@ -17,16 +17,21 @@ export function getSellerProfileDetail(id: string) {
   });
 }
 
-/// categorySlug narrows to providers whose (one) ServiceOffering belongs to that category -
-/// docs/decisions.md ADR 43's admin queue filter, now that print/balloon-decor/photography all
-/// share this same queue.
+/// categorySlug narrows to providers directly by their own category (docs/decisions.md ADR 44 -
+/// ServiceProviderProfile.categoryId, not via any ServiceOffering, since a "simple" category
+/// provider has none yet at approval time). One shared admin queue for print/balloon-decor/
+/// photography alike (ADR 43).
 export function getServiceProviderProfiles(status?: ApprovalStatus, categorySlug?: string) {
   return prisma.serviceProviderProfile.findMany({
     where: {
       ...(status ? { status } : undefined),
-      ...(categorySlug ? { serviceOfferings: { some: { category: { slug: categorySlug } } } } : undefined),
+      ...(categorySlug ? { category: { slug: categorySlug } } : undefined),
     },
-    include: { serviceOfferings: { include: { pricingTiers: true, category: true } } },
+    include: {
+      category: true,
+      serviceOfferings: { include: { pricingTiers: true } },
+      portfolioImages: true,
+    },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -34,7 +39,11 @@ export function getServiceProviderProfiles(status?: ApprovalStatus, categorySlug
 export function getServiceProviderProfileDetail(id: string) {
   return prisma.serviceProviderProfile.findUnique({
     where: { id },
-    include: { serviceOfferings: { include: { pricingTiers: true, category: true } } },
+    include: {
+      category: true,
+      serviceOfferings: { include: { pricingTiers: true } },
+      portfolioImages: true,
+    },
   });
 }
 

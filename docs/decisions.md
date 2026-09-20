@@ -2899,3 +2899,150 @@ paths. A per-category admin-configurable field builder for `customFieldsSchema` 
 categories' fixed field sets are small, known upfront, and defined once in
 `lib/serviceCategories.ts`; a dynamic builder would be speculative complexity for a need that
 doesn't exist yet.
+
+## 2026-09-20 — IBAN paste bug; multi-offering pivot for non-print service partners; mandatory
+portfolio at registration; Snapp Food-style service browsing
+
+### 44. `ServiceProviderProfile.categoryId`; drop ADR 43's fixed-package model for non-print in
+favor of self-managed named `ServiceOffering`s; portfolio required at registration for every
+provider type; partner-first browsing for print and every "simple" category
+**Decision (IBAN bug):** all three registration wizards (seller, print, "simple" service) shared
+the same real bug: the IBAN digit input's native `maxLength={24}` counted *raw* typed/pasted
+characters, before `digitsOnly()` ever stripped spaces/dashes - a customer pasting a
+conventionally-formatted Sheba number (e.g. with spaces every four digits) would silently lose
+real trailing digits to the native truncation, then have to pad the field with fake digits to
+satisfy the `/^IR\d{24}$/` check. Fixed the same way in all three: removed the native `maxLength`
+attribute and instead cap the length *after* stripping non-digits, via
+`` `IR${digitsOnly(event.target.value).slice(0, 24)}` `` - now exactly 24 real digits survive
+regardless of how the source was formatted.
+**Decision (the multi-offering pivot):** asked to confirm the one place the new request's own
+wording pulled in two directions - whether print's dedicated tiered/color/finish pricing model
+should also move to the new "provider self-manages many flat-priced offerings" shape - the user
+confirmed print stays **completely untouched** (registration, `PrintOrderFlow`,
+`getMatchingPrintProviders`, `PrintPricingTier` all unchanged); only balloon-decor/photography/
+future "simple" categories adopt the new model. ADR 43's "one fixed package set at registration"
+idea is fully retired for those categories: registration collects identity/license info only (no
+price, no `customFieldsSchema` values) - `basePrice`/`customFieldsSchema` fields are gone from
+every simple-category registration and edit surface. After admin approval, a provider creates any
+number of independently titled/described/priced `ServiceOffering` rows from a new `/provider/
+services` panel (list/new/edit, mirroring the seller product-management pattern) via `POST`/
+`PATCH /api/provider/services[/[id]]` - each one auto-active immediately, no admin review per
+offering, since the *provider* was already approved. `lib/serviceCategories.ts`'s
+`ServiceCustomFieldDef`/`customFields` concept is deleted outright (the registry now only carries
+slug/label/registerPath/servicePath) - `ServiceOffering.customFieldsSchema` reverts to being an
+unused schema-only placeholder, exactly as it was before ADR 43 briefly repurposed it.
+**Decision (`ServiceProviderProfile.categoryId`, expand-migrate-contract):** with a "simple"
+provider's registration no longer creating any `ServiceOffering`, the provider's own category
+could no longer be read via `serviceOfferings[0].category` the moment they're freshly approved
+(zero offerings yet) - a real gap the old design never had to handle. Added `categoryId` (required
+FK to `Category`) directly on `ServiceProviderProfile`: nullable in the expand step, backfilled
+from each existing row's one-and-only `ServiceOffering.categoryId` via raw SQL (every row at
+migration time still had exactly one), then made `NOT NULL` with the FK in a second migration -
+same expand-migrate-contract shape as ADR 39's Product/Listing split. `getServiceProviderProfile`/
+`requireApprovedProvider` now include `category` directly, closing off the fragile
+`serviceOfferings[0]?.category` pattern everywhere it was previously used (admin queue,
+provider dashboard, `/provider/offering`).
+**Decision (portfolio mandatory at registration, all types):** every registration wizard (print's
+`ProviderRegisterWizard`, and the "simple" `SimpleServiceRegisterWizard`) gained a final step -
+`PortfolioUploadStep`, a new shared component - requiring at least `MIN_REGISTRATION_PORTFOLIO_
+IMAGES` (5, `lib/portfolio.ts`) work-sample photos before the submit button enables. Both
+registration routes now create the corresponding `ProviderPortfolioImage` rows in the same
+transaction as the profile - these need no "hidden until approved" gate of their own, since every
+public listing query already filters on `provider.status === "APPROVED"`. `lib/portfolio.ts` is a
+new plain (non-`server-only`) file holding both this constant and `MAX_PORTFOLIO_IMAGES` (moved
+out of the server-only `lib/data/provider.ts`, which a client wizard component can't import from)
+so both sides read the exact same numbers.
+**Decision (admin queue, no offering to review for "simple" categories):** since a freshly
+PENDING "simple" provider now has zero `ServiceOffering`s, `getServiceProviderProfiles`/
+`getServiceProviderProfileDetail` filter/join on `provider.category` directly (not via any
+offering) and also fetch `portfolioImages` - the admin detail page shows the now-mandatory
+portfolio photos for visual review before approving (there's no pricing to review yet for these
+categories - that only exists once the provider self-creates it later) and, for print, keeps its
+existing tiers/colors table exactly as before.
+**Decision (print-only `/provider/offering`, non-print `/provider/services`):** ADR 43's
+category-agnostic `/provider/offering` settings page is now print-only (`getMyPrintOffering`,
+filtered by category, not just providerId - a real bug caught during E2E testing, see below); a
+"simple" category provider is redirected to `/provider/services` instead, and vice versa - each
+surface (and its API route) also rejects the other category's requests server-side, not just via
+the page-level redirect.
+**Decision (Snapp Food-style browsing, docs item 6):** `/services/[category]` is rewritten from
+ADR 43's "list of fixed packages" into a vertical scrollable list of *providers*
+(`ServiceProviderBrowseList`, generalized with an `hrefFor` callback so print's own browse page can
+reuse the identical card) - each card shows a large portfolio-photo hero, a horizontally
+swipeable strip of thumbnails nested inside the same anchor (a plain `overflow-x-auto` div inside
+a `<Link>` disambiguates a drag-scroll from a tap-navigate natively, no custom gesture code
+needed), and a verified badge. Tapping a card opens a new `/services/[category]/[providerId]`
+profile page: full portfolio grid, aggregated reviews (`getProviderReviewSummary`, new - unlike
+the existing per-offering `getServiceOfferingReviewSummary`, this aggregates across every one of a
+provider's offerings, since a review of any one of them is really a review of the provider), and
+the list of that provider's own active offerings, each with a "سفارش" button leading to a
+dedicated `/…/book/[offeringId]` page (`ServiceBookingForm`, reusing `/api/service-bookings`
+mostly as-is) - no shared product cart involved, matching the existing print/ADR-43 booking
+convention of going straight to a confirm-and-pay step.
+**Decision (print's own partner-first path, docs item 5):** a new `/print/partners` page uses the
+exact same `ServiceProviderBrowseList` card, populated by a new `getActivePrintPartners` (ranked
+verified-first then completed-order-count, no price shown since print has no single "the price"
+without a quantity yet). Tapping a partner links to `/print?offering=<id>` - `PrintOrderFlow`
+gained an optional `preselectedOfferingId` prop that, once the finish/color/quantity form is
+filled, skips step 2's full matching-results list and jumps straight to confirming with that one
+partner (re-verified against the real match results, same "never trust the URL" reasoning as
+everywhere else; an unsupported combination shows an inline error instead of silently falling
+back). A "ثبت سفارش جدید" button at the top of `/print/partners` links to the existing `/print`
+full auto-matching flow, unchanged - both paths coexist, exactly as asked.
+**Decision (home page + wizard result):** the home page's old per-service shortcut row is gone;
+`CategoryGrid` now takes an optional `href` per entry, and the home page merges active PRODUCT and
+SERVICE categories into one grid (print → `/print/partners`, every "simple" category → its own
+`servicePath`) - "چاپ بادکنک تبلیغاتی" now literally sits in "دسته‌بندی‌ها" as asked, and
+بادکنک‌آرا/عکاسی ride along the same way rather than becoming orphaned once the old shortcut row
+was removed. The wizard result's auxiliary-service slot no longer computes or shows one specific
+picked service: `pickAuxiliaryService` is deleted outright and its category's budget share is
+simply left unspent (`BundleItem.kind` narrows to `"product"` only, since nothing ever produces
+`"service"` anymore) - the row is now a static, unpriced invitation card linking to `/home`, which
+avoids the alternative of showing a generic prompt while secretly still charging for a hidden pick
+(the total would no longer reconcile with what's itemized).
+**Two real bugs found and fixed during this phase's own E2E testing (not by inspection alone):**
+(1) `getMyPrintOffering` (`/provider/offering`'s data source) queried by `providerId` alone with
+no category filter - for a "simple" provider who had since created their own offerings via
+`/api/provider/services`, `findFirst` matched one of *those*, so the page's own "no print offering
+→ redirect to /provider/services" branch never triggered and it rendered the print settings form
+over a non-print offering instead. (2) the reverse gap: `PATCH /api/provider/services/[id]`
+had no print-category guard at all (only the sibling `POST` route did), so a print provider could
+in principle edit their own single print offering's title/price through the wrong route,
+bypassing the tiers/colors that make its `basePrice` meaningful. Both fixed by filtering/guarding
+on `provider.category.slug`/`offering.category.slug` explicitly, not by providerId/offeringId
+alone - the same "an id match isn't enough, verify the whole chain" reasoning already used
+throughout this codebase's booking/claim routes.
+**Investigated, no code bug:** the reported "این دسته‌بندی خدماتی فعال نیست" error at registration
+time. Confirmed both new SERVICE categories are `isActive: true` in the database and that nothing
+in the app can ever silently deactivate a category (only the explicit admin toggle route touches
+`Category.isActive`). Since these rows are seed-only (created by `prisma/seed.ts`, never by a
+migration), the far more likely explanation is that whoever hit this had run `prisma migrate
+deploy` after a phase that added new categories without also re-running `npm run db:seed` - noted
+explicitly in this phase's deployment reminder so it isn't missed again.
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP:
+registering a "simple" provider with fewer than 5 portfolio photos was rejected, with exactly 5 it
+succeeded with `categoryId` set, 5 `ProviderPortfolioImage` rows, and zero `ServiceOffering` rows;
+same minimum enforced (and passed) for a fresh print registration. After admin approval (portfolio
+visible on the admin detail page, no pricing section since none exists yet), the provider created
+two independently priced named offerings via `/api/provider/services` with no admin step; both
+appeared correctly on `/services/balloon-decor`'s browse card and profile page, and booking one
+created a `PAID`/`PROCESSING` order at that offering's own price. `/print/partners` listed real
+print partners; `/print?offering=<id>` loaded correctly. The home page rendered all three service
+categories inside "دسته‌بندی‌ها" with correct links and no leftover shortcut row; a real
+`/api/party-profile` call returned only `"product"`-kind items, confirming the auxiliary-service
+budget share is no longer spent on a hidden pick. The two E2E-only bugs above were both caught live
+(a non-print provider's own `/provider/offering` request returning the print settings page instead
+of redirecting; a print provider's `/provider/services` PATCH succeeding instead of being
+rejected) and confirmed fixed by re-running the same requests after the fix. `tsc --noEmit`,
+`eslint .`, and `npm run build` all clean both before and after the bug fixes, every new/changed
+route present in the build output.
+**Rejected:** keeping `basePrice`/`customFieldsSchema`-at-registration for non-print categories
+alongside the new self-service model - the user was explicit that the old model should be dropped
+entirely, not offered as an alternative path. Extending the multi-offering model to print - the
+user explicitly confirmed print's own tiered pricing/matching stays exactly as it is; the new
+partner-first page is a new *entry point* into that same unchanged system, not a new pricing
+model for it. A real avatar-upload field for `ServiceProviderProfile` (it has none, unlike
+`SellerProfile.avatarUrl`) - reusing each provider's own first portfolio photo as the card's
+avatar/hero image needed no schema change and is arguably more informative for a home-service
+business than a generic picked icon; a dedicated avatar field remains easy to add later without
+conflicting with this.

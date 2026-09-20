@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Printer } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { getServiceProviderProfiles, getAllCategories } from "@/lib/data/admin";
-import { toNumber } from "@/lib/decimal";
 import { cn } from "@/lib/cn";
 import type { ApprovalStatus } from "@/lib/generated/prisma/client";
 import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
@@ -96,8 +95,8 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
       ) : (
         <ul className="flex flex-col gap-3">
           {providers.map((provider) => {
-            const offering = provider.serviceOfferings[0];
-            const isPrint = offering?.category.slug === PRINT_CATEGORY_SLUG;
+            const isPrint = provider.category.slug === PRINT_CATEGORY_SLUG;
+            const offering = isPrint ? provider.serviceOfferings[0] : undefined;
             return (
               <li key={provider.id}>
                 <Link
@@ -106,11 +105,9 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
                 >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium text-charcoal">{provider.businessName}</p>
-                    {offering ? (
-                      <span className="rounded-full border border-border bg-warm-white px-2 py-0.5 text-xs text-charcoal-muted">
-                        {offering.category.name}
-                      </span>
-                    ) : null}
+                    <span className="rounded-full border border-border bg-warm-white px-2 py-0.5 text-xs text-charcoal-muted">
+                      {provider.category.name}
+                    </span>
                     {provider.isVerifiedByViora ? (
                       <span className="rounded-full bg-gold-100 px-2 py-0.5 text-xs font-medium text-gold-600">
                         تاییدیه‌ی ویژه
@@ -118,13 +115,15 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
                     ) : null}
                   </div>
                   <p className="text-charcoal-muted">
-                    {!offering
-                      ? "بدون پیشنهاد فعال"
-                      : isPrint
+                    {isPrint
+                      ? offering
                         ? [offering.supportsChrome && "کروم", offering.supportsMatte && "مات"]
                             .filter(Boolean)
                             .join("، ") || "بدون تنظیمات چاپ"
-                        : `${toNumber(offering.basePrice).toLocaleString("fa-IR")} تومان`}
+                        : "بدون پیشنهاد فعال"
+                      : provider.serviceOfferings.length > 0
+                        ? `${provider.serviceOfferings.length.toLocaleString("fa-IR")} خدمت`
+                        : "هنوز خدمتی اضافه نکرده"}
                   </p>
                   <p className="text-xs text-charcoal-muted">
                     {new Date(provider.createdAt).toLocaleDateString("fa-IR")}

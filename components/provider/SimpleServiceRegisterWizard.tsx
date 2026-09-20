@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, ImagePlus } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
+import { PortfolioUploadStep } from "@/components/provider/PortfolioUploadStep";
 import { cn } from "@/lib/cn";
-import type { ServiceCustomFieldDef } from "@/lib/serviceCategories";
+import { MIN_REGISTRATION_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
 const TOTAL_STEPS = 2;
 
@@ -23,21 +24,17 @@ type Answers = {
   licenseImageUrl: string | null;
   nationalId: string;
   bankAccountIban: string;
-  basePrice: string;
-  customFieldValues: Record<string, string>;
+  portfolioImages: string[];
 };
 
-function emptyAnswers(customFields: ServiceCustomFieldDef[]): Answers {
-  return {
-    businessName: "",
-    contactPersonName: "",
-    licenseImageUrl: null,
-    nationalId: "",
-    bankAccountIban: "IR",
-    basePrice: "",
-    customFieldValues: Object.fromEntries(customFields.map((field) => [field.key, ""])),
-  };
-}
+const EMPTY_ANSWERS: Answers = {
+  businessName: "",
+  contactPersonName: "",
+  licenseImageUrl: null,
+  nationalId: "",
+  bankAccountIban: "IR",
+  portfolioImages: [],
+};
 
 function StepShell({
   title,
@@ -60,22 +57,22 @@ function StepShell({
 }
 
 /// Registration wizard shared by every "simple" service-provider category (docs/decisions.md
-/// ADR 43) - businessName/contactPersonName/license/nationalId/bankAccountIban step is identical
-/// to ProviderRegisterWizard's (print) own step 1, duplicated rather than shared since the two
-/// wizards' second steps diverge completely (print's color/finish/pricing-tier step has no
-/// equivalent here) and print's own wizard/route is intentionally left untouched by this phase.
+/// ADR 43, 44) - businessName/contactPersonName/license/nationalId/bankAccountIban step is
+/// identical to ProviderRegisterWizard's (print) own step 1, duplicated rather than shared since
+/// print's own wizard/route is intentionally left untouched by this phase. No price/package
+/// fields at registration at all anymore (ADR 44's pivot away from ADR 43's fixed-package model) -
+/// a provider creates their own priced ServiceOfferings later, any time, from /provider/services
+/// once approved. Step 2 is now the mandatory portfolio upload instead.
 export function SimpleServiceRegisterWizard({
   categorySlug,
   categoryLabel,
-  customFields,
 }: {
   categorySlug: string;
   categoryLabel: string;
-  customFields: ServiceCustomFieldDef[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [answers, setAnswers] = useState<Answers>(() => emptyAnswers(customFields));
+  const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
@@ -83,10 +80,6 @@ export function SimpleServiceRegisterWizard({
 
   function update(patch: Partial<Answers>) {
     setAnswers((a) => ({ ...a, ...patch }));
-  }
-
-  function updateCustomField(key: string, value: string) {
-    setAnswers((a) => ({ ...a, customFieldValues: { ...a.customFieldValues, [key]: value } }));
   }
 
   async function handleLicenseUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -122,12 +115,7 @@ export function SimpleServiceRegisterWizard({
         /^IR\d{24}$/.test(answers.bankAccountIban)
       );
     }
-    const basePriceValid = /^\d+$/.test(answers.basePrice) && Number(answers.basePrice) > 0;
-    const customFieldsValid = customFields.every((field) => {
-      const value = answers.customFieldValues[field.key] ?? "";
-      return /^\d+$/.test(value) && Number(value) > 0;
-    });
-    return basePriceValid && customFieldsValid;
+    return answers.portfolioImages.length >= MIN_REGISTRATION_PORTFOLIO_IMAGES;
   }
 
   function goBack() {
@@ -158,10 +146,7 @@ export function SimpleServiceRegisterWizard({
           businessLicenseImageUrl: answers.licenseImageUrl,
           nationalId: answers.nationalId,
           bankAccountIban: answers.bankAccountIban,
-          basePrice: Number(answers.basePrice),
-          customFieldValues: Object.fromEntries(
-            customFields.map((field) => [field.key, Number(answers.customFieldValues[field.key])]),
-          ),
+          portfolioImageUrls: answers.portfolioImages,
         }),
       });
       const data = await response.json();
@@ -292,9 +277,10 @@ export function SimpleServiceRegisterWizard({
                   type="text"
                   inputMode="numeric"
                   dir="ltr"
-                  maxLength={24}
                   value={answers.bankAccountIban.slice(2)}
-                  onChange={(event) => update({ bankAccountIban: `IR${digitsOnly(event.target.value)}` })}
+                  onChange={(event) =>
+                    update({ bankAccountIban: `IR${digitsOnly(event.target.value).slice(0, 24)}` })
+                  }
                   className="flex-1 min-w-0 bg-transparent px-4 py-3 text-charcoal focus:outline-none"
                 />
               </div>
@@ -303,42 +289,12 @@ export function SimpleServiceRegisterWizard({
         )}
 
         {step === 2 && (
-          <StepShell title="تعرفه‌ی پکیج" subtitle="این مبلغ و مشخصات دقیقاً همینی هست که مشتری می‌بینه و می‌خره.">
-            <div className="space-y-1.5">
-              <label htmlFor="basePrice" className="text-sm font-medium text-charcoal">
-                قیمت پکیج (تومان)
-              </label>
-              <input
-                id="basePrice"
-                type="text"
-                inputMode="numeric"
-                dir="ltr"
-                value={answers.basePrice ? Number(answers.basePrice).toLocaleString("fa-IR") : ""}
-                onChange={(event) => update({ basePrice: digitsOnly(event.target.value) })}
-                className={inputClass}
-              />
-            </div>
-
-            {customFields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <label htmlFor={field.key} className="text-sm font-medium text-charcoal">
-                  {field.label}
-                </label>
-                <input
-                  id={field.key}
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={answers.customFieldValues[field.key] ?? ""}
-                  onChange={(event) => updateCustomField(field.key, digitsOnly(event.target.value))}
-                  className={inputClass}
-                />
-              </div>
-            ))}
-
-            <p className="text-xs text-charcoal-muted">
-              این مقادیر یه پکیج ثابته - مشتری فقط می‌بینه و می‌خره. هر وقت خواستید از پنل خودتون قابل‌ویرایش هست.
-            </p>
+          <StepShell title="نمونه‌کار" subtitle="حداقل چند تصویر از کارهای قبلی‌تون رو اضافه کنید.">
+            <PortfolioUploadStep
+              images={answers.portfolioImages}
+              onChange={(portfolioImages) => update({ portfolioImages })}
+              minImages={MIN_REGISTRATION_PORTFOLIO_IMAGES}
+            />
           </StepShell>
         )}
 

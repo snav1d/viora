@@ -61,9 +61,15 @@ function StepShell({ title, children }: { title: string; children: React.ReactNo
 export function PrintOrderFlow({
   colors,
   deliverySettings,
+  preselectedOfferingId,
 }: {
   colors: string[];
   deliverySettings: { expressFee: number; normalDeliveryFromDate: string; normalDeliveryToDate: string };
+  /// Set when reached from the new print partner-first browse page (docs/decisions.md ADR 44
+  /// item 5) - the customer already picked a partner there, so this skips step 2's full
+  /// matching-results list and jumps straight to confirming with that one partner, still
+  /// re-verified server-side via the same /api/print-orders/match call as always.
+  preselectedOfferingId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -135,7 +141,20 @@ export function PrintOrderFlow({
         setError(data.error ?? "خطایی رخ داد.");
         return;
       }
-      setProviders(data.providers as MatchedPrintProvider[]);
+      const matched = data.providers as MatchedPrintProvider[];
+      setProviders(matched);
+
+      if (preselectedOfferingId) {
+        const preselected = matched.find((provider) => provider.offeringId === preselectedOfferingId);
+        if (!preselected) {
+          setError("این پارتنر برای این مشخصات مناسب نیست. لطفاً مشخصات را تغییر دهید.");
+          return;
+        }
+        setSelectedOfferingId(preselected.offeringId);
+        setStep(3);
+        return;
+      }
+
       setStep(2);
     } catch {
       setError("ارتباط با سرور برقرار نشد.");
@@ -148,6 +167,10 @@ export function PrintOrderFlow({
     setError(null);
     if (step === 1) {
       router.push("/home");
+      return;
+    }
+    if (preselectedOfferingId && step === 3) {
+      setStep(1);
       return;
     }
     setStep((s) => s - 1);

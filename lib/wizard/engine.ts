@@ -7,7 +7,7 @@ import budgetAllocation from "@/config/party-wizard/budget-allocation.json";
 import themesConfig from "@/config/party-wizard/themes.json";
 
 export type BundleItem = {
-  kind: "product" | "service";
+  kind: "product";
   id: string;
   slug: string;
   title: string;
@@ -194,35 +194,6 @@ async function pickProduct(
   return chosen;
 }
 
-/** Unlike the five core categories (always filled, falling back to the cheapest option so the
- * bundle never comes up short on an essential), auxiliary services are explicitly optional per
- * docs/party-wizard-engine-spec.md §3 ("فقط اگر بودجه اجازه بده") - skipped entirely rather than
- * forced over budget when nothing fits. There's also no single fixed Category slug for this
- * conceptual bucket ("عکاس، دی‌جی و...") - Sprint 0 only ever seeds one SERVICE-type category
- * (promotional balloon printing), so this looks at whatever active SERVICE categories exist in
- * the city rather than one hardcoded id. */
-async function pickAuxiliaryService(cityId: string, tomansBudget: number, theme: string, colors: string[]) {
-  const offerings = await prisma.serviceOffering.findMany({
-    where: { cityId, isActive: true, category: { type: "SERVICE", isActive: true } },
-  });
-  if (offerings.length === 0) return null;
-
-  const scored = offerings.map((offering) => {
-    const unitPrice = toNumber(offering.basePrice);
-    const { keywordScore, colorScore } = themeMatchScore(
-      `${offering.title} ${offering.description ?? ""}`,
-      theme,
-      colors,
-    );
-    return { offering, unitPrice, score: keywordScore + colorScore };
-  });
-
-  const withinBudget = scored.filter((s) => s.unitPrice <= tomansBudget);
-  if (withinBudget.length === 0) return null;
-
-  return withinBudget.sort((a, b) => b.score - a.score || b.unitPrice - a.unitPrice)[0];
-}
-
 const FALLBACK_SUMMARY_TEMPLATE = [
   "برای جشن {party_type} با تم {theme}، مناسب سن {age_group} و {guest_count} مهمان،",
   "این ترکیب رو با بودجه‌ی {budget} تومان براتون آماده کردیم.",
@@ -266,23 +237,11 @@ export async function suggestBundle(input: EngineInput): Promise<SuggestedBundle
   const items: BundleItem[] = [];
 
   for (const category of budgets) {
-    if (category.id === AUXILIARY_SERVICES_ID) {
-      const picked = await pickAuxiliaryService(input.cityId, category.tomans, input.theme, colors);
-      if (picked) {
-        items.push({
-          kind: "service",
-          id: picked.offering.id,
-          slug: picked.offering.slug,
-          title: picked.offering.title,
-          categoryId: category.id,
-          categoryLabel: category.label,
-          unitPrice: picked.unitPrice,
-          quantity: 1,
-          lineTotal: picked.unitPrice,
-        });
-      }
-      continue;
-    }
+    // Auxiliary services (عکاس، دی‌جی و...) no longer show as one specific priced item picked on
+    // the customer's behalf - the result page now points to the services-browsing area instead
+    // (docs/decisions.md ADR 44 item 5), so this budget share is simply left unspent rather than
+    // committed to a guess the customer never chose.
+    if (category.id === AUXILIARY_SERVICES_ID) continue;
 
     const picked = await pickProduct(
       category.id,

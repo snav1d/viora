@@ -5,7 +5,7 @@ import { ApproveButton } from "@/components/admin/ApproveButton";
 import { RejectForm } from "@/components/admin/RejectForm";
 import { getServiceProviderProfileDetail } from "@/lib/data/admin";
 import { toNumber } from "@/lib/decimal";
-import { PRINT_CATEGORY_SLUG, getSimpleServiceCategory, parseCustomFieldValues } from "@/lib/serviceCategories";
+import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "بررسی پارتنر خدماتی",
@@ -31,10 +31,8 @@ export default async function AdminProviderDetailPage({ params }: Props) {
   const provider = await getServiceProviderProfileDetail(id);
   if (!provider) notFound();
 
-  const offering = provider.serviceOfferings[0];
-  const isPrint = offering?.category.slug === PRINT_CATEGORY_SLUG;
-  const simpleCategoryDef = offering && !isPrint ? getSimpleServiceCategory(offering.category.slug) : undefined;
-  const customFieldValues = offering ? parseCustomFieldValues(offering.customFieldsSchema) : {};
+  const isPrint = provider.category.slug === PRINT_CATEGORY_SLUG;
+  const printOffering = isPrint ? provider.serviceOfferings[0] : undefined;
 
   return (
     <main className="flex flex-1 flex-col gap-5 px-4 py-5">
@@ -43,11 +41,9 @@ export default async function AdminProviderDetailPage({ params }: Props) {
       <section className="rounded-2xl border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-charcoal">{provider.businessName}</p>
-          {offering ? (
-            <span className="rounded-full border border-border bg-warm-white px-2.5 py-0.5 text-xs text-charcoal-muted">
-              {offering.category.name}
-            </span>
-          ) : null}
+          <span className="rounded-full border border-border bg-warm-white px-2.5 py-0.5 text-xs text-charcoal-muted">
+            {provider.category.name}
+          </span>
           {provider.isVerifiedByViora ? (
             <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-medium text-gold-600">
               تاییدیه‌ی ویژه‌ی ویورا
@@ -100,13 +96,34 @@ export default async function AdminProviderDetailPage({ params }: Props) {
         </div>
       ) : null}
 
-      {offering && isPrint ? (
+      {/* Portfolio is mandatory at registration for every provider type (docs/decisions.md ADR
+          44) - shown here so admin can review actual work-sample quality before approving,
+          especially for non-print categories which otherwise have no pricing/offering info yet
+          at this stage (they self-manage their own ServiceOfferings only after approval). */}
+      {provider.portfolioImages.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-charcoal">نمونه‌کار</p>
+          <div className="flex flex-wrap gap-2">
+            {provider.portfolioImages.map((image) => (
+              // eslint-disable-next-line @next/next/no-img-element -- remote S3-compatible URLs
+              <img
+                key={image.id}
+                src={image.imageUrl}
+                alt="نمونه‌کار"
+                className="h-24 w-24 rounded-xl border border-border object-cover"
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {isPrint && printOffering ? (
         <>
           <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
             <div>
               <dt className="text-charcoal-muted">نوع بادکنک</dt>
               <dd className="font-medium text-charcoal">
-                {[offering.supportsChrome && "کروم", offering.supportsMatte && "مات"]
+                {[printOffering.supportsChrome && "کروم", printOffering.supportsMatte && "مات"]
                   .filter(Boolean)
                   .join("، ") || "—"}
               </dd>
@@ -114,13 +131,13 @@ export default async function AdminProviderDetailPage({ params }: Props) {
             <div>
               <dt className="text-charcoal-muted">حداقل تیراژ</dt>
               <dd className="font-medium text-charcoal">
-                {offering.minOrderQuantity?.toLocaleString("fa-IR") ?? "—"}
+                {printOffering.minOrderQuantity?.toLocaleString("fa-IR") ?? "—"}
               </dd>
             </div>
             <div className="col-span-2">
               <dt className="text-charcoal-muted">رنگ‌های قابل‌چاپ</dt>
               <dd className="font-medium text-charcoal">
-                {parseColors(offering.printableColors).join("، ") || "—"}
+                {parseColors(printOffering.printableColors).join("، ") || "—"}
               </dd>
             </div>
           </dl>
@@ -136,7 +153,7 @@ export default async function AdminProviderDetailPage({ params }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {offering.pricingTiers.map((tier) => (
+                  {printOffering.pricingTiers.map((tier) => (
                     <tr key={tier.id} className="border-t border-border">
                       <td dir="ltr" className="p-2 text-right text-charcoal">
                         {tier.minQuantity.toLocaleString("fa-IR")} -{" "}
@@ -152,21 +169,23 @@ export default async function AdminProviderDetailPage({ params }: Props) {
             </div>
           </div>
         </>
-      ) : offering ? (
-        <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border bg-surface p-4 text-sm">
-          <div className="col-span-2">
-            <dt className="text-charcoal-muted">قیمت پکیج</dt>
-            <dd className="font-medium text-charcoal">{toNumber(offering.basePrice).toLocaleString("fa-IR")} تومان</dd>
-          </div>
-          {(simpleCategoryDef?.customFields ?? []).map((field) => (
-            <div key={field.key}>
-              <dt className="text-charcoal-muted">{field.label}</dt>
-              <dd className="font-medium text-charcoal">
-                {customFieldValues[field.key]?.toLocaleString("fa-IR") ?? "—"}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      ) : !isPrint && provider.serviceOfferings.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-charcoal">خدمات ثبت‌شده</p>
+          <ul className="flex flex-col gap-2">
+            {provider.serviceOfferings.map((offering) => (
+              <li
+                key={offering.id}
+                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3 text-sm"
+              >
+                <span className="text-charcoal">{offering.title}</span>
+                <span className="font-medium text-rose-700">
+                  {toNumber(offering.basePrice).toLocaleString("fa-IR")} تومان
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {provider.status === "REJECTED" && provider.rejectionReason ? (

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 import { parseRoles } from "@/lib/auth/roles";
 import { storageUrlSchema } from "@/lib/validation/url";
-import { randomSlug } from "@/lib/slug";
 import { getSimpleServiceCategory } from "@/lib/serviceCategories";
+import { MIN_REGISTRATION_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
 const bodySchema = z.object({
   categorySlug: z.string({ error: "دسته‌بندی نامعتبر است." }),
@@ -18,14 +18,22 @@ const bodySchema = z.object({
   bankAccountIban: z
     .string({ error: "شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد." })
     .regex(/^IR\d{24}$/, "شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد."),
-  basePrice: z.number({ error: "قیمت پکیج را وارد کنید." }).int().positive(),
-  customFieldValues: z.record(z.string(), z.number().int().positive()),
+  portfolioImageUrls: z
+    .array(storageUrlSchema, { error: `حداقل ${MIN_REGISTRATION_PORTFOLIO_IMAGES} نمونه‌کار لازم است.` })
+    .min(MIN_REGISTRATION_PORTFOLIO_IMAGES, `حداقل ${MIN_REGISTRATION_PORTFOLIO_IMAGES} نمونه‌کار لازم است.`),
 });
 
 /// Registers a "simple" service-provider category (balloon-decor, photography, and any future
 /// one added to lib/serviceCategories.ts) - the print-partner registration route
 /// (/api/provider/register) is entirely separate and untouched, since print keeps its own
-/// dedicated color/finish/pricing-tier shape. See docs/decisions.md ADR 43.
+/// dedicated color/finish/pricing-tier shape (docs/decisions.md ADR 43).
+///
+/// Unlike ADR 43's original version, this no longer collects any price/package field, and never
+/// creates a ServiceOffering at all - a "simple" provider builds their own, any number of them,
+/// any time after admin approval, from /provider/services (docs/decisions.md ADR 44). It does
+/// require a minimum set of portfolio photos up front (ADR 44 item 4): these become the
+/// provider's own ProviderPortfolioImage rows immediately, invisible to the public either way
+/// until the provider is APPROVED (every public listing query already filters on that).
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) {
@@ -44,13 +52,6 @@ export async function POST(request: Request) {
   if (!categoryDef) {
     return NextResponse.json({ error: "دسته‌بندی انتخاب‌شده معتبر نیست." }, { status: 400 });
   }
-  // The client only ever sends the keys this category actually defines, but never trust that -
-  // re-validate every expected key is present and no extra one snuck in.
-  const expectedKeys = categoryDef.customFields.map((field) => field.key).sort();
-  const submittedKeys = Object.keys(parsed.data.customFieldValues).sort();
-  if (JSON.stringify(expectedKeys) !== JSON.stringify(submittedKeys)) {
-    return NextResponse.json({ error: "اطلاعات پکیج کامل یا معتبر نیست." }, { status: 400 });
-  }
 
   const existing = await prisma.serviceProviderProfile.findUnique({ where: { userId: session.userId } });
   if (existing) {
@@ -66,15 +67,12 @@ export async function POST(request: Request) {
   if (!category) {
     return NextResponse.json({ error: "در حال حاضر این دسته‌بندی خدماتی فعال نیست." }, { status: 400 });
   }
-  const city = await prisma.city.findFirst({ where: { isActive: true } });
-  if (!city) {
-    return NextResponse.json({ error: "در حال حاضر هیچ شهری فعال نیست." }, { status: 400 });
-  }
 
   const providerProfile = await prisma.$transaction(async (tx) => {
     const profile = await tx.serviceProviderProfile.create({
       data: {
         userId: session.userId,
+        categoryId: category.id,
         businessName: parsed.data.businessName,
         contactPersonName: parsed.data.contactPersonName,
         businessLicenseImageUrl: parsed.data.businessLicenseImageUrl,
@@ -84,18 +82,8 @@ export async function POST(request: Request) {
       },
     });
 
-    await tx.serviceOffering.create({
-      data: {
-        providerId: profile.id,
-        categoryId: category.id,
-        cityId: city.id,
-        title: `${categoryDef.label} - ${parsed.data.businessName}`,
-        slug: randomSlug(parsed.data.businessName),
-        basePrice: parsed.data.basePrice,
-        customFieldsSchema: categoryDef.customFields.length > 0 ? parsed.data.customFieldValues : undefined,
-        // Inactive until admin approval - same convention as print's own registration route.
-        isActive: false,
-      },
+    await tx.providerPortfolioImage.createMany({
+      data: parsed.data.portfolioImageUrls.map((imageUrl) => ({ providerId: profile.id, imageUrl })),
     });
 
     const user = await tx.user.findUniqueOrThrow({ where: { id: session.userId } });

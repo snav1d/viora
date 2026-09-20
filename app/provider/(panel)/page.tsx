@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { ClipboardList, Images, Settings, Headset } from "lucide-react";
+import { ClipboardList, Images, Settings, Boxes, Headset } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { getServiceProviderProfile } from "@/lib/auth/provider";
 import { getProviderStats } from "@/lib/data/provider";
+import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "پنل پارتنر تولید",
@@ -15,6 +16,7 @@ export default async function ProviderDashboardPage() {
   // rendering this page.
   const profile = (await getServiceProviderProfile())!;
   const stats = await getProviderStats(profile.id);
+  const isPrint = profile.category.slug === PRINT_CATEGORY_SLUG;
 
   return (
     <main className="flex flex-1 flex-col gap-6 px-4 py-5">
@@ -44,10 +46,17 @@ export default async function ProviderDashboardPage() {
         <ClipboardList className="h-4 w-4" strokeWidth={1.75} />
         مشاهده سفارش‌ها
       </ButtonLink>
-      <ButtonLink href="/provider/offering" variant="secondary" size="lg" className="w-full gap-2">
-        <Settings className="h-4 w-4" strokeWidth={1.75} />
-        تعرفه و تنظیمات پیشنهاد
-      </ButtonLink>
+      {isPrint ? (
+        <ButtonLink href="/provider/offering" variant="secondary" size="lg" className="w-full gap-2">
+          <Settings className="h-4 w-4" strokeWidth={1.75} />
+          تعرفه و تنظیمات چاپ
+        </ButtonLink>
+      ) : (
+        <ButtonLink href="/provider/services" variant="secondary" size="lg" className="w-full gap-2">
+          <Boxes className="h-4 w-4" strokeWidth={1.75} />
+          خدمات من
+        </ButtonLink>
+      )}
       <ButtonLink href="/provider/portfolio" variant="secondary" size="lg" className="w-full gap-2">
         <Images className="h-4 w-4" strokeWidth={1.75} />
         پورتفولیو

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, ImagePlus, Plus } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button } from "@/components/ui/Button";
+import { PortfolioUploadStep } from "@/components/provider/PortfolioUploadStep";
 import { cn } from "@/lib/cn";
+import { MIN_REGISTRATION_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
 
 const inputClass =
   "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
@@ -29,6 +31,7 @@ type Answers = {
   colors: string[];
   minOrderQuantity: string;
   tiers: Tier[];
+  portfolioImages: string[];
 };
 
 const EMPTY_ANSWERS: Answers = {
@@ -42,6 +45,7 @@ const EMPTY_ANSWERS: Answers = {
   colors: [],
   minOrderQuantity: "",
   tiers: [{ minQuantity: "", maxQuantity: "", unitPrice: "" }],
+  portfolioImages: [],
 };
 
 function StepShell({
@@ -74,22 +78,25 @@ function isStepAnswered(step: number, answers: Answers): boolean {
       /^IR\d{24}$/.test(answers.bankAccountIban)
     );
   }
-  const quantityValid = /^\d+$/.test(answers.minOrderQuantity) && Number(answers.minOrderQuantity) > 0;
-  const tiersValid =
-    answers.tiers.length > 0 &&
-    answers.tiers.every((tier) => {
-      const min = Number(tier.minQuantity);
-      const price = Number(tier.unitPrice);
-      if (!tier.minQuantity || !(min > 0) || !tier.unitPrice || !(price > 0)) return false;
-      if (tier.maxQuantity && !(Number(tier.maxQuantity) > min)) return false;
-      return true;
-    });
-  return (
-    (answers.supportsChrome || answers.supportsMatte) &&
-    answers.colors.length >= 1 &&
-    quantityValid &&
-    tiersValid
-  );
+  if (step === 2) {
+    const quantityValid = /^\d+$/.test(answers.minOrderQuantity) && Number(answers.minOrderQuantity) > 0;
+    const tiersValid =
+      answers.tiers.length > 0 &&
+      answers.tiers.every((tier) => {
+        const min = Number(tier.minQuantity);
+        const price = Number(tier.unitPrice);
+        if (!tier.minQuantity || !(min > 0) || !tier.unitPrice || !(price > 0)) return false;
+        if (tier.maxQuantity && !(Number(tier.maxQuantity) > min)) return false;
+        return true;
+      });
+    return (
+      (answers.supportsChrome || answers.supportsMatte) &&
+      answers.colors.length >= 1 &&
+      quantityValid &&
+      tiersValid
+    );
+  }
+  return answers.portfolioImages.length >= MIN_REGISTRATION_PORTFOLIO_IMAGES;
 }
 
 export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
@@ -187,6 +194,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
             maxQuantity: tier.maxQuantity ? Number(tier.maxQuantity) : null,
             unitPrice: Number(tier.unitPrice),
           })),
+          portfolioImageUrls: answers.portfolioImages,
         }),
       });
       const data = await response.json();
@@ -320,10 +328,9 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                   type="text"
                   inputMode="numeric"
                   dir="ltr"
-                  maxLength={24}
                   value={answers.bankAccountIban.slice(2)}
                   onChange={(event) =>
-                    update({ bankAccountIban: `IR${digitsOnly(event.target.value)}` })
+                    update({ bankAccountIban: `IR${digitsOnly(event.target.value).slice(0, 24)}` })
                   }
                   className="flex-1 min-w-0 bg-transparent px-4 py-3 text-charcoal focus:outline-none"
                 />
@@ -481,6 +488,16 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                 افزودن بازه‌ی دیگر
               </button>
             </div>
+          </StepShell>
+        )}
+
+        {step === 3 && (
+          <StepShell title="نمونه‌کار" subtitle="حداقل چند تصویر از کارهای قبلی‌تون رو اضافه کنید.">
+            <PortfolioUploadStep
+              images={answers.portfolioImages}
+              onChange={(portfolioImages) => update({ portfolioImages })}
+              minImages={MIN_REGISTRATION_PORTFOLIO_IMAGES}
+            />
           </StepShell>
         )}
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, Sparkles, PartyPopper } from "lucide-react";
 import { ProgressDots } from "@/components/ui/ProgressDots";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -158,7 +158,6 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
 
   if (bundle) {
     const productItems = bundle.items.filter((item) => item.kind === "product");
-    const serviceItems = bundle.items.filter((item) => item.kind === "service");
 
     function addBundleToCart() {
       for (const item of productItems) {
@@ -211,23 +210,19 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
               </div>
             ))}
 
-            {serviceItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-2xl border border-dashed border-border p-3 text-sm"
-              >
-                <div className="space-y-0.5">
-                  <p className="text-xs text-charcoal-muted">{item.categoryLabel}</p>
-                  <p className="font-medium text-charcoal">{item.title}</p>
-                  <p className="text-xs text-charcoal-muted">
-                    این خدمت جداگانه هماهنگ می‌شود، به سبد خرید اضافه نمی‌شود.
-                  </p>
-                </div>
-                <p className="font-semibold text-rose-700">
-                  {item.lineTotal.toLocaleString("fa-IR")} تومان
+            <div className="flex items-center gap-3 rounded-2xl border border-dashed border-border p-3 text-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                <PartyPopper className="h-4 w-4" strokeWidth={1.75} />
+              </span>
+              <div className="space-y-0.5">
+                <p className="font-medium text-charcoal">
+                  می‌تونی از خدمات بیشتری مثل فینگرفود، کیک، عکاس، دی‌جی هم استفاده کنی
                 </p>
+                <ButtonLink href="/home" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
+                  مشاهده‌ی خدمات
+                </ButtonLink>
               </div>
-            ))}
+            </div>
 
             <div className="flex items-center justify-between border-t border-border pt-3 text-sm font-semibold text-charcoal">
               <span>جمع کل</span>

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireApprovedProvider } from "@/lib/auth/provider";
 import { storageUrlSchema } from "@/lib/validation/url";
-import { MAX_PORTFOLIO_IMAGES } from "@/lib/data/provider";
+import { MAX_PORTFOLIO_IMAGES } from "@/lib/portfolio";
 
 const bodySchema = z.object({ imageUrl: storageUrlSchema });
 

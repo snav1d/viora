@@ -17,6 +17,16 @@ export function getActiveProductCategories() {
   });
 }
 
+/// Every active SERVICE category (print, بادکنک‌آرا, عکاسی, ...) - the home page's own
+/// "دسته‌بندی‌ها" grid shows these alongside product categories (docs/decisions.md ADR 44 item 5),
+/// so a future new service category needs no code change here, only a seeded row.
+export function getActiveServiceCategories() {
+  return prisma.category.findMany({
+    where: { type: "SERVICE", isActive: true },
+    orderBy: { sortOrder: "asc" },
+  });
+}
+
 export function getCategoryBySlug(slug: string) {
   return prisma.category.findUnique({ where: { slug } });
 }
