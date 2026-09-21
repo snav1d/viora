@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import budgetAllocation from "@/config/party-wizard/budget-allocation.json";
 import themesConfig from "@/config/party-wizard/themes.json";
 
@@ -152,7 +153,10 @@ async function pickProduct(
   // needs its own unit count and lineTotal before ranking - a more precisely-fitting capacity
   // naturally wins on cost without any extra logic once this is right. See ADR 26.
   const scored = listings.map((listing) => {
-    const unitPrice = toNumber(listing.price);
+    // Marked up here, at the source, so both the budget-fit check below and everything
+    // downstream (bundle.totalAmount, the cart it feeds into) already reflect the real
+    // customer-facing price (docs/decisions.md ADR 45) - never the seller's raw listing price.
+    const unitPrice = applyPlatformMarkup(toNumber(listing.price));
     const quantity = requiredQuantity(
       categorySlug,
       guestCount,

@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Ticket, Plus } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { ActiveToggle } from "@/components/admin/ActiveToggle";
+import { BirthdayCampaignSettingsForm } from "@/components/admin/BirthdayCampaignSettingsForm";
 import { getAllCoupons } from "@/lib/data/admin";
+import { getBirthdayCampaignSettings } from "@/lib/data/birthdayCampaign";
 import { COUPON_TYPE_LABELS } from "@/lib/labels";
 import { toNumber } from "@/lib/decimal";
 
@@ -16,11 +18,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminCouponsPage() {
-  const coupons = await getAllCoupons();
+  const [coupons, birthdaySettings] = await Promise.all([getAllCoupons(), getBirthdayCampaignSettings()]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 px-4 py-5">
       <TopBar title="کدهای تخفیف" />
+
+      <BirthdayCampaignSettingsForm initialType={birthdaySettings.type} initialValue={birthdaySettings.value} />
 
       <Link
         href="/admin/coupons/new"

@@ -286,7 +286,8 @@ async function main() {
   // no admin review per offering (docs/decisions.md ADR 44, superseding ADR 43's single
   // fixed-package-at-registration model). Slugs/labels come from lib/serviceCategories.ts so seed
   // data and app code never drift apart.
-  const [balloonDecorDef, photographyDef] = SIMPLE_SERVICE_CATEGORIES;
+  const balloonDecorDef = SIMPLE_SERVICE_CATEGORIES.find((c) => c.slug === "balloon-decor-service")!;
+  const photographyDef = SIMPLE_SERVICE_CATEGORIES.find((c) => c.slug === "photography")!;
   const balloonDecorCategory = await prisma.category.upsert({
     where: { slug: balloonDecorDef.slug },
     update: { isActive: true },
@@ -294,9 +295,33 @@ async function main() {
   });
   const photographyCategory = await prisma.category.upsert({
     where: { slug: photographyDef.slug },
-    update: { isActive: true },
+    // name is kept in sync on every reseed (docs/decisions.md ADR 45's "عکاسی" ->
+    // "عکاسی و فیلم‌برداری" rename would otherwise never reach an already-seeded row, since
+    // upsert's own `update` branch never touched name before this) - isActive stays a pure
+    // admin-panel decision, same as every other seed-managed category below.
+    update: { isActive: true, name: photographyDef.label },
     create: { name: photographyDef.label, slug: photographyDef.slug, type: "SERVICE", isActive: true, sortOrder: 2 },
   });
+
+  // Five more SERVICE categories, seeded isActive: false (docs/decisions.md ADR 45) - to be
+  // switched on later from /admin/catalog whenever ready, with no further code change needed.
+  // update: {} is deliberately a no-op here (unlike the two categories above): once an admin
+  // flips one of these to active, a later reseed must never silently flip it back off.
+  const NEW_INACTIVE_CATEGORY_SLUGS = [
+    "dj-live-music",
+    "catering-fingerfood",
+    "event-host",
+    "floral-decor",
+    "bridal-beauty",
+  ];
+  for (const [index, slug] of NEW_INACTIVE_CATEGORY_SLUGS.entries()) {
+    const def = SIMPLE_SERVICE_CATEGORIES.find((c) => c.slug === slug)!;
+    await prisma.category.upsert({
+      where: { slug: def.slug },
+      update: {},
+      create: { name: def.label, slug: def.slug, type: "SERVICE", isActive: false, sortOrder: 3 + index },
+    });
+  }
 
   const balloonDecorUser = await prisma.user.upsert({
     where: { phone: "09120000003" },

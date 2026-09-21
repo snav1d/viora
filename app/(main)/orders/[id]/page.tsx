@@ -9,6 +9,7 @@ import { StarRating } from "@/components/reviews/StarRating";
 import { getSession } from "@/lib/auth/session";
 import { getOrderDetailForUser } from "@/lib/data/orders";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import { ORDER_STATUS_LABELS, RETURN_STATUS_LABELS } from "@/lib/labels";
 
 export const metadata: Metadata = {
@@ -62,7 +63,7 @@ export default async function OrderDetailPage({ params }: Props) {
                 <p className="font-medium text-charcoal">{title}</p>
                 <p className="text-charcoal-muted">
                   {item.quantity.toLocaleString("fa-IR")} عدد ×{" "}
-                  {toNumber(item.unitPrice).toLocaleString("fa-IR")} تومان
+                  {applyPlatformMarkup(toNumber(item.unitPrice)).toLocaleString("fa-IR")} تومان
                 </p>
               </div>
 

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { getPaymentProvider } from "@/lib/providers/payment";
 import { getPrintDeliverySettings } from "@/lib/data/print";
 import { validateCoupon } from "@/lib/data/coupons";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import { storageUrlSchema } from "@/lib/validation/url";
 
 const bodySchema = z
@@ -94,8 +95,12 @@ export async function POST(request: Request) {
     }
   }
 
+  // lineTotal/splitAmount below are the provider's own raw figures - what they're actually paid,
+  // never touched by the platform's own markup. displayUnitPrice/subtotal are the customer-
+  // facing numbers the match API already showed (docs/decisions.md ADR 45) - expressFee is a
+  // platform fee already, not a partner-entered price, so it's never marked up itself.
   const lineTotal = unitPrice * parsed.data.quantity;
-  const subtotal = lineTotal + expressFee;
+  const subtotal = applyPlatformMarkup(unitPrice) * parsed.data.quantity + expressFee;
 
   // Never trust the client's own earlier /api/coupons/validate preview - re-verify at the
   // moment of actually charging. The discount comes off the customer-facing subtotal only - the

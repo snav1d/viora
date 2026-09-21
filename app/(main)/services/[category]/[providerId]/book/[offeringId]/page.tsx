@@ -43,7 +43,12 @@ export default async function ServiceBookingPage({ params }: Props) {
           </div>
         </dl>
       </div>
-      <ServiceBookingForm categorySlug={categoryDef.slug} offeringId={offering.id} price={offering.price} />
+      <ServiceBookingForm
+        categorySlug={categoryDef.slug}
+        offeringId={offering.id}
+        price={offering.price}
+        defaultContactPhone={session.phone}
+      />
     </main>
   );
 }

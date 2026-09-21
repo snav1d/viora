@@ -24,6 +24,14 @@ export async function validateCoupon(
     return { ok: false, error: "کد تخفیف معتبر نیست." };
   }
 
+  // A system-generated personal code (currently: the birthday campaign, docs/decisions.md ADR
+  // 45) can only ever be redeemed by the exact user it was issued to - never surfaced as "not
+  // yours" (that would leak that the code exists at all), same generic message as an unknown
+  // code.
+  if (coupon.userId !== null && coupon.userId !== userId) {
+    return { ok: false, error: "کد تخفیف معتبر نیست." };
+  }
+
   const now = new Date();
   if (coupon.startsAt && now < coupon.startsAt) {
     return { ok: false, error: "این کد تخفیف هنوز فعال نشده است." };

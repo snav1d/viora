@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { ApproveButton } from "@/components/admin/ApproveButton";
 import { RejectForm } from "@/components/admin/RejectForm";
+import { ProviderCommissionInput } from "@/components/admin/ProviderCommissionInput";
 import { getServiceProviderProfileDetail } from "@/lib/data/admin";
 import { toNumber } from "@/lib/decimal";
 import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
@@ -67,7 +68,14 @@ export default async function AdminProviderDetailPage({ params }: Props) {
         <div>
           <dt className="text-charcoal-muted">درصد کمیسیون</dt>
           <dd className="font-medium text-charcoal">
-            {toNumber(provider.commissionRate).toLocaleString("fa-IR")}٪
+            {provider.status === "APPROVED" ? (
+              <ProviderCommissionInput
+                providerId={provider.id}
+                commissionRate={toNumber(provider.commissionRate)}
+              />
+            ) : (
+              `${toNumber(provider.commissionRate).toLocaleString("fa-IR")}٪`
+            )}
           </dd>
         </div>
         <div className="col-span-2">

@@ -3046,3 +3046,197 @@ model for it. A real avatar-upload field for `ServiceProviderProfile` (it has no
 avatar/hero image needed no schema change and is arguably more informative for a home-service
 business than a generic picked icon; a dedicated avatar field remains easy to add later without
 conflicting with this.
+
+---
+
+## 2026-09-21 — multi-placement banners; dedicated `/services` destination; two-level commission;
+mandatory service-booking contact phone; five new inactive SERVICE categories + عکاسی rename;
+site-wide hidden 1.5% platform margin; opt-in birthday discount coupon; self-hosted Kalameh font
+
+### 45. `BannerPlacement` expands to `HOME_HERO`/`HOME_PROMO_STRIP`/`SERVICES_HERO`; `/services`
+page with cross-category "پیشنهاد ویژه"/"تازه‌های ویورا" rows; `Category.defaultCommissionRate` +
+admin-editable per-provider override; `Order.contactPhone`; five seed-only inactive categories +
+عکاسی → عکاسی و فیلم‌برداری; `lib/pricing.ts`'s `applyPlatformMarkup`; `Coupon.userId` for a
+one-time birthday code; `next/font/local` Kalameh replacing Google-hosted Vazirmatn
+
+**Context:** a single follow-up message asked for eight mostly-independent things at once. Two of
+them (#6 and #7 below) were flagged by the user themselves as likely needing a clarifying
+question before starting - both were asked via `AskUserQuestion` and answered before any code was
+written; both answers are recorded under their own item below and were followed exactly.
+
+**Decision (banner placements, item 1):** `BannerPlacement`'s single `HOME_TOP` value becomes
+three: `HOME_HERO` (the old slot, renamed - still one banner via `getActiveBanner`),
+`HOME_PROMO_STRIP` (a new horizontal row of *several* banners at once - a new `getActiveBanners`
+plural variant, since every other placement is deliberately "at most one live"), and
+`SERVICES_HERO` (the equivalent hero slot for the new `/services` page below). The rename is done
+as widen → `UPDATE Banner SET placement='HOME_HERO' WHERE placement='HOME_TOP'` → narrow, all
+three statements in *one* migration file - unlike ADR 44's `categoryId` migration, which needed a
+backfill run manually between two separate migration files (a real production-deployment risk
+that phase's summary had to call out explicitly), this phase's `prisma migrate deploy` alone is
+enough, with no manual step in between, anywhere in this session's history. `/admin/banners` now
+groups its list under each placement's own heading instead of one flat list, and `BannerForm`'s
+placement field is a real `<select>` instead of the old hardcoded "HOME_TOP" display.
+
+**Decision (`/services` page, item 2):** a new `/services` route, separate from the product shop -
+`SERVICES_HERO` banner, a bigger/more-visual `ServiceCategoryGrid` (large gradient icon tiles vs.
+the shop's small circles) built from `getActiveServiceCategories()` (print included, since it's a
+SERVICE-type category too), and two new horizontal-scroll rows from `lib/data/services.ts`:
+`getVioraRecommendedProviders` (`isVerifiedByViora`, across every active SERVICE category at
+once, print included) and `getVioraNewestProviders` (ranked by the new `ServiceProviderProfile.
+approvedAt`, set once on first approval only - unlike `updatedAt`, a later edit like a
+commissionRate override never moves a provider back to the top of "newest"). Both share one
+`toFeaturedProviderCard` helper that branches the card's `href` by category - a print provider
+goes straight to `/print?offering=<id>` (ADR 44's pre-selected-partner flow), everyone else to
+their own `/services/[category]/[id]` profile - so `/services` itself never needs to branch on
+category. The wizard result's generic services invite and the home page's own "دسته‌بندی‌ها" link
+now both point at `/services` instead of `/home`, and a shared `getServiceCategoryHref(slug)`
+(print → `/print/partners`, everything else → its own `SIMPLE_SERVICE_CATEGORIES.servicePath`)
+replaces the home page's own local copy of that mapping so both pages stay in sync from one place.
+
+**Decision (two-level commission, item 3):** `Category.defaultCommissionRate` (nullable - only
+meaningful for SERVICE categories, falls back to `ServiceProviderProfile.commissionRate`'s own
+flat `@default(10.00)` when unset) seeds a provider's own `commissionRate` the moment their status
+*first* flips to APPROVED (gated on `approvedAt === null`, so a hypothetical later re-approval -
+e.g. after a REJECTED detour - never clobbers a commissionRate an admin has since manually
+overridden, or the original `approvedAt`). `/admin/catalog` gets a small inline
+`CategoryCommissionInput` per SERVICE category; `/admin/providers/[id]` makes the commission field
+a real editable `ProviderCommissionInput` once (and only once) a provider is APPROVED, via a new
+`PATCH /api/admin/providers/[id]/commission` - exactly the "override anytime after approval, not
+just at registration" the request asked for.
+
+**Decision (mandatory booking contact phone, item 4):** `Order.contactPhone` (nullable at the
+schema level - only `/api/service-bookings` ever sets it, not `/api/checkout` or
+`/api/print-orders`), required and validated with the existing `normalizeIranianContactNumber`
+(accepts a landline too, not just a mobile - whoever's actually coordinating the event may not be
+the account holder). `ServiceBookingForm` prefills it from the logged-in session's own phone but
+leaves it fully editable; the provider's own order-detail page shows it alongside the existing
+شماره‌ی event address.
+
+**Decision (five new inactive categories + عکاسی rename, item 5):** `دی‌جی و موسیقی زنده`،
+`کیترینگ و فینگرفود`، `مجری و گرداننده‌ی مراسم`، `گل‌آرایی و دکور گل`، `آرایش و شینیون عروس` are
+seeded as SERVICE categories with `isActive: false`, and are already listed in
+`SIMPLE_SERVICE_CATEGORIES` (registration + browse routes are the same generic `[category]`
+dynamic pages ADR 43/44 already built, matched by registry entry rather than a literal path) -
+flipping one's `Category.isActive` from `/admin/catalog` is genuinely the *only* step needed to
+launch it later, no further code change or deploy, exactly the design goal ADR 44 set out. Their
+seed `upsert`'s `update:` is deliberately `{}` (a no-op) rather than re-asserting `isActive: false`
+- unlike the two existing "simple" categories' `update: { isActive: true }`, a reseed must never
+silently undo an admin's later activation. عکاسی is relabeled عکاسی و فیلم‌برداری (videography
+needs no structural change - a provider can already title any `ServiceOffering` however they
+like); this exposed a real latent bug in the existing seed - the photography category's own
+`upsert`'s `update:` branch never included `name`, so a reseed could never actually propagate a
+label change to an already-seeded row. Fixed by adding `name: photographyDef.label` to that
+`update:` object (confirmed live: re-running `npm run db:seed` correctly renamed the existing row).
+Adding these five also surfaced a second, independent gap: `app/(main)/profile/page.tsx`'s own
+provider-registration entry-point list was built by mapping `SIMPLE_SERVICE_CATEGORIES` directly
+with no `isActive` check at all, so it would have started showing "ثبت‌نام به‌عنوان پارتنر
+دی‌جی…" - a dead-end wizard that always fails at submit with the same "این دسته‌بندی خدماتی فعال
+نیست" gap ADR 44 investigated and closed for the customer-facing browse pages. Fixed by filtering
+against a freshly-fetched `getActiveServiceCategories()` set before building the list.
+
+**Decision (hidden 1.5% platform margin, item 6 - clarifying questions asked and answered):**
+`lib/pricing.ts`'s `applyPlatformMarkup(amount) = Math.round(amount * 1.015)` is the one place
+this percentage is written down anywhere in the codebase. It's called at the *source* of every
+customer-facing price - `ProductCard`/`OtherSellersList` (product grid, other-sellers list),
+`lib/wizard/engine.ts`'s `pickProduct` (so the wizard's own budget-fit check already reasons in
+marked-up terms, never under-pricing the customer's stated budget), `getMatchingPrintProviders`/
+`getProviderProfileForCustomer`/`getBookableOffering` (print matching, simple-service profile and
+booking pages) - so every render site downstream of these already receives a final number, with
+no separate call needed at the page level. `/api/checkout`, `/api/print-orders`, and
+`/api/service-bookings` each compute a `display`-prefixed variable (`displayUnitPrice`,
+`applyPlatformMarkup(unitPrice) * quantity`, etc.) for `subtotal`/coupon-base/`totalAmount` - the
+number actually charged - while `OrderItem.unitPrice`/`splitAmount` keep storing the seller/
+partner's own untouched raw price, exactly what settlement uses (print's `expressFee` is a
+platform-owned fee already, never itself marked up - marking up your own fee would be inventing a
+second hidden charge on top of the first). A live E2E pass caught one real gap this design implied
+but hadn't yet been applied to: the customer's own `/orders/[id]` receipt page displayed
+`OrderItem.unitPrice` directly - i.e., the seller's *original*, pre-markup price - which would
+have shown the customer a smaller number than what `Order.totalAmount` (and their bank statement)
+actually charged them, exactly the "customer can see the difference" outcome the request
+explicitly ruled out. Fixed by wrapping that one display in `applyPlatformMarkup` too.
+**Clarifying question and answer (rounding):** asked whether to round to the nearest Toman (exact
+1.5%, small per-unit rounding error) or a "cleaner" nearest-100/1,000 Toman (worse accuracy,
+especially on cheap items, where a hidden markup would drift further from the real 1.5% or even
+round away to zero). Answered: nearest Toman - accuracy of the hidden rate matters more than a
+round-looking number, precisely because it's meant to stay invisible.
+
+**Decision (opt-in birthday discount coupon, item 7 - clarifying question asked and answered):**
+`Coupon.userId` (nullable - null for every ordinary admin-created code) restricts redemption to
+one exact user; `validateCoupon` now rejects a mismatched `userId` with the same generic "کد
+تخفیف معتبر نیست." any unknown code gets, never leaking that a personal code exists at all. A new
+`/api/profile/birthday` route is a one-time claim (rejects if `User.birthDate` is already set):
+sets `birthDate`, reads admin-configurable settings from a new `lib/data/birthdayCampaign.ts`
+(`PlatformSetting` key `birthday_discount_campaign`, same flexible-JSON-config convention as
+`getPrintDeliverySettings` - the first admin-*writable* `PlatformSetting` in this codebase; every
+other one has so far been seed-managed only), issues a single-use (`maxRedemptionsPerUser: 1`)
+personal `Coupon`, and sends it via the existing mock `SmsProvider`. `BirthdayDiscountInvite` on
+`/profile` (shown only while `birthDate` is still null) is a click-to-reveal Jalali date form; a
+new `BirthdayCampaignSettingsForm` on `/admin/coupons` lets an admin edit the campaign's type/
+value, and `getAllCoupons` (that same page's main list) now excludes `userId`-scoped personal
+codes as noise an admin never needs to manage there.
+**Clarifying question and answer (scope):** the request's own "تخفیف روی یک محصول انتخابی" option
+needs a real structural change - a new `productId` on `Coupon` and reworking discount computation
+from "whole order" to "one specific line item" (`validateCoupon`'s `subtotal` parameter would need
+to become real cart line items, not a single number). Asked before writing any of it, offering (a)
+one admin-fixed product for the whole campaign, (b) whichever product the customer picks at
+redemption, or (c) defer entirely and ship whole-order-only for now. Answered: (c) - shipped with
+no `productId` field and no structural change; every birthday coupon in this phase discounts the
+whole order only, same shape as any other admin-created code.
+**Bug found and fixed during this phase's own E2E testing:** `BirthdayDiscountInvite` called
+`router.refresh()` immediately after a successful claim, right before rendering its own success
+state. Since the parent (`/profile`) only renders this component at all while `birthDate` is still
+null, that refresh re-fetched the now-non-null `birthDate` and unmounted the whole component -
+wiping the "here's your code" message, the customer's *only* real way to see it (the mock
+`SmsProvider` only logs to console, it never reaches an actual phone), before they ever saw it on
+screen. Fixed by simply not calling `router.refresh()` there - nothing else on the page depends on
+an immediate refetch, and the component's own local `result` state is already enough; a later page
+reload correctly won't show the invite again once the server sees the real `birthDate`. Confirmed
+live: re-ran the full claim flow through the actual UI (not just the API) after the fix and the
+code now stays visible.
+
+**Decision (self-hosted Kalameh font, item 8):** the four weight files this codebase's Tailwind
+classes actually use - Regular/400 (body text's own default), Medium/500, SemiBold/600, Bold/700
+(`font-medium`/`font-semibold`/`font-bold` - counted via a grep across every `.tsx` file; nothing
+uses `font-thin`/`font-light`/`font-extrabold`/`font-black`) - out of the nine the uploaded zip
+shipped, copied into `app/fonts/` and loaded via `next/font/local` (replacing the Google-hosted
+`Vazirmatn`), keeping the same `--font-sans` CSS variable indirection so no component needed to
+change. Self-hosted per this project's standing self-sufficiency rule (no external font CDN),
+same reasoning as every other self-hosted asset already in this codebase.
+
+**Verified**, against the real local MariaDB + a real running dev server, using real HTTP (curl)
+and a real headless browser (Playwright) throughout, not just `tsc`/build: all three `Banner`
+placements accepted and rendered on their correct page (`HOME_HERO`/`HOME_PROMO_STRIP` on `/home`,
+`SERVICES_HERO` on `/services`), `/admin/banners` grouped them under the right headings.
+`/services` showed only the three currently-active categories (not the five new inactive ones) and
+a verified print partner correctly appeared in "پیشنهاد ویژه‌ی ویورا" with its own category label.
+Setting a category's `defaultCommissionRate` and then approving a PENDING provider in that
+category set the provider's `commissionRate` to that value and `approvedAt` to the approval
+moment; manually resetting status back to PENDING and re-approving preserved both an admin's
+separate commission override and the original `approvedAt` (neither was clobbered). A service
+booking without `contactPhone` was rejected, an invalid one was rejected, a valid one was accepted
+and stored, and appeared on the provider's order page. `/profile`'s registration-entry list showed
+only the three active provider categories, never the five new inactive ones. The platform markup
+was verified with exact arithmetic against real seed values across three independent surfaces: a
+735,000 Toman product listing displayed and added-to-cart at 746,025 (735,000 × 1.015, confirmed
+in the page's own embedded React payload); a print tier's 5,700 Toman unit price matched at 5,785
+via `/api/print-orders/match`; a 6,500,000 Toman service `basePrice` booked at a stored
+`Order.totalAmount` of 6,597,500 while `OrderItem.unitPrice`/`splitAmount` stayed the untouched
+6,500,000 - confirming the settlement/display split holds through an actual database write, not
+just in code review. The birthday-coupon owner could redeem their own code (10% off 100,000 →
+10,000, matching the campaign settings at issue time); a second, unrelated logged-in customer got
+the same generic "invalid code" error, never a hint the code existed; admin-updated campaign
+settings (PERCENTAGE 10% → FIXED_AMOUNT 25,000) applied to the *next* issued coupon while the
+earlier one kept its original terms (a snapshot, never live-recomputed); `/admin/coupons`'s list
+excluded both. The Kalameh font rendered correctly for Persian glyphs and Persian digits in a real
+screenshot, and network headers confirmed exactly the four intended weight files preload - never
+all nine. `tsc --noEmit`, `eslint .`, and `npm run build` all clean, every new route present in
+the build output; all test data created for these checks was deleted afterward.
+
+**Rejected:** a per-product-scoped birthday discount for this phase (see the clarifying-question
+answer above - deferred, not built). Rounding the platform markup to a "clean" 100/1,000 Toman
+figure (see the rounding clarifying-question answer above - exact-Toman rounding chosen instead).
+Applying the platform markup to `PlatformSetting`-sourced fees like print's `expressFee` - those
+are already the platform's own money, not a seller/partner's entered price, so marking one up
+would just be a second hidden charge layered on the first. Loading all nine Kalameh weights "to be
+safe" - the four unused ones would only slow first paint for glyphs nothing on this site ever
+renders in that weight.

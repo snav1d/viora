@@ -18,7 +18,9 @@ const bodySchema = z
     imageUrl: storageUrlSchema,
     text: z.string({ error: "متن بنر را وارد کنید." }).trim().min(1, "متن بنر را وارد کنید."),
     link: z.union([linkSchema, z.null()]).optional(),
-    placement: z.enum(["HOME_TOP"], { error: "جایگاه بنر را انتخاب کنید." }),
+    placement: z.enum(["HOME_HERO", "HOME_PROMO_STRIP", "SERVICES_HERO"], {
+      error: "جایگاه بنر را انتخاب کنید.",
+    }),
     startsAt: z.string().min(1).optional(),
     endsAt: z.string().min(1).optional(),
   })

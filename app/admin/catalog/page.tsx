@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { TopBar } from "@/components/nav/TopBar";
 import { ActiveToggle } from "@/components/admin/ActiveToggle";
 import { PrintColorManager } from "@/components/admin/PrintColorManager";
+import { CategoryCommissionInput } from "@/components/admin/CategoryCommissionInput";
 import { getAllCities, getAllCategories, getAllPrintColors } from "@/lib/data/admin";
+import { toNumber } from "@/lib/decimal";
 import type { CategoryType } from "@/lib/generated/prisma/client";
 
 export const metadata: Metadata = {
@@ -55,11 +57,19 @@ export default async function AdminCatalogPage() {
               key={category.id}
               className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm"
             >
-              <div>
+              <div className="space-y-1.5">
                 <p className="font-medium text-charcoal">{category.name}</p>
                 <p className="text-xs text-charcoal-muted">
                   {CATEGORY_TYPE_LABELS[category.type]}
                 </p>
+                {category.type === "SERVICE" ? (
+                  <CategoryCommissionInput
+                    id={category.id}
+                    defaultCommissionRate={
+                      category.defaultCommissionRate ? toNumber(category.defaultCommissionRate) : null
+                    }
+                  />
+                ) : null}
               </div>
               <ActiveToggle id={category.id} isActive={category.isActive} kind="categories" />
             </li>

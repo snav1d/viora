@@ -38,8 +38,9 @@ model User {
   /// A JSON array of Role values, not a native list column - see docs/decisions.md ADR 20
   /// (supersedes ADR 7's Postgres-array reasoning; MySQL has no native scalar-list column type).
   roles     Json      @default("[\"CUSTOMER\"]")
-  /// Optional; collected once on the account profile for future birthday marketing SMS.
-  /// See party-wizard-engine-spec.md §5 — not used for anything yet in Sprint 0.
+  /// Optional; collected once on the account profile for future birthday marketing SMS. Filling
+  /// it in now also triggers the one-time birthday discount coupon (docs/decisions.md ADR 45).
+  /// See party-wizard-engine-spec.md §5.
   birthDate DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -50,6 +51,7 @@ model User {
   orders                 Order[]
   reviews                Review[]
   supportTickets         SupportTicket[]
+  coupons                Coupon[]
 }
 
 /// Mock phone/OTP auth (docs/decisions.md ADR 2). A real SMS provider is swapped in later
@@ -92,12 +94,18 @@ enum CategoryType {
 }
 
 model Category {
-  id        String       @id @default(cuid())
-  name      String
-  slug      String       @unique
-  type      CategoryType
-  isActive  Boolean      @default(true)
-  sortOrder Int          @default(0)
+  id                    String       @id @default(cuid())
+  name                  String
+  slug                  String       @unique
+  type                  CategoryType
+  isActive              Boolean      @default(true)
+  sortOrder             Int          @default(0)
+  /// Only meaningful for type: SERVICE - seeds a newly-approved provider's own
+  /// ServiceProviderProfile.commissionRate (docs/decisions.md ADR 45). null means "use the
+  /// flat platform default" (ServiceProviderProfile.commissionRate's own @default(10.00)),
+  /// same optional-falls-back-to-a-flat-default shape as everything else admin-configurable
+  /// in this app that predates a real per-category setting.
+  defaultCommissionRate Decimal?     @db.Decimal(5, 2)
 
   parentId String?
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
@@ -139,41 +147,41 @@ enum SellerStatus {
 
 /// Product seller (fixed monthly subscription) — panels-and-operations-spec.md §2.
 model SellerProfile {
-  id           String  @id @default(cuid())
-  userId       String  @unique
-  user         User    @relation(fields: [userId], references: [id])
-  businessName String
+  id                      String           @id @default(cuid())
+  userId                  String           @unique
+  user                    User             @relation(fields: [userId], references: [id])
+  businessName            String
   /// نام و نام‌خانوادگی مسئول فروشگاه - distinct from businessName (the shop's trade name).
   /// Nullable only because it's a new column on a table with existing rows (ADR 29's migration
   /// note convention) - sellers who registered before this field existed simply have it empty.
   /// See docs/decisions.md ADR 39.
-  contactPersonName String?
+  contactPersonName       String?
   /// Free-text shop description, shown on the seller's own registration/profile - not a
   /// per-product field. See docs/decisions.md ADR 27.
-  description  String? @db.Text
+  description             String?          @db.Text
   /// Either an uploaded logo (via StorageProvider) or one of the built-in default avatars
   /// (public/avatars/*.svg, see lib/avatars.ts) - a single URL either way. Nullable only because
   /// it's a new column on a table with existing rows (see ADR 29's migration note); the
   /// registration wizard always has one selected (a default is pre-picked) before submit.
-  avatarUrl    String?
+  avatarUrl               String?
   /// A shop can sell across more than one product category at once - a join table, not a single
   /// FK (superseding ADR 27's single categoryId). See docs/decisions.md ADR 29.
-  categories   SellerCategory[]
-  nationalId   String
+  categories              SellerCategory[]
+  nationalId              String
   /// شناسه‌ی صنفی - a separate business/trade-union registration number, distinct from the
   /// individual's national ID above. See docs/decisions.md ADR 29.
-  unionId      String?
+  unionId                 String?
   /// Photo of the seller's پروانه‌ی کسب (business license), uploaded via StorageProvider.
   businessLicenseImageUrl String?
   bankAccountIban         String
   cityId                  String?
-  city                    City?   @relation(fields: [cityId], references: [id])
+  city                    City?            @relation(fields: [cityId], references: [id])
   /// Shop/warehouse address - collected as free text, not tied to City (which only exists for
   /// phase-gating - see ADR 29's note on why city selection was dropped from the wizard itself).
-  address                 String? @db.Text
+  address                 String?          @db.Text
   /// A JSON array of phone number strings (MySQL has no native scalar-list column - ADR 20). At
   /// least one is required at the API layer - a schema-level minimum can't be expressed for Json.
-  phoneNumbers            Json    @default("[]")
+  phoneNumbers            Json             @default("[]")
   /// How the seller heard about Viora - one of a fixed set of options, or "other" with free text
   /// in referralSourceOther. See docs/decisions.md ADR 29.
   referralSource          String?
@@ -182,8 +190,8 @@ model SellerProfile {
   /// "set = happened" timestamp, matching OtpCode.consumedAt/OrderItem.shippedAt's convention
   /// elsewhere in this schema, not a boolean.
   termsAcceptedAt         DateTime?
-  status                  SellerStatus @default(PENDING)
-  rejectionReason         String?      @db.Text
+  status                  SellerStatus     @default(PENDING)
+  rejectionReason         String?          @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -216,10 +224,10 @@ model SellerCategory {
 /// Service provider (per-order commission) — e.g. the balloon-print partner today, more
 /// service categories later (DJ, photographer, ...) per project-plan-v1.md §3 phase 1.
 model ServiceProviderProfile {
-  id              String         @id @default(cuid())
-  userId          String         @unique
-  user            User           @relation(fields: [userId], references: [id])
-  businessName    String
+  id                      String         @id @default(cuid())
+  userId                  String         @unique
+  user                    User           @relation(fields: [userId], references: [id])
+  businessName            String
   /// Which SERVICE category this provider belongs to (print, بادکنک‌آرا, عکاسی, ...) - a property
   /// of the provider itself, set once at registration, independent of how many (if any)
   /// ServiceOffering rows they currently have. Needed because, from ADR 44 onward, a "simple"
@@ -227,29 +235,33 @@ model ServiceProviderProfile {
   /// create their own, any time, post-approval) - so this can no longer be read via
   /// serviceOfferings[0].category the way it could before. Backfilled from each row's existing
   /// offering as part of this migration (docs/decisions.md ADR 44).
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId              String
+  category                Category       @relation(fields: [categoryId], references: [id])
   /// نام و نام‌خانوادگی مسئول کسب‌وکار - distinct from businessName. Nullable for the same reason
   /// as SellerProfile.contactPersonName: existing partners registered before this field existed.
   /// See docs/decisions.md ADR 39.
-  contactPersonName String?
+  contactPersonName       String?
   /// Photo of the partner's پروانه‌ی کسب/مدارک هویتی, uploaded via StorageProvider - same
   /// convention as SellerProfile.businessLicenseImageUrl (ADR 29).
   businessLicenseImageUrl String?
-  nationalId      String
-  bankAccountIban String
-  /// Percentage, e.g. 12.50 for 12.5%. Defaults to a placeholder platform-wide rate - real
-  /// per-partner commission negotiation is out of scope for this phase, same simplification as
-  /// subscription/commission management was for the seller panel (ADR 27). See docs/decisions.md
-  /// ADR 31.
-  commissionRate  Decimal        @default(10.00) @db.Decimal(5, 2)
-  status          ApprovalStatus @default(PENDING)
-  rejectionReason String?        @db.Text
+  nationalId              String
+  bankAccountIban         String
+  /// Percentage, e.g. 12.50 for 12.5%. Seeded from category.defaultCommissionRate (falling back
+  /// to this field's own @default(10.00) when the category has none set) the moment a provider
+  /// is approved, and admin-editable anytime after that from the provider detail page (docs/
+  /// decisions.md ADR 45, replacing ADR 31's flat-only placeholder).
+  commissionRate          Decimal        @default(10.00) @db.Decimal(5, 2)
+  status                  ApprovalStatus @default(PENDING)
+  rejectionReason         String?        @db.Text
+  /// Set once, the moment status first flips to APPROVED (docs/decisions.md ADR 45) - unlike
+  /// updatedAt, this never changes again on a later edit (e.g. a commissionRate override), so
+  /// it stays reliable for "newest approved partners" sorting on the /services page.
+  approvedAt              DateTime?
   /// "تاییدیه‌ی ویژه‌ی ویورا" badge (docs/decisions.md ADR 42) - manually toggled by an admin only,
   /// no real payment behind it yet since this project's whole payment layer is still a mock
   /// (PaymentProvider.charge()). Shown in the customer-facing partner list and given a positive
   /// ranking weight in getMatchingPrintProviders.
-  isVerifiedByViora Boolean @default(false)
+  isVerifiedByViora       Boolean        @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -314,23 +326,23 @@ model ProductCodeCounter {
 /// for how much (docs/decisions.md ADR 39). A Product only ever has one approved shape; every
 /// seller carrying it has their own Listing for price/stock/discount/city.
 model Product {
-  id          String   @id @default(cuid())
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  title       String
-  slug        String   @unique
+  id                  String         @id @default(cuid())
+  categoryId          String
+  category            Category       @relation(fields: [categoryId], references: [id])
+  title               String
+  slug                String         @unique
   /// @db.Text: MySQL's default VARCHAR(191) truncates real product descriptions - see ADR 20.
-  description String?  @db.Text
+  description         String?        @db.Text
   /// A JSON array of image URLs, not a native list column - see docs/decisions.md ADR 20.
-  images      Json     @default("[]")
+  images              Json           @default("[]")
   /// Viora's own product code, "VP" + a sequential number (e.g. VP10042) - assigned only once
   /// approved, via ProductCodeCounter, and never reused or renumbered afterward. Null while still
   /// PENDING_REVIEW/NEEDS_REVISION/REJECTED.
-  code   String?       @unique
-  status ProductStatus @default(PENDING_REVIEW)
+  code                String?        @unique
+  status              ProductStatus  @default(PENDING_REVIEW)
   /// Set together with status = REJECTED or NEEDS_REVISION - same "reason accompanies a
   /// rejection" convention as SellerProfile.rejectionReason.
-  rejectionReason String? @db.Text
+  rejectionReason     String?        @db.Text
   /// The seller who originally submitted this catalog entry for review - kept even after
   /// approval as a simple "who proposed this" record. Null for products that entered the catalog
   /// some other way (e.g. the seeded catalog, migrated in directly as APPROVED).
@@ -354,27 +366,27 @@ model Product {
 /// OrderItem/Review still point directly at productId + a separate sellerId, unchanged - that pair
 /// already uniquely identifies which Listing was used, so no listingId FK was added there.
 model Listing {
-  id        String        @id @default(cuid())
-  productId String
-  product   Product       @relation(fields: [productId], references: [id])
-  sellerId  String
-  seller    SellerProfile @relation(fields: [sellerId], references: [id])
-  cityId    String
+  id            String        @id @default(cuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id])
+  sellerId      String
+  seller        SellerProfile @relation(fields: [sellerId], references: [id])
+  cityId        String
   /// Independent of the seller's own registered city - a seller can list the same product for a
   /// different city, same per-listing choice this field already allowed on Product before the
   /// split.
-  city City @relation(fields: [cityId], references: [id])
+  city          City          @relation(fields: [cityId], references: [id])
   /// Toman, whole numbers only.
-  price Decimal @db.Decimal(12, 0)
+  price         Decimal       @db.Decimal(12, 0)
   /// The seller's own optional lower price (docs/decisions.md ADR 35) - entirely absorbed by the
   /// seller, unlike a platform Coupon, so it's simply used in place of `price` everywhere a real
   /// charge/split is computed (checkout, OrderItem.unitPrice/splitAmount) - never a separate
   /// calculation. null = no discount; when set, must be strictly less than `price` (enforced at
   /// the API layer, not the DB, matching this schema's existing convention of not encoding
   /// cross-field invariants in SQL).
-  discountPrice Decimal? @db.Decimal(12, 0)
-  stock         Int      @default(0)
-  isActive      Boolean  @default(true)
+  discountPrice Decimal?      @db.Decimal(12, 0)
+  stock         Int           @default(0)
+  isActive      Boolean       @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -386,21 +398,21 @@ model Listing {
 
 /// Custom-workflow service, e.g. promotional balloon printing — panels-and-operations-spec.md §3.
 model ServiceOffering {
-  id          String                  @id @default(cuid())
-  providerId  String
-  provider    ServiceProviderProfile  @relation(fields: [providerId], references: [id])
-  categoryId  String
-  category    Category                @relation(fields: [categoryId], references: [id])
-  cityId      String
-  city        City                    @relation(fields: [cityId], references: [id])
-  title       String
-  slug        String                  @unique
-  description String?                 @db.Text
+  id                 String                 @id @default(cuid())
+  providerId         String
+  provider           ServiceProviderProfile @relation(fields: [providerId], references: [id])
+  categoryId         String
+  category           Category               @relation(fields: [categoryId], references: [id])
+  cityId             String
+  city               City                   @relation(fields: [cityId], references: [id])
+  title              String
+  slug               String                 @unique
+  description        String?                @db.Text
   /// A "starting from" display price (the lowest pricingTiers.unitPrice at save time) for
   /// generic listing cards, e.g. the party wizard's auxiliary-service suggestion
   /// (lib/wizard/engine.ts) - the real per-order price for a print job comes from matching the
   /// requested quantity against pricingTiers, not this field. See docs/decisions.md ADR 31.
-  basePrice   Decimal                 @db.Decimal(12, 0)
+  basePrice          Decimal                @db.Decimal(12, 0)
   /// Per-service custom order fields (e.g. balloon print: design upload, run size, colors).
   /// Shape is defined by the service category, not fixed here — see
   /// panels-and-operations-spec.md §3. Superseded for balloon printing specifically by the
@@ -410,17 +422,17 @@ model ServiceOffering {
   /// Balloon finish types this partner can print - a fixed 2-value set (not a join table like
   /// SellerCategory's open-ended list - ADR 29) since there are only ever two, per
   /// panels-and-operations-spec.md §3. See docs/decisions.md ADR 31.
-  supportsChrome Boolean @default(false)
-  supportsMatte  Boolean @default(false)
+  supportsChrome     Boolean                @default(false)
+  supportsMatte      Boolean                @default(false)
   /// A JSON array of color-name strings this partner can print, chosen at registration from the
   /// admin-curated PrintColor list (docs/decisions.md ADR 32) - stored as a plain string
   /// snapshot, not a relation, since MySQL has no native scalar-list column (ADR 20) and a
   /// partner's already-saved selection must survive an admin later removing that color.
-  printableColors Json    @default("[]")
+  printableColors    Json                   @default("[]")
   /// Orders below this quantity never show this partner as a match - null means "not a print
   /// offering" (a future non-print ServiceOffering has no such concept).
-  minOrderQuantity Int?
-  isActive    Boolean                 @default(true)
+  minOrderQuantity   Int?
+  isActive           Boolean                @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -443,9 +455,9 @@ model PrintPricingTier {
   serviceOffering   ServiceOffering @relation(fields: [serviceOfferingId], references: [id])
   minQuantity       Int
   /// null = this is the open-ended top tier ("این تعداد و بیشتر").
-  maxQuantity Int?
+  maxQuantity       Int?
   /// Toman, per unit.
-  unitPrice   Decimal @db.Decimal(12, 0)
+  unitPrice         Decimal         @db.Decimal(12, 0)
 
   createdAt DateTime @default(now())
 
@@ -542,28 +554,33 @@ enum HubProcessingStatus {
 }
 
 model Order {
-  id             String        @id @default(cuid())
-  userId         String
-  user           User          @relation(fields: [userId], references: [id])
-  partyProfileId String?
-  partyProfile   PartyProfile? @relation(fields: [partyProfileId], references: [id])
-  orderType      OrderType
-  status         OrderStatus   @default(PENDING_PAYMENT)
-  paymentStatus  PaymentStatus @default(PENDING)
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  partyProfileId  String?
+  partyProfile    PartyProfile? @relation(fields: [partyProfileId], references: [id])
+  orderType       OrderType
+  status          OrderStatus   @default(PENDING_PAYMENT)
+  paymentStatus   PaymentStatus @default(PENDING)
   /// Toman, whole numbers only. Already net of couponDiscountAmount below - what's actually
   /// charged via PaymentProvider.charge(). See docs/decisions.md ADR 35.
-  totalAmount     Decimal      @db.Decimal(12, 0)
+  totalAmount     Decimal       @db.Decimal(12, 0)
   shippingAddress String?       @db.Text
+  /// "شماره تماس برای هماهنگی" - mandatory on the simple-service booking form only
+  /// (/api/service-bookings, docs/decisions.md ADR 45) so the provider can reach whoever's
+  /// actually coordinating the event, which may differ from the logged-in account's own phone.
+  /// Nullable here since no other order-creation route collects it.
+  contactPhone    String?
   /// Used for the hub's minimum-lead-time rule on multi-seller orders (configurable via
   /// PlatformSetting, not hardcoded — panels-and-operations-spec.md §1).
-  eventDate DateTime?
+  eventDate       DateTime?
 
   /// A platform-wide Coupon applied at checkout (docs/decisions.md ADR 35) - independent of any
   /// seller's own Product.discountPrice. Never null'd retroactively if the coupon is later
   /// deactivated; Coupon rows are never hard-deleted (only toggled inactive - same convention as
   /// City/Category, ADR 30) specifically so this relation always resolves.
-  couponId String?
-  coupon   Coupon? @relation(fields: [couponId], references: [id])
+  couponId       String?
+  coupon         Coupon? @relation(fields: [couponId], references: [id])
   /// Snapshot of the exact amount deducted by the coupon at order time (never recomputed later
   /// from live Coupon data, same "snapshot, don't re-read" convention as OrderItem.unitPrice/
   /// expressFee). Zero when no coupon was applied - not nullable, since "no discount" and "not
@@ -596,17 +613,17 @@ model OrderItem {
   quantity          Int                     @default(1)
   unitPrice         Decimal                 @db.Decimal(12, 0)
   /// This vendor's payout share once split-payment is wired up (project-plan-v1.md §5).
-  splitAmount Decimal @db.Decimal(12, 0)
+  splitAmount       Decimal                 @db.Decimal(12, 0)
   /// Only set when the parent Order.orderType is MULTI_SELLER.
-  hubStatus HubProcessingStatus?
+  hubStatus         HubProcessingStatus?
   /// The seller/provider's own fulfillment step for a SINGLE_SELLER order - a nullable
   /// timestamp, not a status enum, matching OtpCode.consumedAt's "set = happened" convention
   /// elsewhere in this schema. null = still preparing; set = shipped. Independent of hubStatus,
   /// which is the (currently unused - see ADR 22) multi-seller hub pipeline. See ADR 27. Reused
   /// as-is for a SERVICE order's final delivery step - see ADR 31.
-  shippedAt    DateTime?
+  shippedAt         DateTime?
   /// Set together with shippedAt, by whoever ships this line item.
-  trackingCode String?
+  trackingCode      String?
   /// Set when the *customer* confirms receipt (the "سفارش رو دریافت کردم" button on their order
   /// detail page, not something automatic or set by the seller/provider - docs/decisions.md
   /// ADR 33). Same nullable "set = happened" convention as shippedAt. Two things depend on this
@@ -614,28 +631,28 @@ model OrderItem {
   /// prompt (only once an item is actually confirmed received, not merely shipped) and, per
   /// docs/legal-pages-draft.md §3, the 24-hour return window for physical products, which is
   /// defined from the moment of delivery.
-  deliveredAt DateTime?
+  deliveredAt       DateTime?
 
   // ---- SERVICE (print-partner) order fields - only set when this OrderItem's serviceOffering
   // is a print offering. See docs/decisions.md ADR 31. ----
   /// The customer's uploaded artwork, via StorageProvider.
-  designFileUrl String?
+  designFileUrl           String?
   /// One color from the chosen provider's own printableColors list at order time.
-  printColor    String?
-  printFinish   BalloonFinish?
+  printColor              String?
+  printFinish             BalloonFinish?
   /// false (default) = normal turnaround (an informational date-range shown from
   /// PlatformSetting, not stored per-order); true = the customer picked an exact date and paid
   /// expressFee.
-  isExpressDelivery     Boolean   @default(false)
-  requestedDeliveryDate DateTime?
+  isExpressDelivery       Boolean        @default(false)
+  requestedDeliveryDate   DateTime?
   /// Snapshot of PlatformSetting's print_express_fee at order time (like unitPrice/splitAmount,
   /// never re-read live later) - only set when isExpressDelivery is true.
-  expressFee    Decimal?  @db.Decimal(12, 0)
-  customerNotes String?   @db.Text
+  expressFee              Decimal?       @db.Decimal(12, 0)
+  customerNotes           String?        @db.Text
   /// Set when the provider accepts this order - gates whether they can see designFileUrl/
   /// printColor/customerNotes at all (panels-and-operations-spec.md §3's two-stage visibility).
   /// Nullable "set = happened" timestamp, same convention as shippedAt above.
-  acceptedAt DateTime?
+  acceptedAt              DateTime?
   /// Set when the currently-assigned provider requests this already-accepted print order be
   /// picked up by a different partner instead (docs/decisions.md ADR 42's "بازار واگذاری
   /// سفارش") - null means not up for reassignment. Only meaningful between acceptedAt and
@@ -652,10 +669,10 @@ model OrderItem {
   /// (docs/decisions.md ADR 38, the 24-hour return window deliveredAt's own comment above
   /// references) - null means no return was ever requested. A completely separate lifecycle from
   /// hubStatus (which tracks *getting the item to the customer*, not what happens after).
-  returnStatus ReturnStatus?
+  returnStatus          ReturnStatus?
   /// Set together with returnStatus = REJECTED - same "reason accompanies a rejection" convention
   /// as SellerProfile.rejectionReason/ServiceProviderProfile.rejectionReason.
-  returnRejectionReason String? @db.Text
+  returnRejectionReason String?         @db.Text
   returnTickets         SupportTicket[]
 
   @@index([orderId])
@@ -681,25 +698,31 @@ enum CouponType {
 }
 
 model Coupon {
-  id   String     @id @default(cuid())
-  code String     @unique
-  type CouponType
+  id                    String     @id @default(cuid())
+  code                  String     @unique
+  type                  CouponType
   /// A percentage (e.g. 20 for 20%) when type is PERCENTAGE, or a flat Toman amount when type
   /// is FIXED_AMOUNT.
-  value Decimal @db.Decimal(12, 0)
+  value                 Decimal    @db.Decimal(12, 0)
   /// Caps the computed discount - only meaningful for PERCENTAGE (a FIXED_AMOUNT coupon's own
   /// value already is its cap). null = uncapped.
-  maxDiscountAmount Decimal? @db.Decimal(12, 0)
+  maxDiscountAmount     Decimal?   @db.Decimal(12, 0)
   /// Minimum order subtotal (after any seller-level discount, before this coupon) required to
   /// use this code. null = no minimum.
-  minOrderAmount Decimal? @db.Decimal(12, 0)
+  minOrderAmount        Decimal?   @db.Decimal(12, 0)
   /// Total successful (PAID) redemptions allowed across all customers. null = unlimited.
-  maxRedemptions Int?
+  maxRedemptions        Int?
   /// Successful (PAID) redemptions allowed per individual customer. null = unlimited.
   maxRedemptionsPerUser Int?
-  startsAt DateTime?
-  endsAt   DateTime?
-  isActive Boolean  @default(true)
+  /// Set only for a system-generated personal coupon (currently: the birthday-discount campaign,
+  /// docs/decisions.md ADR 45) - when non-null, validateCoupon also requires the redeeming
+  /// customer to be this exact user, on top of every other check. null for every ordinary
+  /// admin-created code in /admin/coupons, which anyone can use.
+  userId                String?
+  user                  User?      @relation(fields: [userId], references: [id])
+  startsAt              DateTime?
+  endsAt                DateTime?
+  isActive              Boolean    @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -707,6 +730,7 @@ model Coupon {
   orders Order[]
 
   @@index([isActive])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
@@ -743,11 +767,11 @@ enum SettlementStatus {
 /// Commission payout to a service provider — project-plan-v1.md §5. No PaymentProvider
 /// wiring in Sprint 0; this is a schema placeholder for the settlement sprint.
 model Settlement {
-  id          String           @id @default(cuid())
+  id          String                 @id @default(cuid())
   providerId  String
   provider    ServiceProviderProfile @relation(fields: [providerId], references: [id])
-  amount      Decimal          @db.Decimal(12, 0)
-  status      SettlementStatus @default(PENDING)
+  amount      Decimal                @db.Decimal(12, 0)
+  status      SettlementStatus       @default(PENDING)
   periodStart DateTime
   periodEnd   DateTime
 
@@ -808,16 +832,16 @@ enum TicketType {
 }
 
 model SupportTicket {
-  id      String       @id @default(cuid())
-  userId  String
-  user    User         @relation(fields: [userId], references: [id])
-  subject String
-  status  TicketStatus @default(OPEN)
-  type    TicketType   @default(GENERAL)
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  subject     String
+  status      TicketStatus @default(OPEN)
+  type        TicketType   @default(GENERAL)
   /// Set only for RETURN_REQUEST tickets - the OrderItem this return is about. Nullable since a
   /// GENERAL ticket has no associated order item.
   orderItemId String?
-  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
+  orderItem   OrderItem?   @relation(fields: [orderItemId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -829,11 +853,11 @@ model SupportTicket {
 }
 
 model TicketMessage {
-  id       String        @id @default(cuid())
-  ticketId String
-  ticket   SupportTicket @relation(fields: [ticketId], references: [id])
+  id          String        @id @default(cuid())
+  ticketId    String
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id])
   /// The id of whoever wrote it — the ticket's own owner, or an admin user.
-  authorId String
+  authorId    String
   /// Set only by the admin-side reply route (docs/decisions.md ADR 34) - which endpoint handled
   /// the request decides this, not whether the author's account also happens to hold ADMIN
   /// elsewhere. A ticket owner who is also an admin, replying to their own ticket from their own
@@ -841,14 +865,14 @@ model TicketMessage {
   /// This is what the UI uses to tell a customer/seller/partner message apart from a staff one;
   /// comparing authorId to the ticket's own userId alone can't do this (they're the same account
   /// in that self-admin case).
-  isFromStaff Boolean @default(false)
-  body        String  @db.Text
+  isFromStaff Boolean       @default(false)
+  body        String        @db.Text
   /// A photo attached to this message, via the same StorageProvider every other upload in this
   /// app uses (docs/decisions.md ADR 38) - used today only by the return-request flow's initial
   /// message ("عکس از کالا"). A general field on the message itself rather than a return-specific
   /// column elsewhere, since a message is already the right shape for "what was said, plus
   /// optional evidence."
-  imageUrl String?
+  imageUrl    String?
 
   createdAt DateTime @default(now())
 
@@ -917,8 +941,15 @@ model SeasonalTheme {
 /// from a real dropdown instead of typing a placement name that has to match what a template
 /// happens to render (panels-and-operations-spec.md §4). Only one value for now; more slots are
 /// additive (new enum members), never a schema change to this model.
+/// Docs/decisions.md ADR 45 expands this from a single HOME_TOP slot to three named placements.
+/// HOME_HERO is the old HOME_TOP renamed (still the one large banner at the top of /home);
+/// HOME_PROMO_STRIP is a new horizontal row of several smaller banners (getActiveBanners, plural
+/// - unlike the other two placements, more than one can render at once); SERVICES_HERO is the
+/// equivalent large banner at the top of the new /services page.
 enum BannerPlacement {
-  HOME_TOP
+  HOME_HERO
+  HOME_PROMO_STRIP
+  SERVICES_HERO
 }
 
 model Banner {
@@ -927,7 +958,7 @@ model Banner {
   text      String
   /// Optional - a purely informational banner needs no destination.
   link      String?
-  placement BannerPlacement @default(HOME_TOP)
+  placement BannerPlacement @default(HOME_HERO)
   isActive  Boolean         @default(true)
   /// Unlike SeasonalTheme, a banner can reasonably run with no end date (a standing announcement)
   /// or take effect immediately (no start date) - same optional-window convention as Coupon.

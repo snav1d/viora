@@ -28,13 +28,59 @@ export const SIMPLE_SERVICE_CATEGORIES: SimpleServiceCategoryDef[] = [
     servicePath: "/services/balloon-decor",
   },
   {
+    // Renamed from "عکاسی" (docs/decisions.md ADR 45) - videography needs no structural change
+    // of its own, it's just a ServiceOffering a provider of this same category can already
+    // create under whatever title they choose.
     slug: "photography",
-    label: "عکاسی",
+    label: "عکاسی و فیلم‌برداری",
     registerPath: "/provider/register/photography",
     servicePath: "/services/photography",
+  },
+  // Five new categories, seeded isActive: false (docs/decisions.md ADR 45) - listed here already
+  // so activating one later from /admin/catalog is genuinely the only step needed: registration,
+  // browsing, and booking all already work off this same registry entry, with no further code
+  // change or deploy required.
+  {
+    slug: "dj-live-music",
+    label: "دی‌جی و موسیقی زنده",
+    registerPath: "/provider/register/dj-live-music",
+    servicePath: "/services/dj-live-music",
+  },
+  {
+    slug: "catering-fingerfood",
+    label: "کیترینگ و فینگرفود",
+    registerPath: "/provider/register/catering-fingerfood",
+    servicePath: "/services/catering-fingerfood",
+  },
+  {
+    slug: "event-host",
+    label: "مجری و گرداننده‌ی مراسم",
+    registerPath: "/provider/register/event-host",
+    servicePath: "/services/event-host",
+  },
+  {
+    slug: "floral-decor",
+    label: "گل‌آرایی و دکور گل",
+    registerPath: "/provider/register/floral-decor",
+    servicePath: "/services/floral-decor",
+  },
+  {
+    slug: "bridal-beauty",
+    label: "آرایش و شینیون عروس",
+    registerPath: "/provider/register/bridal-beauty",
+    servicePath: "/services/bridal-beauty",
   },
 ];
 
 export function getSimpleServiceCategory(slug: string): SimpleServiceCategoryDef | undefined {
   return SIMPLE_SERVICE_CATEGORIES.find((category) => category.slug === slug);
+}
+
+/// Where any SERVICE category's own customer-facing browse page lives, print included - shared
+/// by the home page's category grid and /services' own (docs/decisions.md ADR 45), so both stay
+/// in sync from this one place. A future category needs only its own SIMPLE_SERVICE_CATEGORIES
+/// entry, never a change here.
+export function getServiceCategoryHref(slug: string): string {
+  if (slug === PRINT_CATEGORY_SLUG) return "/print/partners";
+  return getSimpleServiceCategory(slug)?.servicePath ?? `/services/${slug}`;
 }

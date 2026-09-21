@@ -6,16 +6,19 @@ import { ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { OptionalJalaliDatePicker } from "@/components/ui/OptionalJalaliDatePicker";
 import { BANNER_PLACEMENT_LABELS } from "@/lib/labels";
+import type { BannerPlacement } from "@/lib/generated/prisma/client";
 
 const inputClass =
   "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+
+const PLACEMENT_OPTIONS: BannerPlacement[] = ["HOME_HERO", "HOME_PROMO_STRIP", "SERVICES_HERO"];
 
 type BannerInput = {
   id: string;
   imageUrl: string;
   text: string;
   link: string | null;
-  placement: "HOME_TOP";
+  placement: BannerPlacement;
   startsAt: string | null;
   endsAt: string | null;
 };
@@ -27,6 +30,7 @@ export function BannerForm({ banner }: { banner?: BannerInput }) {
   const [imageUrl, setImageUrl] = useState(banner?.imageUrl ?? "");
   const [text, setText] = useState(banner?.text ?? "");
   const [link, setLink] = useState(banner?.link ?? "");
+  const [placement, setPlacement] = useState<BannerPlacement>(banner?.placement ?? "HOME_HERO");
   const [startsAt, setStartsAt] = useState<string | null>(banner?.startsAt ?? null);
   const [endsAt, setEndsAt] = useState<string | null>(banner?.endsAt ?? null);
 
@@ -76,7 +80,7 @@ export function BannerForm({ banner }: { banner?: BannerInput }) {
           imageUrl,
           text,
           link: link.trim() ? link.trim() : null,
-          placement: "HOME_TOP",
+          placement,
           startsAt,
           endsAt,
         }),
@@ -162,10 +166,21 @@ export function BannerForm({ banner }: { banner?: BannerInput }) {
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-sm font-medium text-charcoal">جایگاه</p>
-        <p className="rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal-muted">
-          {BANNER_PLACEMENT_LABELS.HOME_TOP}
-        </p>
+        <label htmlFor="placement" className="text-sm font-medium text-charcoal">
+          جایگاه
+        </label>
+        <select
+          id="placement"
+          value={placement}
+          onChange={(event) => setPlacement(event.target.value as BannerPlacement)}
+          className={inputClass}
+        >
+          {PLACEMENT_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {BANNER_PLACEMENT_LABELS[option]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1.5">

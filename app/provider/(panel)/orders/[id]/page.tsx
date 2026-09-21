@@ -71,6 +71,14 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
             <dd className="font-medium text-charcoal">{item.order.shippingAddress}</dd>
           </div>
         ) : null}
+        {item.order.contactPhone ? (
+          <div className="col-span-2">
+            <dt className="text-charcoal-muted">شماره تماس برای هماهنگی</dt>
+            <dd dir="ltr" className="text-left font-medium text-charcoal">
+              {item.order.contactPhone}
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       {!item.acceptedAt ? (

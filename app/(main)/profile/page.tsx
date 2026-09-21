@@ -4,15 +4,17 @@ import { User as UserIcon, Package, Store, ShieldCheck, Printer, PartyPopper, Ca
 import { TopBar } from "@/components/nav/TopBar";
 import { ButtonLink } from "@/components/ui/Button";
 import { LogoutButton } from "@/components/profile/LogoutButton";
+import { BirthdayDiscountInvite } from "@/components/profile/BirthdayDiscountInvite";
 import { getSession } from "@/lib/auth/session";
 import { getSellerProfile } from "@/lib/auth/seller";
 import { getServiceProviderProfile } from "@/lib/auth/provider";
 import { parseRoles } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { getOrdersForUser } from "@/lib/data/orders";
+import { getActiveServiceCategories } from "@/lib/data/catalog";
 import { toNumber } from "@/lib/decimal";
 import { ORDER_STATUS_LABELS } from "@/lib/labels";
-import { SIMPLE_SERVICE_CATEGORIES } from "@/lib/serviceCategories";
+import { SIMPLE_SERVICE_CATEGORIES, PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "پروفایل",
@@ -29,14 +31,23 @@ const SIMPLE_CATEGORY_ICONS: Record<string, typeof PartyPopper> = {
 // new category needs no change here. Shown only when the user has no ServiceProviderProfile yet;
 // once they have one (of any type), routing to its panel is already generic regardless of
 // category, so a single "پنل پارتنر" link covers all of these.
-const PROVIDER_REGISTER_OPTIONS = [
-  { href: "/provider/register", label: "ثبت‌نام به‌عنوان پارتنر چاپ", icon: Printer },
-  ...SIMPLE_SERVICE_CATEGORIES.map((category) => ({
-    href: category.registerPath,
-    label: `ثبت‌نام به‌عنوان پارتنر ${category.label}`,
-    icon: SIMPLE_CATEGORY_ICONS[category.slug] ?? Store,
-  })),
-];
+//
+// Filtered to only currently-active categories (docs/decisions.md ADR 45) - SIMPLE_SERVICE_
+// CATEGORIES now also lists several categories seeded isActive: false, and showing one of those
+// here would be a dead-end registration wizard that always fails at submit (the same "این
+// دسته‌بندی خدماتی فعال نیست" gap already root-caused once before, in ADR 44).
+function buildProviderRegisterOptions(activeSlugs: Set<string>) {
+  return [
+    ...(activeSlugs.has(PRINT_CATEGORY_SLUG)
+      ? [{ href: "/provider/register", label: "ثبت‌نام به‌عنوان پارتنر چاپ", icon: Printer }]
+      : []),
+    ...SIMPLE_SERVICE_CATEGORIES.filter((category) => activeSlugs.has(category.slug)).map((category) => ({
+      href: category.registerPath,
+      label: `ثبت‌نام به‌عنوان پارتنر ${category.label}`,
+      icon: SIMPLE_CATEGORY_ICONS[category.slug] ?? Store,
+    })),
+  ];
+}
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -64,11 +75,13 @@ export default async function ProfilePage() {
   let orders: Awaited<ReturnType<typeof getOrdersForUser>>;
   let sellerProfile: Awaited<ReturnType<typeof getSellerProfile>>;
   let providerProfile: Awaited<ReturnType<typeof getServiceProviderProfile>>;
+  let activeServiceCategorySlugs: Set<string>;
   try {
     user = await prisma.user.findUniqueOrThrow({ where: { id: session.userId } });
     orders = await getOrdersForUser(session.userId);
     sellerProfile = await getSellerProfile();
     providerProfile = await getServiceProviderProfile();
+    activeServiceCategorySlugs = new Set((await getActiveServiceCategories()).map((c) => c.slug));
   } catch (error) {
     // A verified session alone doesn't guarantee these queries succeed - e.g. a deploy whose
     // schema migration wasn't yet applied against this DATABASE_URL throws a real Prisma error
@@ -99,6 +112,8 @@ export default async function ProfilePage() {
           </p>
         </div>
       </section>
+
+      {user.birthDate === null ? <BirthdayDiscountInvite /> : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-charcoal">تاریخچه‌ی سفارش‌ها</h2>
@@ -152,7 +167,7 @@ export default async function ProfilePage() {
         </ButtonLink>
       ) : (
         <div className="space-y-2">
-          {PROVIDER_REGISTER_OPTIONS.map((option) => (
+          {buildProviderRegisterOptions(activeServiceCategorySlugs).map((option) => (
             <ButtonLink key={option.href} href={option.href} variant="secondary" size="md" className="w-full gap-2">
               <option.icon className="h-4 w-4" strokeWidth={1.75} />
               {option.label}

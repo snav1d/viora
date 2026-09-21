@@ -1,6 +1,9 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
+import { PRINT_CATEGORY_SLUG } from "@/lib/serviceCategories";
+import type { ServiceProviderProfile, Category, ProviderPortfolioImage, ServiceOffering } from "@/lib/generated/prisma/client";
 
 export type ServiceProviderCard = {
   providerId: string;
@@ -70,7 +73,9 @@ export async function getProviderProfileForCustomer(
       id: offering.id,
       title: offering.title,
       description: offering.description,
-      price: toNumber(offering.basePrice),
+      // Marked up here, at the source (docs/decisions.md ADR 45) - never the partner's raw
+      // basePrice.
+      price: applyPlatformMarkup(toNumber(offering.basePrice)),
     })),
   };
 }
@@ -101,7 +106,91 @@ export async function getBookableOffering(
   return {
     id: offering.id,
     title: offering.title,
-    price: toNumber(offering.basePrice),
+    // Marked up here, at the source (docs/decisions.md ADR 45) - never the partner's raw
+    // basePrice.
+    price: applyPlatformMarkup(toNumber(offering.basePrice)),
     businessName: offering.provider.businessName,
   };
+}
+
+export type FeaturedProviderCard = {
+  providerId: string;
+  businessName: string;
+  categorySlug: string;
+  categoryLabel: string;
+  portfolioImages: string[];
+  /// Print's own pre-selected-partner order flow for a print provider (docs/decisions.md ADR
+  /// 44's /print/partners pattern), or this provider's own /services/[category]/[id] profile
+  /// for everyone else - computed here so /services' page never needs to branch on category.
+  href: string;
+};
+
+type ProviderWithRelationsForCard = ServiceProviderProfile & {
+  category: Category;
+  portfolioImages: ProviderPortfolioImage[];
+  serviceOfferings: ServiceOffering[];
+};
+
+function toFeaturedProviderCard(provider: ProviderWithRelationsForCard): FeaturedProviderCard {
+  const href =
+    provider.category.slug === PRINT_CATEGORY_SLUG
+      ? provider.serviceOfferings[0]
+        ? `/print?offering=${provider.serviceOfferings[0].id}`
+        : "/print"
+      : `/services/${provider.category.slug}/${provider.id}`;
+  return {
+    providerId: provider.id,
+    businessName: provider.businessName,
+    categorySlug: provider.category.slug,
+    categoryLabel: provider.category.name,
+    portfolioImages: provider.portfolioImages.map((image) => image.imageUrl),
+    href,
+  };
+}
+
+const FEATURED_PROVIDER_LIMIT = 10;
+
+/** "پیشنهاد ویژه‌ی ویورا" row on the new /services page (docs/decisions.md ADR 45) -
+ * isVerifiedByViora partners across every active SERVICE category at once (print included),
+ * unlike getActiveProvidersInCategory which is scoped to one category's own browse page. */
+export async function getVioraRecommendedProviders(cityId: string): Promise<FeaturedProviderCard[]> {
+  const providers = await prisma.serviceProviderProfile.findMany({
+    where: {
+      status: "APPROVED",
+      isVerifiedByViora: true,
+      category: { type: "SERVICE", isActive: true },
+      serviceOfferings: { some: { isActive: true, cityId } },
+    },
+    include: {
+      category: true,
+      portfolioImages: true,
+      serviceOfferings: { where: { isActive: true, cityId }, take: 1 },
+    },
+    orderBy: { businessName: "asc" },
+    take: FEATURED_PROVIDER_LIMIT,
+  });
+  return providers.map(toFeaturedProviderCard);
+}
+
+/** "تازه‌های ویورا" row - the most recently approved partners across every active SERVICE
+ * category, ranked by approvedAt (docs/decisions.md ADR 45 - unlike updatedAt, this never
+ * changes again after a later edit like a commissionRate override, so it stays a reliable
+ * "newest approved" signal). */
+export async function getVioraNewestProviders(cityId: string): Promise<FeaturedProviderCard[]> {
+  const providers = await prisma.serviceProviderProfile.findMany({
+    where: {
+      status: "APPROVED",
+      approvedAt: { not: null },
+      category: { type: "SERVICE", isActive: true },
+      serviceOfferings: { some: { isActive: true, cityId } },
+    },
+    include: {
+      category: true,
+      portfolioImages: true,
+      serviceOfferings: { where: { isActive: true, cityId }, take: 1 },
+    },
+    orderBy: { approvedAt: "desc" },
+    take: FEATURED_PROVIDER_LIMIT,
+  });
+  return providers.map(toFeaturedProviderCard);
 }

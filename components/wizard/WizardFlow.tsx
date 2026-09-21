@@ -218,7 +218,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
                 <p className="font-medium text-charcoal">
                   می‌تونی از خدمات بیشتری مثل فینگرفود، کیک، عکاس، دی‌جی هم استفاده کنی
                 </p>
-                <ButtonLink href="/home" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
+                <ButtonLink href="/services" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
                   مشاهده‌ی خدمات
                 </ButtonLink>
               </div>

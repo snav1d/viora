@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useCart } from "@/lib/cart/CartContext";
 import { SellerAvatar } from "@/components/shop/SellerAvatar";
+import { applyPlatformMarkup } from "@/lib/pricing";
 
 const INITIAL_VISIBLE_COUNT = 4;
 
@@ -45,7 +46,7 @@ export function OtherSellersList({
       </p>
       <ul className="flex flex-col divide-y divide-border border-t border-border">
         {visibleListings.map((listing) => {
-          const effectivePrice = listing.discountPrice ?? listing.price;
+          const effectivePrice = applyPlatformMarkup(listing.discountPrice ?? listing.price);
           return (
             <li key={listing.id} className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm">
               <div className="flex items-center gap-2">

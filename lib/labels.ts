@@ -43,7 +43,9 @@ export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
 };
 
 export const BANNER_PLACEMENT_LABELS: Record<BannerPlacement, string> = {
-  HOME_TOP: "بالای صفحه‌ی اصلی",
+  HOME_HERO: "بنر اصلی صفحه‌ی اول",
+  HOME_PROMO_STRIP: "ردیف بنرهای کوچک صفحه‌ی اول",
+  SERVICES_HERO: "بنر اصلی صفحه‌ی خدمات",
 };
 
 /// panels-and-operations-spec.md §1's own labels for the multi-seller hub pipeline.

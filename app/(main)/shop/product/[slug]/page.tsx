@@ -9,6 +9,7 @@ import { ReviewList } from "@/components/reviews/ReviewList";
 import { getProductBySlug } from "@/lib/data/catalog";
 import { getProductReviewSummary } from "@/lib/data/reviews";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import { siteConfig } from "@/lib/config/site";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -36,9 +37,14 @@ export default async function ProductPage({ params }: Props) {
   if (!product) notFound();
 
   const { listing } = product;
+  // price/discountPrice stay the seller's own raw figures - only used below for otherListings
+  // (which apply the markup themselves in OtherSellersList). Every number actually shown or
+  // charged here goes through applyPlatformMarkup first (docs/decisions.md ADR 45).
   const price = toNumber(listing.price);
   const discountPrice = listing.discountPrice ? toNumber(listing.discountPrice) : null;
-  const effectivePrice = discountPrice ?? price;
+  const displayPrice = applyPlatformMarkup(price);
+  const displayDiscountPrice = discountPrice ? applyPlatformMarkup(discountPrice) : null;
+  const displayEffectivePrice = displayDiscountPrice ?? displayPrice;
   const reviewSummary = await getProductReviewSummary(product.id);
 
   const jsonLd = {
@@ -50,7 +56,7 @@ export default async function ProductPage({ params }: Props) {
     offers: {
       "@type": "Offer",
       priceCurrency: "IRR",
-      price: effectivePrice * 10, // Toman -> Rial for schema.org (ISO 4217 has no Toman code)
+      price: displayEffectivePrice * 10, // Toman -> Rial for schema.org (ISO 4217 has no Toman code)
       availability:
         listing.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
@@ -70,17 +76,19 @@ export default async function ProductPage({ params }: Props) {
         <div className="space-y-2">
           <p className="text-xs text-charcoal-muted">{product.category.name}</p>
           <h1 className="text-lg font-semibold text-charcoal">{product.title}</h1>
-          {discountPrice ? (
+          {displayDiscountPrice ? (
             <div className="flex items-baseline gap-2">
               <p className="text-xl font-bold text-rose-700">
-                {discountPrice.toLocaleString("fa-IR")} تومان
+                {displayDiscountPrice.toLocaleString("fa-IR")} تومان
               </p>
               <p className="text-sm text-charcoal-muted line-through">
-                {price.toLocaleString("fa-IR")} تومان
+                {displayPrice.toLocaleString("fa-IR")} تومان
               </p>
             </div>
           ) : (
-            <p className="text-xl font-bold text-rose-700">{price.toLocaleString("fa-IR")} تومان</p>
+            <p className="text-xl font-bold text-rose-700">
+              {displayPrice.toLocaleString("fa-IR")} تومان
+            </p>
           )}
         </div>
 
@@ -106,7 +114,7 @@ export default async function ProductPage({ params }: Props) {
           listingId={listing.id}
           slug={product.slug}
           title={product.title}
-          price={effectivePrice}
+          price={displayEffectivePrice}
         />
 
         <OtherSellersList

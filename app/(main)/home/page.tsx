@@ -3,12 +3,13 @@ import { Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { HomeBanner } from "@/components/home/HomeBanner";
+import { PromoStrip } from "@/components/home/PromoStrip";
 import { ProductCard } from "@/components/shop/ProductCard";
 import { getActiveProductCategories, getActiveServiceCategories, getFeaturedProducts } from "@/lib/data/catalog";
-import { getActiveBanner } from "@/lib/data/banners";
+import { getActiveBanner, getActiveBanners } from "@/lib/data/banners";
 import { toNumber } from "@/lib/decimal";
 import { siteConfig } from "@/lib/config/site";
-import { PRINT_CATEGORY_SLUG, SIMPLE_SERVICE_CATEGORIES } from "@/lib/serviceCategories";
+import { getServiceCategoryHref } from "@/lib/serviceCategories";
 
 export const metadata: Metadata = {
   title: "خانه",
@@ -16,15 +17,6 @@ export const metadata: Metadata = {
 
 // Catalog/category data is admin-editable and must never be frozen at build time.
 export const dynamic = "force-dynamic";
-
-// Where each SERVICE category's own browse page lives (docs/decisions.md ADR 44 item 5) - print
-// keeps its own dedicated partner-first browse page, every "simple" category uses the shared
-// /services/[slug] route. A future new category needs no change here beyond its own registry
-// entry.
-const SERVICE_CATEGORY_HREFS: Record<string, string> = {
-  [PRINT_CATEGORY_SLUG]: "/print/partners",
-  ...Object.fromEntries(SIMPLE_SERVICE_CATEGORIES.map((category) => [category.slug, category.servicePath])),
-};
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -36,11 +28,12 @@ const organizationJsonLd = {
 };
 
 export default async function HomePage() {
-  const [productCategories, serviceCategories, products, banner] = await Promise.all([
+  const [productCategories, serviceCategories, products, banner, promoBanners] = await Promise.all([
     getActiveProductCategories(),
     getActiveServiceCategories(),
     getFeaturedProducts(6),
-    getActiveBanner("HOME_TOP"),
+    getActiveBanner("HOME_HERO"),
+    getActiveBanners("HOME_PROMO_STRIP"),
   ]);
 
   const gridCategories = [
@@ -48,7 +41,7 @@ export default async function HomePage() {
     ...serviceCategories.map((category) => ({
       slug: category.slug,
       name: category.name,
-      href: SERVICE_CATEGORY_HREFS[category.slug],
+      href: getServiceCategoryHref(category.slug),
     })),
   ];
 
@@ -59,6 +52,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
       {banner ? <HomeBanner imageUrl={banner.imageUrl} text={banner.text} link={banner.link} /> : null}
+      <PromoStrip banners={promoBanners} />
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs text-charcoal-muted">سلام 👋</p>
@@ -86,9 +80,14 @@ export default async function HomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-charcoal">دسته‌بندی‌ها</h2>
-          <ButtonLink href="/shop" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
-            مشاهده فروشگاه
-          </ButtonLink>
+          <div className="flex items-center gap-3">
+            <ButtonLink href="/services" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
+              مشاهده خدمات
+            </ButtonLink>
+            <ButtonLink href="/shop" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
+              مشاهده فروشگاه
+            </ButtonLink>
+          </div>
         </div>
         <CategoryGrid categories={gridCategories} />
       </section>

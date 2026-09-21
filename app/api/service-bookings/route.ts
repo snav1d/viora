@@ -5,13 +5,22 @@ import { getSession } from "@/lib/auth/session";
 import { getPaymentProvider } from "@/lib/providers/payment";
 import { validateCoupon } from "@/lib/data/coupons";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import { getSimpleServiceCategory } from "@/lib/serviceCategories";
+import { normalizeIranianContactNumber } from "@/lib/validation/phone";
 
 const bodySchema = z.object({
   categorySlug: z.string({ error: "دسته‌بندی نامعتبر است." }),
   offeringId: z.string({ error: "پارتنر را انتخاب کنید." }).min(1, "پارتنر را انتخاب کنید."),
   eventDate: z.string({ error: "تاریخ رویداد را انتخاب کنید." }).min(1, "تاریخ رویداد را انتخاب کنید."),
   address: z.string({ error: "آدرس محل برگزاری را وارد کنید." }).min(3, "آدرس محل برگزاری را وارد کنید."),
+  // "شماره تماس برای هماهنگی" - mandatory (docs/decisions.md ADR 45), unlike every other order-
+  // creation route which has no such field yet.
+  contactPhone: z
+    .string({ error: "شماره تماس برای هماهنگی را وارد کنید." })
+    .refine((value) => normalizeIranianContactNumber(value) !== null, {
+      message: "شماره تماس معتبر نیست.",
+    }),
   notes: z.string().min(1).optional(),
   couponCode: z.string().trim().min(1).optional(),
 });
@@ -62,8 +71,12 @@ export async function POST(request: Request) {
     );
   }
 
+  // unitPrice below is the provider's own raw basePrice - what they're actually paid, stored
+  // unmarked-up on OrderItem for settlement. subtotal is the customer-facing number (already
+  // shown on the booking page via getBookableOffering) that totalAmount/coupon-base use
+  // instead (docs/decisions.md ADR 45).
   const unitPrice = toNumber(offering.basePrice);
-  const subtotal = unitPrice;
+  const subtotal = applyPlatformMarkup(unitPrice);
 
   // Never trust the client's own earlier /api/coupons/validate preview - re-verify at the moment
   // of actually charging, same reasoning as /api/print-orders and /api/checkout.
@@ -89,6 +102,7 @@ export async function POST(request: Request) {
       totalAmount,
       eventDate,
       shippingAddress: parsed.data.address,
+      contactPhone: normalizeIranianContactNumber(parsed.data.contactPhone),
       couponId,
       discountAmount,
       items: {

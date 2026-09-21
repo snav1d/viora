@@ -21,3 +21,21 @@ export async function getActiveBanner(placement: BannerPlacement) {
     orderBy: { createdAt: "desc" },
   });
 }
+
+/// HOME_PROMO_STRIP's own plural variant (docs/decisions.md ADR 45) - unlike every other
+/// placement, this one is a horizontal row of several banners at once, not a single slot. Same
+/// date-window rule as getActiveBanner, newest first.
+export async function getActiveBanners(placement: BannerPlacement) {
+  const now = new Date();
+  return prisma.banner.findMany({
+    where: {
+      placement,
+      isActive: true,
+      AND: [
+        { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+        { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}

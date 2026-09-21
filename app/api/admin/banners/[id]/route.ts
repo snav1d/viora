@@ -17,7 +17,7 @@ const bodySchema = z.object({
   imageUrl: storageUrlSchema.optional(),
   text: z.string().trim().min(1, "متن بنر را وارد کنید.").optional(),
   link: z.union([linkSchema, z.null()]).optional(),
-  placement: z.enum(["HOME_TOP"]).optional(),
+  placement: z.enum(["HOME_HERO", "HOME_PROMO_STRIP", "SERVICES_HERO"]).optional(),
   startsAt: z.union([z.string().min(1), z.null()]).optional(),
   endsAt: z.union([z.string().min(1), z.null()]).optional(),
   isActive: z.boolean().optional(),

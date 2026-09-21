@@ -140,6 +140,9 @@ export function getAllPrintColors() {
   return prisma.printColor.findMany({ orderBy: { name: "asc" } });
 }
 
+// Excludes system-generated personal codes (the birthday campaign, docs/decisions.md ADR 45) -
+// this list is for the codes an admin actually manages themselves; a per-user auto-issued code
+// would just be noise here as more customers claim theirs.
 export function getAllCoupons() {
-  return prisma.coupon.findMany({ orderBy: { createdAt: "desc" } });
+  return prisma.coupon.findMany({ where: { userId: null }, orderBy: { createdAt: "desc" } });
 }

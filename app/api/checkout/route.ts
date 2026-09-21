@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getPaymentProvider } from "@/lib/providers/payment";
 import { validateCoupon } from "@/lib/data/coupons";
+import { applyPlatformMarkup } from "@/lib/pricing";
 
 const bodySchema = z.object({
   items: z.array(z.object({ listingId: z.string(), quantity: z.number().int().min(1) })).min(1),
@@ -40,19 +41,26 @@ export async function POST(request: Request) {
   // it's the seller's own choice, not something a platform coupon should ever touch. OrderItem
   // still stores productId/sellerId directly (docs/decisions.md ADR 39) - not listingId - since
   // that pair alone already identifies which Listing was used.
+  //
+  // unitPrice/splitAmount here are the seller's own raw figures - what they're actually paid,
+  // never touched by the platform's own markup (docs/decisions.md ADR 45). displayUnitPrice is
+  // the customer-facing number (also what /api/coupons/validate's preview and the cart already
+  // showed) - subtotal/totalAmount below are built from it, never from the raw unitPrice.
   const lines = parsed.data.items.map((item) => {
     const listing = listings.find((l) => l.id === item.listingId)!;
     const unitPrice = (listing.discountPrice ?? listing.price).toNumber();
+    const displayUnitPrice = applyPlatformMarkup(unitPrice);
     return {
       productId: listing.productId,
       sellerId: listing.sellerId,
       quantity: item.quantity,
       unitPrice,
       splitAmount: unitPrice * item.quantity,
+      displayUnitPrice,
     };
   });
 
-  const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const subtotal = lines.reduce((sum, line) => sum + line.displayUnitPrice * line.quantity, 0);
 
   // Never trust the client's own earlier /api/coupons/validate preview - re-verify everything
   // (still active, still within its window/limits, still meets minOrderAmount against the real

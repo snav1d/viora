@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/decimal";
+import { applyPlatformMarkup } from "@/lib/pricing";
 import { addDaysIso, todayIso } from "@/lib/jalali";
 import type { BalloonFinish, Prisma } from "@/lib/generated/prisma/client";
 
@@ -117,7 +118,10 @@ export async function getMatchingPrintProviders(params: {
       where: { providerId: offering.providerId, shippedAt: { not: null } },
     });
 
-    const unitPrice = toNumber(tier.unitPrice);
+    // Marked up here, at the source - every caller (the match API, PrintOrderFlow) only ever
+    // sees the customer-facing price, never the partner's raw tier price (docs/decisions.md
+    // ADR 45).
+    const unitPrice = applyPlatformMarkup(toNumber(tier.unitPrice));
     results.push({
       offeringId: offering.id,
       providerId: offering.providerId,

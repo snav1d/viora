@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Vazirmatn } from "next/font/google";
+import localFont from "next/font/local";
 import { siteConfig } from "@/lib/config/site";
 import { CartProvider } from "@/lib/cart/CartContext";
 import { getEffectiveTheme } from "@/lib/data/theme";
@@ -7,9 +7,20 @@ import { isValidPalette, paletteToCssVars } from "@/lib/theme";
 import { ThemePreviewBanner } from "@/components/admin/ThemePreviewBanner";
 import "./globals.css";
 
-const vazirmatn = Vazirmatn({
-  subsets: ["arabic", "latin"],
-  variable: "--font-vazirmatn",
+// Self-hosted (docs/decisions.md ADR 45's project-self-sufficiency rule, same reasoning as every
+// other self-hosted asset in this app) - replaces Vazirmatn as the site-wide default. Kalameh
+// ships nine static weights; only the four the codebase actually uses in a Tailwind font-weight
+// class (font-medium/font-semibold/font-bold) or as body text's own default weight (regular) are
+// loaded, so a customer's first paint isn't waiting on five weights nothing ever renders in.
+const kalameh = localFont({
+  src: [
+    { path: "./fonts/Kalameh-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Kalameh-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Kalameh-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Kalameh-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-kalameh",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -52,7 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="fa"
       dir="rtl"
-      className={`${vazirmatn.variable} h-full`}
+      className={`${kalameh.variable} h-full`}
       style={paletteStyle}
     >
       <body className="min-h-full flex flex-col bg-warm-white text-charcoal antialiased">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ImageOff } from "lucide-react";
+import { applyPlatformMarkup } from "@/lib/pricing";
 
 export function ProductPlaceholder({ className }: { className?: string }) {
   return (
@@ -19,9 +20,13 @@ export function ProductCard({
 }: {
   slug: string;
   title: string;
+  /// The seller's own entered price(s) - this component applies the platform's markup (docs/
+  /// decisions.md ADR 45) itself, so every render site passes the raw figure.
   price: number;
   discountPrice?: number | null;
 }) {
+  const displayPrice = applyPlatformMarkup(price);
+  const displayDiscountPrice = discountPrice ? applyPlatformMarkup(discountPrice) : null;
   return (
     <Link
       href={`/shop/product/${slug}`}
@@ -30,18 +35,18 @@ export function ProductCard({
       <ProductPlaceholder className="aspect-square w-full" />
       <div className="space-y-0.5 px-0.5 pb-1">
         <p className="line-clamp-2 text-sm font-medium text-charcoal">{title}</p>
-        {discountPrice ? (
+        {displayDiscountPrice ? (
           <div className="flex items-baseline gap-1.5">
             <p className="text-sm font-semibold text-rose-700">
-              {discountPrice.toLocaleString("fa-IR")} تومان
+              {displayDiscountPrice.toLocaleString("fa-IR")} تومان
             </p>
             <p className="text-xs text-charcoal-muted line-through">
-              {price.toLocaleString("fa-IR")}
+              {displayPrice.toLocaleString("fa-IR")}
             </p>
           </div>
         ) : (
           <p className="text-sm font-semibold text-rose-700">
-            {price.toLocaleString("fa-IR")} تومان
+            {displayPrice.toLocaleString("fa-IR")} تومان
           </p>
         )}
       </div>
