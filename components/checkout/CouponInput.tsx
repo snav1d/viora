@@ -47,7 +47,7 @@ export function CouponInput({
 
   if (appliedCode) {
     return (
-      <div className="flex items-center justify-between rounded-2xl border border-gold-500 bg-gold-100 px-4 py-3 text-sm">
+      <div className="flex items-center justify-between rounded-2xl border border-success-500/30 bg-success-50 px-4 py-3 text-sm">
         <span dir="ltr" className="font-medium text-charcoal">
           کد «{appliedCode}» اعمال شد
         </span>

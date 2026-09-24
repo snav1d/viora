@@ -62,7 +62,7 @@ export function OnboardingCarousel() {
         <ProgressDots total={SLIDES.length} current={index + 1} />
         <button
           onClick={next}
-          className="h-11 w-full rounded-full bg-gold-500 px-5 text-sm font-medium text-charcoal transition-colors hover:bg-gold-600"
+          className="h-11 w-full rounded-full bg-charcoal px-5 text-sm font-medium text-warm-white transition-colors hover:bg-charcoal/90"
         >
           {isLast ? "شروع کن" : "بعدی"}
         </button>

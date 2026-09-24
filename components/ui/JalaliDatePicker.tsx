@@ -153,7 +153,7 @@ export function JalaliDatePicker({
                     disabled
                       ? "text-charcoal-muted/40"
                       : isSelected
-                        ? "bg-gold-500 text-charcoal"
+                        ? "bg-charcoal text-warm-white"
                         : "text-charcoal hover:bg-rose-50",
                   )}
                 >

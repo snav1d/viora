@@ -55,8 +55,8 @@ function Chip({
       className={cn(
         "rounded-full border px-4 py-2 text-sm transition-colors",
         selected
-          ? "border-gold-500 bg-gold-100 text-charcoal"
-          : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+          ? "border-charcoal bg-charcoal/5 text-charcoal"
+          : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
       )}
     >
       {children}
@@ -356,8 +356,8 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
                   className={cn(
                     "rounded-2xl border px-4 py-3 text-sm transition-colors",
                     answers.cityId === city.id
-                      ? "border-gold-500 bg-gold-100 text-charcoal"
-                      : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                      ? "border-charcoal bg-charcoal/5 text-charcoal"
+                      : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
                   )}
                 >
                   {city.name}

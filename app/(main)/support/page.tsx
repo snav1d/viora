@@ -29,7 +29,7 @@ export default async function SupportPage() {
 
       <Link
         href="/support/new"
-        className="flex items-center justify-center gap-2 rounded-full bg-gold-500 px-6 py-3.5 text-base font-medium text-charcoal hover:bg-gold-600"
+        className="flex items-center justify-center gap-2 rounded-full bg-charcoal px-6 py-3.5 text-base font-medium text-warm-white hover:bg-charcoal/90"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         تیکت جدید
@@ -46,7 +46,7 @@ export default async function SupportPage() {
             <li key={ticket.id}>
               <Link
                 href={`/support/${ticket.id}`}
-                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm hover:border-rose-300"
+                className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
               >
                 <div className="space-y-1">
                   <p className="font-medium text-charcoal">{ticket.subject}</p>
