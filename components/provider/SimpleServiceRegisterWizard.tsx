@@ -220,7 +220,7 @@ export function SimpleServiceRegisterWizard({
                 disabled={uploadingLicense}
                 className={cn(
                   "flex h-32 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed text-charcoal-muted disabled:opacity-50",
-                  answers.licenseImageUrl ? "border-gold-500" : "border-border",
+                  answers.licenseImageUrl ? "border-charcoal" : "border-border",
                 )}
               >
                 {answers.licenseImageUrl ? (
@@ -267,7 +267,7 @@ export function SimpleServiceRegisterWizard({
               </label>
               <div
                 dir="ltr"
-                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-rose-400"
+                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-charcoal"
               >
                 <span className="flex items-center border-l border-border bg-border/30 px-3 text-charcoal-muted">
                   IR

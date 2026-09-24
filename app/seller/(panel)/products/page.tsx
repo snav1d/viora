@@ -31,7 +31,7 @@ export default async function SellerProductsPage({ searchParams }: Props) {
       {profile.status === "APPROVED" ? (
         <Link
           href="/seller/products/new"
-          className="flex items-center justify-center gap-2 rounded-full bg-gold-500 py-3 text-sm font-medium text-charcoal hover:bg-gold-600"
+          className="flex items-center justify-center gap-2 rounded-full bg-charcoal py-3 text-sm font-medium text-warm-white hover:bg-charcoal/90"
         >
           <Plus className="h-4 w-4" strokeWidth={2} />
           افزودن محصول جدید
@@ -83,14 +83,14 @@ export default async function SellerProductsPage({ searchParams }: Props) {
               <li key={listing.id}>
                 <Link
                   href={`/seller/products/${listing.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
                 >
                   <div className="space-y-1">
                     <p className="font-medium text-charcoal">{listing.product.title}</p>
                     <p className="text-charcoal-muted">
                       {listing.product.category.name} · {listing.city.name}
                     </p>
-                    <p className="font-medium text-rose-700">
+                    <p className="font-medium text-charcoal">
                       {toNumber(listing.price).toLocaleString("fa-IR")} تومان
                     </p>
                   </div>

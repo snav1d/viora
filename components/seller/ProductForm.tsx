@@ -312,7 +312,7 @@ export function ProductForm({
           className={inputClass}
         />
         {discountPrice && price && Number(discountPrice) >= Number(price) ? (
-          <p className="text-xs text-rose-700">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</p>
+          <p className="text-xs text-error-500">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</p>
         ) : (
           <p className="text-xs text-charcoal-muted">
             اگر تنظیم کنید، در فروشگاه قیمت اصلی خط‌خورده و این قیمت نمایش داده می‌شود.

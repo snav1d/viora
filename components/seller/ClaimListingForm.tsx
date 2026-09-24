@@ -140,7 +140,7 @@ export function ClaimListingForm({
           className={inputClass}
         />
         {discountPrice && price && Number(discountPrice) >= Number(price) ? (
-          <p className="text-xs text-rose-700">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</p>
+          <p className="text-xs text-error-500">قیمت با تخفیف باید کمتر از قیمت اصلی باشد.</p>
         ) : null}
       </div>
 

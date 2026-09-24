@@ -271,7 +271,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                 disabled={uploadingLicense}
                 className={cn(
                   "flex h-32 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed text-charcoal-muted disabled:opacity-50",
-                  answers.licenseImageUrl ? "border-gold-500" : "border-border",
+                  answers.licenseImageUrl ? "border-charcoal" : "border-border",
                 )}
               >
                 {answers.licenseImageUrl ? (
@@ -318,7 +318,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
               </label>
               <div
                 dir="ltr"
-                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-rose-400"
+                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-charcoal"
               >
                 <span className="flex items-center border-l border-border bg-border/30 px-3 text-charcoal-muted">
                   IR
@@ -348,7 +348,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                   className={cn(
                     "flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-colors",
                     answers.supportsChrome
-                      ? "border-gold-500 bg-gold-100 text-charcoal"
+                      ? "border-charcoal bg-charcoal/5 text-charcoal"
                       : "border-border bg-surface text-charcoal-muted",
                   )}
                 >
@@ -364,7 +364,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                   className={cn(
                     "flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-colors",
                     answers.supportsMatte
-                      ? "border-gold-500 bg-gold-100 text-charcoal"
+                      ? "border-charcoal bg-charcoal/5 text-charcoal"
                       : "border-border bg-surface text-charcoal-muted",
                   )}
                 >
@@ -395,7 +395,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                         className={cn(
                           "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
                           checked
-                            ? "border-gold-500 bg-gold-100 text-charcoal"
+                            ? "border-charcoal bg-charcoal/5 text-charcoal"
                             : "border-border bg-surface text-charcoal-muted",
                         )}
                       >
@@ -471,7 +471,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
                       <button
                         type="button"
                         onClick={() => removeTier(index)}
-                        className="self-start text-xs text-rose-700"
+                        className="self-start text-xs text-rose-600"
                       >
                         حذف این بازه
                       </button>
@@ -482,7 +482,7 @@ export function ProviderRegisterWizard({ colors }: { colors: string[] }) {
               <button
                 type="button"
                 onClick={addTier}
-                className="flex items-center gap-1.5 text-sm font-medium text-rose-700"
+                className="flex items-center gap-1.5 text-sm font-medium text-rose-600"
               >
                 <Plus className="h-4 w-4" strokeWidth={2} />
                 افزودن بازه‌ی دیگر

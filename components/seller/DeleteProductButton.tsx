@@ -38,7 +38,7 @@ export function DeleteProductButton({ listingId }: { listingId: string }) {
         type="button"
         onClick={handleDelete}
         disabled={deleting}
-        className="flex w-full items-center justify-center gap-2 rounded-full border border-rose-200 py-3 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-full border border-error-500/30 py-3 text-sm font-medium text-error-600 hover:bg-error-50 disabled:opacity-50"
       >
         <Trash2 className="h-4 w-4" strokeWidth={1.75} />
         {deleting ? "در حال حذف…" : "حذف محصول"}

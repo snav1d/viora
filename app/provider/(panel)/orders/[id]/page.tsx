@@ -129,7 +129,7 @@ export default async function ProviderOrderDetailPage({ params }: Props) {
 
           {item.shippedAt ? (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="font-medium text-rose-700">تحویل نهایی ثبت شده است.</p>
+              <p className="font-medium text-success-600">تحویل نهایی ثبت شده است.</p>
               {item.trackingCode ? (
                 <p dir="ltr" className="mt-1 text-left text-xs text-charcoal-muted">
                   کد رهگیری: {item.trackingCode}

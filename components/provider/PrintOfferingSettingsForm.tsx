@@ -117,7 +117,7 @@ export function PrintOfferingSettingsForm({
           <label
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-colors",
-              supportsChrome ? "border-gold-500 bg-gold-100 text-charcoal" : "border-border bg-surface text-charcoal-muted",
+              supportsChrome ? "border-charcoal bg-charcoal/5 text-charcoal" : "border-border bg-surface text-charcoal-muted",
             )}
           >
             <input
@@ -131,7 +131,7 @@ export function PrintOfferingSettingsForm({
           <label
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-colors",
-              supportsMatte ? "border-gold-500 bg-gold-100 text-charcoal" : "border-border bg-surface text-charcoal-muted",
+              supportsMatte ? "border-charcoal bg-charcoal/5 text-charcoal" : "border-border bg-surface text-charcoal-muted",
             )}
           >
             <input
@@ -155,7 +155,7 @@ export function PrintOfferingSettingsForm({
                 key={color}
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                  checked ? "border-gold-500 bg-gold-100 text-charcoal" : "border-border bg-surface text-charcoal-muted",
+                  checked ? "border-charcoal bg-charcoal/5 text-charcoal" : "border-border bg-surface text-charcoal-muted",
                 )}
               >
                 <input
@@ -227,21 +227,21 @@ export function PrintOfferingSettingsForm({
                 />
               </div>
               {tiers.length > 1 ? (
-                <button type="button" onClick={() => removeTier(index)} className="self-start text-xs text-rose-700">
+                <button type="button" onClick={() => removeTier(index)} className="self-start text-xs text-rose-600">
                   حذف این بازه
                 </button>
               ) : null}
             </div>
           ))}
         </div>
-        <button type="button" onClick={addTier} className="flex items-center gap-1.5 text-sm font-medium text-rose-700">
+        <button type="button" onClick={addTier} className="flex items-center gap-1.5 text-sm font-medium text-rose-600">
           <Plus className="h-4 w-4" strokeWidth={2} />
           افزودن بازه‌ی دیگر
         </button>
       </div>
 
       {error ? <p className="text-sm text-error-500">{error}</p> : null}
-      {saved ? <p className="text-sm text-gold-600">تغییرات ذخیره شد.</p> : null}
+      {saved ? <p className="text-sm text-success-600">تغییرات ذخیره شد.</p> : null}
 
       <Button type="submit" size="lg" disabled={!isValid || submitting} className="w-full">
         {submitting ? "در حال ذخیره…" : "ذخیره‌ی تغییرات"}

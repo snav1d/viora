@@ -45,7 +45,7 @@ export default async function AvailableOrdersPage() {
                 <p className="font-medium text-charcoal">
                   {item.printFinish ? FINISH_LABELS[item.printFinish] : "—"} · {item.printColor ?? "—"}
                 </p>
-                <p className="font-semibold text-rose-700">
+                <p className="font-semibold text-charcoal">
                   {(toNumber(item.unitPrice) * item.quantity).toLocaleString("fa-IR")} تومان
                 </p>
               </div>

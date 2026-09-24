@@ -92,7 +92,7 @@ export function AddProductFlow({
                 <button
                   type="button"
                   onClick={() => setSelected(product)}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-right text-sm hover:border-rose-300"
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 text-right text-sm transition-colors hover:border-charcoal/25"
                 >
                   <div>
                     <p className="font-medium text-charcoal">{product.title}</p>
@@ -115,7 +115,7 @@ export function AddProductFlow({
       <button
         type="button"
         onClick={() => setCreatingNew(true)}
-        className="text-center text-sm font-medium text-rose-700 underline underline-offset-2"
+        className="text-center text-sm font-medium text-rose-600 underline underline-offset-2"
       >
         محصول من در کاتالوگ نیست — ساخت محصول جدید
       </button>

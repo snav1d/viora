@@ -72,8 +72,8 @@ function Chip({
       className={cn(
         "rounded-full border px-4 py-2 text-sm transition-colors",
         selected
-          ? "border-gold-500 bg-gold-100 text-charcoal"
-          : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+          ? "border-charcoal bg-charcoal/5 text-charcoal"
+          : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
       )}
     >
       {children}
@@ -318,7 +318,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                     onClick={() => update({ avatarUrl: avatar.url })}
                     className={cn(
                       "aspect-square overflow-hidden rounded-full border-2 transition-colors",
-                      answers.avatarUrl === avatar.url ? "border-gold-500" : "border-transparent",
+                      answers.avatarUrl === avatar.url ? "border-charcoal" : "border-transparent",
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- small static asset, next/image is unnecessary weight here */}
@@ -333,7 +333,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                     "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full border-2 border-dashed text-charcoal-muted disabled:opacity-50",
                     answers.avatarUrl &&
                       !DEFAULT_AVATARS.some((a) => a.url === answers.avatarUrl)
-                      ? "border-gold-500"
+                      ? "border-charcoal"
                       : "border-border",
                   )}
                 >
@@ -405,7 +405,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                 disabled={uploadingLicense}
                 className={cn(
                   "flex h-32 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed text-charcoal-muted disabled:opacity-50",
-                  answers.businessLicenseImageUrl ? "border-gold-500" : "border-border",
+                  answers.businessLicenseImageUrl ? "border-charcoal" : "border-border",
                 )}
               >
                 {answers.businessLicenseImageUrl ? (
@@ -481,7 +481,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
               </label>
               <div
                 dir="ltr"
-                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-rose-400"
+                className="flex items-stretch overflow-hidden rounded-2xl border border-border bg-surface focus-within:border-charcoal"
               >
                 <span className="flex items-center border-l border-border bg-border/30 px-3 text-charcoal-muted">
                   IR
@@ -522,7 +522,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                 <Link
                   href="/legal/seller-terms"
                   target="_blank"
-                  className="font-medium text-rose-700 underline underline-offset-2"
+                  className="font-medium text-rose-600 underline underline-offset-2"
                 >
                   قوانین و شرایط همکاری با ویورا
                 </Link>{" "}
@@ -577,7 +577,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
                 <button
                   type="button"
                   onClick={addPhone}
-                  className="flex items-center gap-1.5 text-sm font-medium text-rose-700"
+                  className="flex items-center gap-1.5 text-sm font-medium text-rose-600"
                 >
                   <Plus className="h-4 w-4" strokeWidth={2} />
                   افزودن شماره‌ی دیگر

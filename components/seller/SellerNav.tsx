@@ -29,7 +29,7 @@ export function SellerNav() {
               )}
               aria-current={active ? "page" : undefined}
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
+              <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.5} />
               <span>{label}</span>
             </Link>
           );

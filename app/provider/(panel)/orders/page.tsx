@@ -31,7 +31,7 @@ export default async function ProviderOrdersPage() {
             <li key={item.id}>
               <Link
                 href={`/provider/orders/${item.id}`}
-                className="flex flex-col gap-1.5 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
+                className="flex flex-col gap-1.5 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
               >
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-charcoal">{item.order.user.name ?? "مشتری ویورا"}</p>
