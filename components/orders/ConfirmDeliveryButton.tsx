@@ -32,7 +32,7 @@ export function ConfirmDeliveryButton({ orderId }: { orderId: string }) {
       <Button size="lg" className="w-full" disabled={submitting} onClick={handleClick}>
         {submitting ? "در حال ثبت…" : "سفارش رو دریافت کردم"}
       </Button>
-      {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
     </div>
   );
 }

@@ -73,7 +73,7 @@ export function CouponInput({
             }
           }}
           placeholder="کد تخفیف"
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
         />
         <Button
           type="button"
@@ -85,7 +85,7 @@ export function CouponInput({
           {submitting ? "..." : "اعمال"}
         </Button>
       </div>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

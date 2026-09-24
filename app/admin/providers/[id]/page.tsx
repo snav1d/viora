@@ -197,7 +197,7 @@ export default async function AdminProviderDetailPage({ params }: Props) {
       ) : null}
 
       {provider.status === "REJECTED" && provider.rejectionReason ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-700">
+        <div className="rounded-2xl border border-error-500/20 bg-error-50 p-4 text-sm text-error-600">
           <p className="font-medium">دلیل رد قبلی</p>
           <p className="mt-1">{provider.rejectionReason}</p>
         </div>

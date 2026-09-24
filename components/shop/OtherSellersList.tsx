@@ -57,7 +57,7 @@ export function OtherSellersList({
                 />
                 <div className="space-y-0.5">
                   <p className="text-charcoal">{listing.sellerName}</p>
-                  <p className="font-medium text-rose-700">
+                  <p className="font-medium text-charcoal">
                     {effectivePrice.toLocaleString("fa-IR")} تومان
                   </p>
                 </div>

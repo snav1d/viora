@@ -70,7 +70,7 @@ export function PrintColorManager({ colors }: { colors: PrintColor[] }) {
             }
           }}
           placeholder="مثلاً قرمز"
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm text-charcoal focus:border-charcoal focus:outline-none"
         />
         <Button
           type="button"
@@ -83,7 +83,7 @@ export function PrintColorManager({ colors }: { colors: PrintColor[] }) {
           افزودن
         </Button>
       </div>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
       {colors.length === 0 ? (
         <p className="text-sm text-charcoal-muted">هنوز رنگی ثبت نشده است.</p>
       ) : (

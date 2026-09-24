@@ -30,14 +30,16 @@ export function ProductCard({
   return (
     <Link
       href={`/shop/product/${slug}`}
-      className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-2.5 transition-shadow hover:shadow-md"
+      className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-2.5 transition-colors hover:border-charcoal/25"
     >
       <ProductPlaceholder className="aspect-square w-full" />
       <div className="space-y-0.5 px-0.5 pb-1">
         <p className="line-clamp-2 text-sm font-medium text-charcoal">{title}</p>
+        {/* docs/design-system.md §6: price carries weight through size/weight, not a loud color -
+            charcoal, same as the rest of the card's text, not the old rose-700. */}
         {displayDiscountPrice ? (
           <div className="flex items-baseline gap-1.5">
-            <p className="text-sm font-semibold text-rose-700">
+            <p className="text-sm font-semibold text-charcoal">
               {displayDiscountPrice.toLocaleString("fa-IR")} تومان
             </p>
             <p className="text-xs text-charcoal-muted line-through">
@@ -45,7 +47,7 @@ export function ProductCard({
             </p>
           </div>
         ) : (
-          <p className="text-sm font-semibold text-rose-700">
+          <p className="text-sm font-semibold text-charcoal">
             {displayPrice.toLocaleString("fa-IR")} تومان
           </p>
         )}

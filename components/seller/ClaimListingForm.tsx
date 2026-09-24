@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 function toEnglishDigits(value: string): string {
   return value.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
@@ -144,7 +144,7 @@ export function ClaimListingForm({
         ) : null}
       </div>
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
 
       <Button
         type="submit"

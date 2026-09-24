@@ -8,7 +8,7 @@ export function ProgressDots({ total, current }: { total: number; current: numbe
           key={index}
           className={cn(
             "h-2 rounded-full transition-all",
-            index === current - 1 ? "w-6 bg-gold-500" : "w-2 bg-rose-100",
+            index === current - 1 ? "w-6 bg-charcoal" : "w-2 bg-rose-100",
           )}
         />
       ))}

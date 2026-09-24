@@ -61,7 +61,7 @@ export function BirthdayCampaignSettingsForm({
         <select
           value={type}
           onChange={(event) => setType(event.target.value as CouponType)}
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-charcoal focus:border-rose-400 focus:outline-none"
+          className="rounded-xl border border-border bg-surface px-3 py-2 text-charcoal focus:border-charcoal focus:outline-none"
         >
           {TYPE_OPTIONS.map((option) => (
             <option key={option} value={option}>
@@ -74,12 +74,12 @@ export function BirthdayCampaignSettingsForm({
           inputMode="decimal"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          className="w-24 rounded-xl border border-border bg-surface px-3 py-2 text-charcoal focus:border-rose-400 focus:outline-none"
+          className="w-24 rounded-xl border border-border bg-surface px-3 py-2 text-charcoal focus:border-charcoal focus:outline-none"
         />
         <span className="text-charcoal-muted">{type === "PERCENTAGE" ? "٪" : "تومان"}</span>
       </div>
-      {error ? <p className="text-rose-700">{error}</p> : null}
-      {saved ? <p className="text-emerald-700">ذخیره شد.</p> : null}
+      {error ? <p className="text-error-500">{error}</p> : null}
+      {saved ? <p className="text-success-600">ذخیره شد.</p> : null}
       <Button size="md" disabled={saving} onClick={handleSave} className="w-fit">
         {saving ? "در حال ذخیره…" : "ذخیره"}
       </Button>

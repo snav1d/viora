@@ -8,7 +8,9 @@ const base =
   "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-gold-500 text-charcoal hover:bg-gold-600",
+  // docs/design-system.md §6: primary CTA moved from gold to charcoal (the reference's solid
+  // black button) - gold now stays reserved for the verified/highlight badge role it already had.
+  primary: "bg-charcoal text-warm-white hover:bg-charcoal/90",
   secondary: "bg-rose-100 text-rose-700 hover:bg-rose-200",
   ghost: "bg-transparent text-charcoal hover:bg-rose-50",
 };

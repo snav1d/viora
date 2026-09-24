@@ -49,13 +49,13 @@ export default async function SellerProductsPage({ searchParams }: Props) {
             name="q"
             defaultValue={q ?? ""}
             placeholder="جستجوی نام محصول…"
-            className="w-full rounded-2xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+            className="w-full rounded-2xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
           />
         </div>
         <select
           name="status"
           defaultValue={status ?? ""}
-          className="rounded-2xl border border-border bg-surface px-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+          className="rounded-2xl border border-border bg-surface px-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
         >
           <option value="">همه</option>
           <option value="active">فعال</option>

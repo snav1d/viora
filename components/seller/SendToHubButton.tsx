@@ -34,7 +34,7 @@ export function SendToHubButton({ itemId }: { itemId: string }) {
       <Button size="md" className="w-full" onClick={handleClick} disabled={submitting}>
         {submitting ? "در حال ثبت…" : "ارسال به مرکز ویورا"}
       </Button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

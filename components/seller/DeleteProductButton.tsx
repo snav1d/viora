@@ -43,7 +43,7 @@ export function DeleteProductButton({ listingId }: { listingId: string }) {
         <Trash2 className="h-4 w-4" strokeWidth={1.75} />
         {deleting ? "در حال حذف…" : "حذف محصول"}
       </button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

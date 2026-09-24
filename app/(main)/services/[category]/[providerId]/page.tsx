@@ -59,8 +59,8 @@ export default async function ServiceProviderProfilePage({ params }: Props) {
       </div>
 
       {provider.portfolioImages.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-charcoal">نمونه‌کار</h2>
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-charcoal">نمونه‌کار</h2>
           <div className="grid grid-cols-3 gap-1.5">
             {provider.portfolioImages.map((image) => (
               // eslint-disable-next-line @next/next/no-img-element -- remote S3-compatible URL, not a local /public asset
@@ -71,7 +71,7 @@ export default async function ServiceProviderProfilePage({ params }: Props) {
       ) : null}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-charcoal">خدمات</h2>
+        <h2 className="text-base font-semibold text-charcoal">خدمات</h2>
         {provider.offerings.length === 0 ? (
           <p className="py-6 text-center text-sm text-charcoal-muted">این پارتنر فعلاً خدمتی ثبت نکرده است.</p>
         ) : (
@@ -81,10 +81,10 @@ export default async function ServiceProviderProfilePage({ params }: Props) {
                 <p className="font-medium text-charcoal">{offering.title}</p>
                 {offering.description ? <p className="text-charcoal-muted">{offering.description}</p> : null}
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-rose-700">{offering.price.toLocaleString("fa-IR")} تومان</p>
+                  <p className="font-semibold text-charcoal">{offering.price.toLocaleString("fa-IR")} تومان</p>
                   <Link
                     href={`/services/${categoryDef.slug}/${provider.providerId}/book/${offering.id}`}
-                    className="rounded-full bg-gold-500 px-4 py-2 text-xs font-medium text-charcoal hover:bg-gold-600"
+                    className="rounded-full bg-charcoal px-4 py-2 text-xs font-medium text-warm-white hover:bg-charcoal/90"
                   >
                     سفارش
                   </Link>
@@ -97,7 +97,7 @@ export default async function ServiceProviderProfilePage({ params }: Props) {
 
       {reviews.count > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-charcoal">نظرات مشتریان</h2>
+          <h2 className="text-base font-semibold text-charcoal">نظرات مشتریان</h2>
           <ul className="flex flex-col gap-3">
             {reviews.reviews.map((review) => (
               <li key={review.id} className="space-y-1 rounded-2xl border border-border bg-surface p-4 text-sm">

@@ -37,8 +37,8 @@ export default async function ServicesPage() {
 
       {banner ? <HomeBanner imageUrl={banner.imageUrl} text={banner.text} link={banner.link} /> : null}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-charcoal">دسته‌بندی خدمات</h2>
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-charcoal">دسته‌بندی خدمات</h2>
         <ServiceCategoryGrid
           categories={categories.map((category) => ({
             slug: category.slug,

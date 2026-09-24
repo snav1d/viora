@@ -16,7 +16,7 @@ const TOTAL_STEPS = 4;
 const MAX_PHONE_NUMBERS = 5;
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 function digitsOnly(value: string): string {
   return value.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d]/g, "");
@@ -611,7 +611,7 @@ export function SellerRegisterWizard({ categories }: { categories: { id: string;
           </StepShell>
         )}
 
-        {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
 
         <div className="mt-auto">
           {step < TOTAL_STEPS ? (

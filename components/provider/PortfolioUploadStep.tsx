@@ -97,7 +97,7 @@ export function PortfolioUploadStep({
         className="hidden"
       />
 
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
       <p className="text-xs text-charcoal-muted">
         حداقل {minImages.toLocaleString("fa-IR")} نمونه از بهترین کارهای قبلی‌تان را اضافه کنید - این
         تصاویر بعد از تایید، پورتفولیوی اولیه‌ی شما در پنل می‌شوند (بعداً هم قابل‌ویرایش/حذف است).

@@ -25,9 +25,9 @@ export function ServiceCategoryGrid({
           <Link
             key={category.slug}
             href={category.href}
-            className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface py-6 text-center transition-shadow hover:shadow-md"
+            className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface py-6 text-center transition-colors hover:border-charcoal/25"
           >
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-100 to-gold-100 text-rose-600">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
               <Icon className="h-7 w-7" strokeWidth={1.5} />
             </span>
             <span className="px-2 text-sm font-medium text-charcoal">{category.name}</span>

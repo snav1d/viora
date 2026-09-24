@@ -93,7 +93,7 @@ export function ReturnRequestForm({ orderItemId }: { orderItemId: string }) {
         required
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
       />
 
       <p className="text-sm font-medium text-charcoal">عکس کالا (اختیاری)</p>
@@ -129,7 +129,7 @@ export function ReturnRequestForm({ orderItemId }: { orderItemId: string }) {
         className="hidden"
       />
 
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
 
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" className="flex-1" disabled={submitting || uploading}>

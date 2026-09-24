@@ -39,7 +39,7 @@ export function ServiceProviderBrowseList({
           <Link
             key={provider.providerId}
             href={hrefFor(provider.providerId)}
-            className="flex flex-col overflow-hidden rounded-3xl border border-border bg-surface"
+            className="flex flex-col overflow-hidden rounded-3xl border border-border bg-surface transition-colors hover:border-charcoal/25"
           >
             <div className="relative h-40 w-full bg-border">
               {hero ? (

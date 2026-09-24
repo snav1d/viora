@@ -87,7 +87,7 @@ export function CartView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-5 px-4 py-5">
+    <div className="flex flex-1 flex-col gap-5 px-4 py-5 pb-44">
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <li
@@ -97,13 +97,15 @@ export function CartView() {
             <ProductPlaceholder className="h-16 w-16 shrink-0" />
             <div className="flex-1 space-y-1">
               <p className="line-clamp-1 text-sm font-medium text-charcoal">{item.title}</p>
-              <p className="text-sm font-semibold text-rose-700">
+              <p className="text-sm font-semibold text-charcoal">
                 {item.price.toLocaleString("fa-IR")} تومان
               </p>
+              {/* docs/design-system.md §6: bordered circle, no filled background - the number
+                  sits between the two, unstyled. */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleUpdateQuantity(item.listingId, item.quantity - 1)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-charcoal"
                   aria-label="کاهش تعداد"
                 >
                   <Minus className="h-3.5 w-3.5" />
@@ -113,7 +115,7 @@ export function CartView() {
                 </span>
                 <button
                   onClick={() => handleUpdateQuantity(item.listingId, item.quantity + 1)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-charcoal"
                   aria-label="افزایش تعداد"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -122,10 +124,10 @@ export function CartView() {
             </div>
             <button
               onClick={() => handleRemoveItem(item.listingId)}
-              className="text-charcoal-muted hover:text-rose-600"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-charcoal hover:bg-rose-100"
               aria-label="حذف از سبد"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" strokeWidth={1.5} />
             </button>
           </li>
         ))}
@@ -166,7 +168,7 @@ export function CartView() {
           onChange={(event) => setAddress(event.target.value)}
           rows={3}
           placeholder="تهران، ..."
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal placeholder:text-charcoal-muted/50 focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal placeholder:text-charcoal-muted/50 focus:border-charcoal focus:outline-none"
         />
       </div>
 
@@ -188,35 +190,41 @@ export function CartView() {
         </label>
       </div>
 
-      <div className="space-y-1.5 border-t border-border pt-4 text-sm">
-        <div className="flex items-center justify-between text-charcoal-muted">
-          <span>جمع سبد</span>
-          <span>{totalPrice.toLocaleString("fa-IR")} تومان</span>
-        </div>
-        {discountAmount > 0 ? (
-          <div className="flex items-center justify-between text-rose-700">
-            <span>تخفیف</span>
-            <span>-{discountAmount.toLocaleString("fa-IR")} تومان</span>
+      {/* docs/design-system.md §6: fixed bottom summary bar (the reference's own Checkout bar) -
+          sits just above BottomNav (reserved 80px, MainLayout's own pb-20) rather than the page's
+          true bottom, so the two never overlap. pb-44 on the scroll container above keeps the
+          payment-method radios clear of this bar's own height. */}
+      <div className="fixed inset-x-0 bottom-20 z-30 mx-auto w-full max-w-md border-t border-border bg-surface/95 px-4 py-3 backdrop-blur">
+        <div className="space-y-1 text-sm">
+          <div className="flex items-center justify-between text-charcoal-muted">
+            <span>جمع سبد</span>
+            <span>{totalPrice.toLocaleString("fa-IR")} تومان</span>
           </div>
-        ) : null}
-        <div className="flex items-center justify-between pt-1">
-          <span className="font-medium text-charcoal">جمع کل</span>
-          <span className="text-lg font-bold text-charcoal">
-            {finalTotal.toLocaleString("fa-IR")} تومان
-          </span>
+          {discountAmount > 0 ? (
+            <div className="flex items-center justify-between text-charcoal-muted">
+              <span>تخفیف</span>
+              <span>-{discountAmount.toLocaleString("fa-IR")} تومان</span>
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between pt-1">
+            <span className="font-medium text-charcoal">جمع کل</span>
+            <span className="text-lg font-bold text-charcoal">
+              {finalTotal.toLocaleString("fa-IR")} تومان
+            </span>
+          </div>
         </div>
+
+        {error ? <p className="pt-1 text-center text-sm text-error-500">{error}</p> : null}
+
+        <Button
+          size="lg"
+          className="mt-3 w-full"
+          disabled={submitting || address.trim().length < 5}
+          onClick={handleCheckout}
+        >
+          {submitting ? "در حال ثبت سفارش…" : "تکمیل خرید"}
+        </Button>
       </div>
-
-      {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
-
-      <Button
-        size="lg"
-        className="w-full"
-        disabled={submitting || address.trim().length < 5}
-        onClick={handleCheckout}
-      >
-        {submitting ? "در حال ثبت سفارش…" : "تکمیل خرید"}
-      </Button>
     </div>
   );
 }

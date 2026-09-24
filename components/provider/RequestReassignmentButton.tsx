@@ -37,7 +37,7 @@ export function RequestReassignmentButton({ itemId }: { itemId: string }) {
       <Button size="md" variant="secondary" className="w-full" onClick={handleRequest} disabled={loading}>
         {loading ? "در حال ثبت…" : "درخواست واگذاری سفارش"}
       </Button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

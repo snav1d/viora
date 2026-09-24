@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 export function NewTicketForm() {
   const router = useRouter();
@@ -66,7 +66,7 @@ export function NewTicketForm() {
         />
       </div>
 
-      {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
 
       <div className="mt-auto">
         <Button

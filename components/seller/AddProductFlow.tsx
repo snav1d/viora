@@ -74,7 +74,7 @@ export function AddProductFlow({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="جستجوی نام محصول در کاتالوگ ویورا…"
-            className="w-full rounded-2xl border border-border bg-surface py-3 pr-9 pl-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+            className="w-full rounded-2xl border border-border bg-surface py-3 pr-9 pl-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
           />
         </div>
         <Button type="submit" disabled={searching || query.trim().length < 2}>

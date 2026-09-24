@@ -28,10 +28,10 @@ export function CategoryGrid({
           <Link
             key={category.slug}
             href={category.href ?? `/shop/${category.slug}`}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface py-4 text-center transition-shadow hover:shadow-md"
+            className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface py-4 text-center transition-colors hover:border-charcoal/25"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-              <Icon className="h-5 w-5" strokeWidth={1.75} />
+              <Icon className="h-5 w-5" strokeWidth={1.5} />
             </span>
             <span className="px-1 text-xs font-medium text-charcoal">{category.name}</span>
           </Link>

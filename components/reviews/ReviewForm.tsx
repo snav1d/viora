@@ -65,9 +65,9 @@ export function ReviewForm({ orderItemId }: { orderItemId: string }) {
         onChange={(event) => setComment(event.target.value)}
         placeholder="نظر شما (اختیاری)"
         rows={3}
-        className="w-full rounded-2xl border border-border bg-warm-white px-4 py-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+        className="w-full rounded-2xl border border-border bg-warm-white px-4 py-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
       />
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
       <Button size="md" className="w-full" disabled={rating === 0 || submitting} onClick={handleSubmit}>
         {submitting ? "در حال ثبت…" : "ثبت نظر"}
       </Button>

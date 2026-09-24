@@ -75,10 +75,12 @@ export default async function ProductPage({ params }: Props) {
 
         <div className="space-y-2">
           <p className="text-xs text-charcoal-muted">{product.category.name}</p>
-          <h1 className="text-lg font-semibold text-charcoal">{product.title}</h1>
+          {/* docs/design-system.md §4: Display role (28px Bold) for a single product's own
+              title - the one place on this page that earns the biggest type on the page. */}
+          <h1 className="text-[28px] font-bold leading-tight text-charcoal">{product.title}</h1>
           {displayDiscountPrice ? (
             <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-rose-700">
+              <p className="text-xl font-bold text-charcoal">
                 {displayDiscountPrice.toLocaleString("fa-IR")} تومان
               </p>
               <p className="text-sm text-charcoal-muted line-through">
@@ -86,7 +88,7 @@ export default async function ProductPage({ params }: Props) {
               </p>
             </div>
           ) : (
-            <p className="text-xl font-bold text-rose-700">
+            <p className="text-xl font-bold text-charcoal">
               {displayPrice.toLocaleString("fa-IR")} تومان
             </p>
           )}

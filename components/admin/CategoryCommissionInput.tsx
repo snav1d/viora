@@ -51,7 +51,7 @@ export function CategoryCommissionInput({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="۱۰"
-        className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-left text-xs text-charcoal focus:border-rose-400 focus:outline-none"
+        className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-left text-xs text-charcoal focus:border-charcoal focus:outline-none"
       />
       <span className="text-xs text-charcoal-muted">٪ کمیسیون پیش‌فرض</span>
       <button
@@ -62,7 +62,7 @@ export function CategoryCommissionInput({
       >
         {saving ? "…" : "ذخیره"}
       </button>
-      {error ? <p className="text-[10px] text-rose-700">{error}</p> : null}
+      {error ? <p className="text-[10px] text-error-500">{error}</p> : null}
     </div>
   );
 }

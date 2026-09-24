@@ -73,9 +73,9 @@ export function RejectForm({
         required
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none"
+        className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none"
       />
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" className="flex-1" disabled={loading}>
           {loading ? "در حال ثبت…" : submitLabel}

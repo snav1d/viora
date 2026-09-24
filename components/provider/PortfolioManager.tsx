@@ -126,7 +126,7 @@ export function PortfolioManager({
         className="hidden"
       />
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
       {images.length === 0 ? (
         <p className="text-xs text-charcoal-muted">
           چند نمونه از بهترین کارهای قبلی‌تان را اضافه کنید تا مشتری‌ها قبل از سفارش، کیفیت کارتان را ببینند.

@@ -93,7 +93,7 @@ export default async function OrderDetailPage({ params }: Props) {
                       </span>
                     </div>
                     {item.returnStatus === "REJECTED" && item.returnRejectionReason ? (
-                      <p className="text-xs text-rose-700">دلیل رد: {item.returnRejectionReason}</p>
+                      <p className="text-xs text-error-500">دلیل رد: {item.returnRejectionReason}</p>
                     ) : null}
                     {item.returnTickets[0] ? (
                       <Link href={`/support/${item.returnTickets[0].id}`} className="text-xs text-rose-600">

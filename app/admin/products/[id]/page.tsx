@@ -110,7 +110,7 @@ export default async function AdminProductDetailPage({ params }: Props) {
       ) : null}
 
       {product.status !== "PENDING_REVIEW" && product.rejectionReason ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-700">
+        <div className="rounded-2xl border border-error-500/20 bg-error-50 p-4 text-sm text-error-600">
           <p className="font-medium">دلیل قبلی</p>
           <p className="mt-1">{product.rejectionReason}</p>
         </div>

@@ -32,7 +32,7 @@ export function AcceptOrderButton({ itemId }: { itemId: string }) {
       <Button size="lg" className="w-full" onClick={handleAccept} disabled={loading}>
         {loading ? "در حال پذیرش…" : "پذیرش سفارش"}
       </Button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

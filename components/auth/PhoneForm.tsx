@@ -59,10 +59,10 @@ export function PhoneForm({ redirectTo }: { redirectTo: string }) {
           dir="ltr"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-lg tracking-wider text-charcoal placeholder:text-charcoal-muted/50 focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-lg tracking-wider text-charcoal placeholder:text-charcoal-muted/50 focus:border-charcoal focus:outline-none"
           required
         />
-        {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+        {error ? <p className="text-sm text-error-500">{error}</p> : null}
       </div>
 
       <Button type="submit" size="lg" disabled={loading} className="w-full">

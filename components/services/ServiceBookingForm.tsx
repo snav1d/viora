@@ -8,7 +8,7 @@ import { CouponInput } from "@/components/checkout/CouponInput";
 import { normalizeIranianContactNumber } from "@/lib/validation/phone";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 function todayPlus(days: number): string {
   const date = new Date();
@@ -147,7 +147,7 @@ export function ServiceBookingForm({
         {discountAmount > 0 ? (
           <div className="border-b border-border pb-3">
             <dt className="text-charcoal-muted">تخفیف</dt>
-            <dd className="font-medium text-rose-700">-{discountAmount.toLocaleString("fa-IR")} تومان</dd>
+            <dd className="text-charcoal-muted">-{discountAmount.toLocaleString("fa-IR")} تومان</dd>
           </div>
         ) : null}
         <div className="pt-3">
@@ -156,7 +156,7 @@ export function ServiceBookingForm({
         </div>
       </dl>
 
-      {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
 
       <div className="mt-auto">
         <Button size="lg" className="w-full" disabled={!isValid || submitting} onClick={submit}>

@@ -40,7 +40,7 @@ export default async function ShopPage({ searchParams }: Props) {
             name="q"
             defaultValue={q ?? ""}
             placeholder="جستجوی محصول…"
-            className="w-full rounded-2xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+            className="w-full rounded-2xl border border-border bg-surface py-2.5 pr-9 pl-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
           />
         </form>
 

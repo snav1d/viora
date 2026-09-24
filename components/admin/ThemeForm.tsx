@@ -8,7 +8,7 @@ import { CHAMPAGNE_ROSE_PALETTE, PALETTE_TOKEN_LABELS } from "@/lib/theme";
 import { addDaysIso, todayIso } from "@/lib/jalali";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 const TOKEN_GROUPS: { title: string; tokens: string[] }[] = [
   { title: "پس‌زمینه و سطح", tokens: ["warm-white", "surface"] },
@@ -146,7 +146,7 @@ export function ThemeForm({ theme }: { theme?: ThemeInput }) {
         </div>
       ))}
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
 
       <Button type="submit" size="lg" disabled={submitting} className="mt-2 w-full">
         {submitting ? "در حال ذخیره…" : theme ? "ذخیره تغییرات" : "ساخت تم"}

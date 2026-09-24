@@ -46,7 +46,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <main className="flex flex-1 flex-col gap-8 px-4 pb-6 pt-5">
+    <main className="flex flex-1 flex-col gap-6 px-4 pb-6 pt-5">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -56,14 +56,16 @@ export default async function HomePage() {
       <header className="flex items-center justify-between">
         <div>
           <p className="text-xs text-charcoal-muted">سلام 👋</p>
-          <h1 className="text-lg font-semibold text-charcoal">جشنت رو با ویورا بساز</h1>
+          <h1 className="text-xl font-bold text-charcoal">جشنت رو با ویورا بساز</h1>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-l from-rose-100 via-rose-50 to-gold-100 p-6">
+      {/* docs/design-system.md §6: a calm single-tone wash, not a multi-color gradient - the
+          reference builds interest through photography/typography, not decorative color. */}
+      <section className="overflow-hidden rounded-3xl bg-rose-50 p-6">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-gold-600">
-            <Sparkles className="h-5 w-5" strokeWidth={1.75} />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-rose-600">
+            <Sparkles className="h-5 w-5" strokeWidth={1.5} />
           </span>
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-charcoal">جشن‌ساز ویورا</h2>
@@ -77,9 +79,9 @@ export default async function HomePage() {
         </ButtonLink>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-charcoal">دسته‌بندی‌ها</h2>
+          <h2 className="text-base font-semibold text-charcoal">دسته‌بندی‌ها</h2>
           <div className="flex items-center gap-3">
             <ButtonLink href="/services" variant="ghost" size="md" className="h-auto p-0 text-xs text-rose-600">
               مشاهده خدمات
@@ -92,8 +94,8 @@ export default async function HomePage() {
         <CategoryGrid categories={gridCategories} />
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-charcoal">محصولات پیشنهادی</h2>
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-charcoal">محصولات پیشنهادی</h2>
         <div className="grid grid-cols-2 gap-3">
           {products.map((product) => (
             <ProductCard

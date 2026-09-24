@@ -96,7 +96,7 @@ export function JalaliDatePicker({
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openPicker())}
-        className="flex w-full items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none"
+        className="flex w-full items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none"
       >
         <span>{formatJalaliLong(value)}</span>
         <CalendarDays className="h-4 w-4 text-charcoal-muted" strokeWidth={1.75} />

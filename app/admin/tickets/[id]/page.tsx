@@ -74,7 +74,7 @@ export default async function AdminTicketDetailPage({ params }: Props) {
               <RejectForm endpoint={`/api/admin/tickets/${ticket.id}/reject-return`} />
             </div>
           ) : ticket.orderItem.returnStatus === "REJECTED" && ticket.orderItem.returnRejectionReason ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3 text-rose-700">
+            <div className="rounded-2xl border border-error-500/20 bg-error-50 p-3 text-error-600">
               <p className="font-medium">دلیل رد</p>
               <p className="mt-1">{ticket.orderItem.returnRejectionReason}</p>
             </div>

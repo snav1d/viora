@@ -81,7 +81,7 @@ export function BirthdayDiscountInvite() {
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
       <p className="text-sm font-medium text-charcoal">تاریخ تولدت رو بگو تا کد تخفیفت رو بفرستیم</p>
       <JalaliDatePicker value={birthDate} onChange={setBirthDate} minIso={yearsAgoIso(100)} />
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
       <Button size="md" disabled={submitting} onClick={submit}>
         {submitting ? "در حال ثبت…" : "دریافت کد تخفیف"}
       </Button>

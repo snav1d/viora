@@ -6,7 +6,7 @@ import { X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 // Persian-keyboard mobile input commonly types ۰-۹, which plain Number()/parseInt() don't
 // recognize - normalize to ASCII digits before parsing anything a user typed. Same convention as
@@ -332,7 +332,7 @@ export function ProductForm({
         </label>
       ) : null}
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
 
       <Button
         type="submit"

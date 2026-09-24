@@ -37,7 +37,7 @@ export default async function PrintPartnersPage() {
 
       <Link
         href="/print"
-        className="flex items-center justify-center gap-2 rounded-full bg-gold-500 py-3 text-sm font-medium text-charcoal hover:bg-gold-600"
+        className="flex items-center justify-center gap-2 rounded-full bg-charcoal py-3 text-sm font-medium text-warm-white hover:bg-charcoal/90"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         ثبت سفارش جدید

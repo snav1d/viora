@@ -87,10 +87,10 @@ export function OtpForm({ phone, redirectTo }: { phone: string; redirectTo: stri
           dir="ltr"
           value={code}
           onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-2xl tracking-[0.5em] text-charcoal focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-2xl tracking-[0.5em] text-charcoal focus:border-charcoal focus:outline-none"
           required
         />
-        {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
         {resendMessage ? (
           <p className="text-center text-sm text-charcoal-muted">{resendMessage}</p>
         ) : null}

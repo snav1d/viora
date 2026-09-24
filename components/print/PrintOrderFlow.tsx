@@ -15,7 +15,7 @@ import type { MatchedPrintProvider } from "@/lib/data/print";
 const TOTAL_STEPS = 3;
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 function digitsOnly(value: string): string {
   return value.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d]/g, "");
@@ -247,7 +247,7 @@ export function PrintOrderFlow({
                 disabled={uploading}
                 className={cn(
                   "flex h-24 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed text-charcoal-muted disabled:opacity-50",
-                  answers.designFileUrl ? "border-gold-500" : "border-border",
+                  answers.designFileUrl ? "border-charcoal" : "border-border",
                 )}
               >
                 <FileUp className="h-6 w-6" strokeWidth={1.5} />
@@ -279,7 +279,7 @@ export function PrintOrderFlow({
                     className={cn(
                       "flex-1 rounded-2xl border px-4 py-3 text-sm transition-colors",
                       answers.finish === finish
-                        ? "border-gold-500 bg-gold-100 text-charcoal"
+                        ? "border-charcoal bg-charcoal/5 text-charcoal"
                         : "border-border bg-surface text-charcoal-muted",
                     )}
                   >
@@ -334,7 +334,7 @@ export function PrintOrderFlow({
                   className={cn(
                     "flex-1 rounded-2xl border px-4 py-3 text-sm transition-colors",
                     !answers.isExpressDelivery
-                      ? "border-gold-500 bg-gold-100 text-charcoal"
+                      ? "border-charcoal bg-charcoal/5 text-charcoal"
                       : "border-border bg-surface text-charcoal-muted",
                   )}
                 >
@@ -346,7 +346,7 @@ export function PrintOrderFlow({
                   className={cn(
                     "flex-1 rounded-2xl border px-4 py-3 text-sm transition-colors",
                     answers.isExpressDelivery
-                      ? "border-gold-500 bg-gold-100 text-charcoal"
+                      ? "border-charcoal bg-charcoal/5 text-charcoal"
                       : "border-border bg-surface text-charcoal-muted",
                   )}
                 >
@@ -398,7 +398,7 @@ export function PrintOrderFlow({
                 {providers.map((provider) => (
                   <div
                     key={provider.offeringId}
-                    className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 text-sm hover:border-rose-300"
+                    className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
                   >
                     <button
                       type="button"
@@ -417,7 +417,7 @@ export function PrintOrderFlow({
                       <p className="text-charcoal-muted">
                         {provider.completedOrderCount.toLocaleString("fa-IR")} سفارش قبلی
                       </p>
-                      <p className="font-semibold text-rose-700">
+                      <p className="font-semibold text-charcoal">
                         {provider.totalPrice.toLocaleString("fa-IR")} تومان
                       </p>
                     </button>
@@ -425,7 +425,7 @@ export function PrintOrderFlow({
                       <button
                         type="button"
                         onClick={() => setGalleryProvider(provider)}
-                        className="flex items-center gap-1.5 self-start rounded-full border border-border px-3 py-1.5 text-xs text-charcoal-muted hover:border-rose-300"
+                        className="flex items-center gap-1.5 self-start rounded-full border border-border px-3 py-1.5 text-xs text-charcoal-muted hover:border-charcoal/25"
                       >
                         <Images className="h-3.5 w-3.5" strokeWidth={1.75} />
                         مشاهده‌ی نمونه‌کار
@@ -466,7 +466,7 @@ export function PrintOrderFlow({
               {discountAmount > 0 ? (
                 <div className="col-span-2 border-t border-border pt-3">
                   <dt className="text-charcoal-muted">تخفیف</dt>
-                  <dd className="font-medium text-rose-700">
+                  <dd className="text-charcoal-muted">
                     -{discountAmount.toLocaleString("fa-IR")} تومان
                   </dd>
                 </div>
@@ -497,7 +497,7 @@ export function PrintOrderFlow({
           </StepShell>
         )}
 
-        {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
 
         <div className="mt-auto">
           {step === 1 && (

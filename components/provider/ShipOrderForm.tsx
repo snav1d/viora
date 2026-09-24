@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-charcoal focus:border-charcoal focus:outline-none";
 
 export function ShipOrderForm({ itemId }: { itemId: string }) {
   const router = useRouter();
@@ -49,7 +49,7 @@ export function ShipOrderForm({ itemId }: { itemId: string }) {
         onChange={(event) => setTrackingCode(event.target.value)}
         className={inputClass}
       />
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
       <Button type="submit" size="md" disabled={submitting} className="w-full">
         {submitting ? "در حال ثبت…" : "ثبت تحویل نهایی"}
       </Button>

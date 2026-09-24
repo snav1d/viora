@@ -43,7 +43,7 @@ export function TicketReplyForm({ endpoint }: { endpoint: string }) {
           onChange={(event) => setBody(event.target.value)}
           placeholder="پیام خود را بنویسید…"
           rows={2}
-          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-charcoal focus:border-charcoal focus:outline-none"
         />
         <button
           type="submit"
@@ -54,7 +54,7 @@ export function TicketReplyForm({ endpoint }: { endpoint: string }) {
           <Send className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
     </form>
   );
 }

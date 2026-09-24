@@ -46,9 +46,9 @@ export function FinalizeHubItemForm({ itemId }: { itemId: string }) {
         placeholder="کد رهگیری نهایی"
         value={trackingCode}
         onChange={(event) => setTrackingCode(event.target.value)}
-        className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-charcoal focus:border-rose-400 focus:outline-none"
+        className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-charcoal focus:border-charcoal focus:outline-none"
       />
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
       <Button type="submit" size="md" disabled={submitting} className="w-full">
         {submitting ? "در حال ثبت…" : "تایید کنترل کیفیت و ارسال نهایی"}
       </Button>

@@ -7,7 +7,7 @@ import { OptionalJalaliDatePicker } from "@/components/ui/OptionalJalaliDatePick
 import { cn } from "@/lib/cn";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 function digitsOnly(value: string): string {
   return value.replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[^\d]/g, "");
@@ -199,7 +199,7 @@ export function CouponForm() {
         <OptionalJalaliDatePicker label="افزودن تاریخ پایان" value={endsAt} onChange={setEndsAt} />
       </div>
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
 
       <Button type="submit" size="lg" disabled={submitting} className="mt-2 w-full">
         {submitting ? "در حال ذخیره…" : "افزودن کد تخفیف"}

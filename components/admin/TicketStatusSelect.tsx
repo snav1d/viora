@@ -48,7 +48,7 @@ export function TicketStatusSelect({ ticketId, status }: { ticketId: string; sta
           </option>
         ))}
       </select>
-      {error ? <p className="text-[10px] text-rose-700">{error}</p> : null}
+      {error ? <p className="text-[10px] text-error-500">{error}</p> : null}
     </div>
   );
 }

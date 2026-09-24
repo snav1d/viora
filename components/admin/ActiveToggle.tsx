@@ -55,7 +55,7 @@ export function ActiveToggle({
       >
         <span className="h-5 w-5 rounded-full bg-surface shadow" />
       </button>
-      {error ? <p className="text-[10px] text-rose-700">{error}</p> : null}
+      {error ? <p className="text-[10px] text-error-500">{error}</p> : null}
     </div>
   );
 }

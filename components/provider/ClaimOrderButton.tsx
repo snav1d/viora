@@ -33,7 +33,7 @@ export function ClaimOrderButton({ itemId }: { itemId: string }) {
       <Button size="md" className="w-full" onClick={handleClaim} disabled={loading}>
         {loading ? "در حال ثبت…" : "پذیرش این سفارش"}
       </Button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }

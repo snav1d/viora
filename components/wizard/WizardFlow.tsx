@@ -204,7 +204,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
                     </p>
                   )}
                 </div>
-                <p className="font-semibold text-rose-700">
+                <p className="font-semibold text-charcoal">
                   {item.lineTotal.toLocaleString("fa-IR")} تومان
                 </p>
               </div>
@@ -305,7 +305,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
                 const value = Number(event.target.value);
                 setAnswers((a) => ({ ...a, guestCount: value > 0 ? value : null }));
               }}
-              className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-charcoal focus:border-rose-400 focus:outline-none"
+              className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-charcoal focus:border-charcoal focus:outline-none"
             />
           </StepShell>
         )}
@@ -341,7 +341,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
                 const value = Number(raw);
                 setAnswers((a) => ({ ...a, budget: value > 0 ? value : null }));
               }}
-              className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-charcoal focus:border-rose-400 focus:outline-none"
+              className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-center text-charcoal focus:border-charcoal focus:outline-none"
             />
           </StepShell>
         )}
@@ -394,7 +394,7 @@ export function WizardFlow({ cities, themes }: { cities: CityOption[]; themes: T
           </StepShell>
         )}
 
-        {error ? <p className="text-center text-sm text-rose-700">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-error-500">{error}</p> : null}
 
         <div className="mt-auto">
           {step < TOTAL_STEPS ? (

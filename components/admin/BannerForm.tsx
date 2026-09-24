@@ -9,7 +9,7 @@ import { BANNER_PLACEMENT_LABELS } from "@/lib/labels";
 import type { BannerPlacement } from "@/lib/generated/prisma/client";
 
 const inputClass =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-rose-400 focus:outline-none";
+  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-charcoal focus:border-charcoal focus:outline-none";
 
 const PLACEMENT_OPTIONS: BannerPlacement[] = ["HOME_HERO", "HOME_PROMO_STRIP", "SERVICES_HERO"];
 
@@ -193,7 +193,7 @@ export function BannerForm({ banner }: { banner?: BannerInput }) {
         <OptionalJalaliDatePicker label="افزودن تاریخ پایان" value={endsAt} onChange={setEndsAt} />
       </div>
 
-      {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+      {error ? <p className="text-sm text-error-500">{error}</p> : null}
 
       <Button type="submit" size="lg" disabled={submitting || uploading} className="mt-2 w-full">
         {submitting ? "در حال ذخیره…" : banner ? "ذخیره تغییرات" : "افزودن بنر"}

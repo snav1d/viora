@@ -42,7 +42,7 @@ export function ApproveButton({
       <Button size="lg" variant={variant} className="w-full" onClick={handleApprove} disabled={loading}>
         {loading ? "در حال ثبت…" : label}
       </Button>
-      {error ? <p className="text-xs text-rose-700">{error}</p> : null}
+      {error ? <p className="text-xs text-error-500">{error}</p> : null}
     </div>
   );
 }
