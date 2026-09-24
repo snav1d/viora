@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TopBar } from "@/components/nav/TopBar";
 import { ApproveButton } from "@/components/admin/ApproveButton";
 import { RejectForm } from "@/components/admin/RejectForm";
+import { ProductImagesManager } from "@/components/admin/ProductImagesManager";
 import { getProductReviewDetail } from "@/lib/data/admin";
 import { parseProductImages } from "@/lib/data/seller";
 import { PRODUCT_STATUS_LABELS } from "@/lib/labels";
@@ -39,19 +40,7 @@ export default async function AdminProductDetailPage({ params }: Props) {
         </p>
       </section>
 
-      {images.length > 0 ? (
-        <div className="flex gap-2 overflow-x-auto">
-          {images.map((url) => (
-            // eslint-disable-next-line @next/next/no-img-element -- remote S3-compatible URLs
-            <img
-              key={url}
-              src={url}
-              alt=""
-              className="h-24 w-24 shrink-0 rounded-2xl border border-border object-cover"
-            />
-          ))}
-        </div>
-      ) : null}
+      <ProductImagesManager productId={product.id} initialImages={images} />
 
       {product.description ? (
         <p className="text-sm leading-7 text-charcoal-muted">{product.description}</p>

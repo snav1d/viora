@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
-import { CategoryGrid } from "@/components/home/CategoryGrid";
+import { CategoryTileGrid } from "@/components/shop/CategoryTileGrid";
 import { ProductCard } from "@/components/shop/ProductCard";
-import { getActiveProductCategories, searchProducts } from "@/lib/data/catalog";
+import { getActiveProductCategoriesWithSampleImage, searchProducts } from "@/lib/data/catalog";
 import { toNumber } from "@/lib/decimal";
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ export default async function ShopPage({ searchParams }: Props) {
   const query = q?.trim() ?? "";
 
   const [categories, products] = await Promise.all([
-    getActiveProductCategories(),
+    getActiveProductCategoriesWithSampleImage(),
     query.length >= 2 ? searchProducts(query) : Promise.resolve(null),
   ]);
 
@@ -67,7 +67,7 @@ export default async function ShopPage({ searchParams }: Props) {
         ) : (
           <>
             <p className="text-sm text-charcoal-muted">یک دسته‌بندی را انتخاب کنید.</p>
-            <CategoryGrid categories={categories} />
+            <CategoryTileGrid categories={categories} />
           </>
         )}
       </div>

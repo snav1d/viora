@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/decimal";
+import { parseProductImages } from "@/lib/data/seller";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
 export function getActiveCities() {
@@ -29,6 +30,32 @@ export function getActiveServiceCategories() {
 
 export function getCategoryBySlug(slug: string) {
   return prisma.category.findUnique({ where: { slug } });
+}
+
+/// docs/design-system.md §7-الف: /shop's own photo-forward category tiles need one representative
+/// product image per category - picks the newest APPROVED-with-an-active-listing product that
+/// actually has at least one image (many of the ~500 seeded catalog rows have none, since seed.ts
+/// never set any - a category whose products are all still imageless just gets sampleImage: null
+/// and the tile falls back to the same ProductPlaceholder used everywhere else, independent of
+/// whether that's a temporary seed gap or the separate S3-serving issue). Categories with no
+/// active products at all are dropped - nothing for the tile to link to.
+export async function getActiveProductCategoriesWithSampleImage() {
+  const categories = await getActiveProductCategories();
+  const enriched = await Promise.all(
+    categories.map(async (category) => {
+      const products = await prisma.product.findMany({
+        where: { categoryId: category.id, status: "APPROVED", listings: { some: { isActive: true } } },
+        orderBy: { createdAt: "desc" },
+        select: { images: true },
+        take: 12,
+      });
+      const sampleImage =
+        products.map((product) => parseProductImages(product.images)[0]).find((url): url is string => Boolean(url)) ??
+        null;
+      return { slug: category.slug, name: category.name, sampleImage, hasActiveProducts: products.length > 0 };
+    }),
+  );
+  return enriched.filter((category) => category.hasActiveProducts);
 }
 
 /// Picks the cheapest currently-active Listing by effective price (discountPrice ?? price) - a

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { TopBar } from "@/components/nav/TopBar";
+import { FloatingBackButton } from "@/components/nav/FloatingBackButton";
 import { ProductPlaceholder } from "@/components/shop/ProductCard";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
 import { OtherSellersList } from "@/components/shop/OtherSellersList";
@@ -8,6 +8,7 @@ import { SellerAvatar } from "@/components/shop/SellerAvatar";
 import { ReviewList } from "@/components/reviews/ReviewList";
 import { getProductBySlug } from "@/lib/data/catalog";
 import { getProductReviewSummary } from "@/lib/data/reviews";
+import { parseProductImages } from "@/lib/data/seller";
 import { toNumber } from "@/lib/decimal";
 import { applyPlatformMarkup } from "@/lib/pricing";
 import { siteConfig } from "@/lib/config/site";
@@ -46,6 +47,7 @@ export default async function ProductPage({ params }: Props) {
   const displayDiscountPrice = discountPrice ? applyPlatformMarkup(discountPrice) : null;
   const displayEffectivePrice = displayDiscountPrice ?? displayPrice;
   const reviewSummary = await getProductReviewSummary(product.id);
+  const heroImage = parseProductImages(product.images)[0] ?? null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -68,11 +70,20 @@ export default async function ProductPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <TopBar title={product.title} backHref={`/shop/${product.category.slug}`} />
+      {/* docs/design-system.md §7-الف: TopBar is gone from this page entirely - the product
+          photo is the literal first pixel, full-bleed, with the back button floating on the
+          image itself instead of sitting in a strip above it. */}
+      <div className="relative aspect-[4/5] w-full overflow-hidden">
+        {heroImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote S3-compatible URL, not a local /public asset next/image can optimize
+          <img src={heroImage} alt={product.title} className="h-full w-full object-cover" />
+        ) : (
+          <ProductPlaceholder className="h-full w-full" />
+        )}
+        <FloatingBackButton href={`/shop/${product.category.slug}`} />
+      </div>
 
       <div className="flex flex-col gap-5 px-4 py-5">
-        <ProductPlaceholder className="aspect-square w-full" />
-
         <div className="space-y-2">
           <p className="text-xs text-charcoal-muted">{product.category.name}</p>
           {/* docs/design-system.md §4: Display role (28px Bold) for a single product's own
