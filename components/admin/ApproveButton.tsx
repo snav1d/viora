@@ -12,7 +12,7 @@ export function ApproveButton({
   endpoint: string;
   label: string;
   /// "secondary" for a plain POST action that isn't really an "approval" in tone (e.g. suspending
-  /// a seller, docs/decisions.md ADR 38) - same component, just not the gold primary look.
+  /// a seller, docs/decisions.md ADR 38) - same component, just not the charcoal primary look.
   variant?: "primary" | "secondary";
 }) {
   const router = useRouter();

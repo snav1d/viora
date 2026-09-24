@@ -80,7 +80,7 @@ export default async function AdminBannersPage() {
 
       <Link
         href="/admin/banners/new"
-        className="flex items-center justify-center gap-2 rounded-full bg-gold-500 px-6 py-3.5 text-base font-medium text-charcoal hover:bg-gold-600"
+        className="flex items-center justify-center gap-2 rounded-full bg-charcoal px-6 py-3.5 text-base font-medium text-warm-white hover:bg-charcoal/90"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         بنر جدید

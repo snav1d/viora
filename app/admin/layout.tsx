@@ -1,9 +1,13 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { TopBar } from "@/components/nav/TopBar";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminShell } from "@/components/admin/AdminShell";
+import { SupportChatDrawer } from "@/components/admin/SupportChatDrawer";
 import { getSession } from "@/lib/auth/session";
 import { requireAdmin } from "@/lib/auth/admin";
+import { getAdminStats } from "@/lib/data/admin";
 
 // Same reasoning as the seller panel: admin access is determined by a DB row (User.roles) that
 // can change at any time (an admin's own role could be revoked by editing the database), so this
@@ -34,10 +38,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
 
+  // Only the sidebar's pending-count badges need this - cheap enough (a handful of indexed
+  // counts) to fetch on every admin navigation rather than threading it through every page.
+  const stats = await getAdminStats();
+
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20">
-      {children}
-      <AdminNav />
+    <div className="flex w-full flex-1 lg:flex-row">
+      <AdminShell
+        counts={{
+          pendingSellers: stats.pendingSellers,
+          pendingProviders: stats.pendingProviders,
+          pendingProducts: stats.pendingProducts,
+          pendingReviews: stats.pendingReviews,
+        }}
+      />
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20 lg:mx-0 lg:max-w-none lg:pb-0">
+        {children}
+        <AdminNav />
+      </div>
+      <Suspense fallback={null}>
+        <SupportChatDrawer />
+      </Suspense>
     </div>
   );
 }

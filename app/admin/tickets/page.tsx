@@ -54,8 +54,8 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
             className={cn(
               "shrink-0 rounded-full border px-4 py-2 text-sm transition-colors",
               filterStatus === value
-                ? "border-gold-500 bg-gold-100 text-charcoal"
-                : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
+                : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
             )}
           >
             {TICKET_STATUS_LABELS[value]}
@@ -69,8 +69,8 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
           className={cn(
             "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
             !filterSender
-              ? "border-rose-400 bg-rose-50 text-rose-700"
-              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+              ? "border-charcoal bg-charcoal/5 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
           )}
         >
           همه فرستنده‌ها
@@ -82,8 +82,8 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
               filterSender === value
-                ? "border-rose-400 bg-rose-50 text-rose-700"
-                : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
+                : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
             )}
           >
             {TICKET_SENDER_LABELS[value]}
@@ -97,8 +97,8 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
           className={cn(
             "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
             !filterType
-              ? "border-gold-500 bg-gold-100 text-charcoal"
-              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+              ? "border-charcoal bg-charcoal/5 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
           )}
         >
           همه نوع‌ها
@@ -108,8 +108,8 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
           className={cn(
             "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
             filterType === "RETURN_REQUEST"
-              ? "border-gold-500 bg-gold-100 text-charcoal"
-              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+              ? "border-charcoal bg-charcoal/5 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
           )}
         >
           {TICKET_TYPE_LABELS.RETURN_REQUEST}
@@ -127,7 +127,7 @@ export default async function AdminTicketsPage({ searchParams }: Props) {
             <li key={ticket.id}>
               <Link
                 href={`/admin/tickets/${ticket.id}`}
-                className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
+                className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-charcoal">{ticket.subject}</p>

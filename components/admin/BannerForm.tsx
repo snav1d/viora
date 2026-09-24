@@ -121,7 +121,7 @@ export function BannerForm({ banner }: { banner?: BannerInput }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-charcoal-muted hover:border-rose-300"
+            className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border text-charcoal-muted hover:border-charcoal/25"
           >
             <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
             <span className="text-xs">{uploading ? "در حال بارگذاری…" : "افزودن تصویر"}</span>

@@ -91,7 +91,7 @@ export function PrintColorManager({ colors }: { colors: PrintColor[] }) {
           {colors.map((color) => (
             <span
               key={color.id}
-              className="flex items-center gap-1.5 rounded-full bg-gold-100 px-3 py-1.5 text-sm text-charcoal"
+              className="flex items-center gap-1.5 rounded-full border border-border bg-warm-white px-3 py-1.5 text-sm text-charcoal"
             >
               {color.name}
               <button

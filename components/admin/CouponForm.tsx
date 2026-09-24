@@ -89,7 +89,7 @@ export function CouponForm() {
             className={cn(
               "flex-1 rounded-2xl border px-4 py-3 text-sm transition-colors",
               type === "PERCENTAGE"
-                ? "border-gold-500 bg-gold-100 text-charcoal"
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
                 : "border-border bg-surface text-charcoal-muted",
             )}
           >
@@ -101,7 +101,7 @@ export function CouponForm() {
             className={cn(
               "flex-1 rounded-2xl border px-4 py-3 text-sm transition-colors",
               type === "FIXED_AMOUNT"
-                ? "border-gold-500 bg-gold-100 text-charcoal"
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
                 : "border-border bg-surface text-charcoal-muted",
             )}
           >

@@ -52,7 +52,7 @@ export function RejectForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-full border border-rose-200 py-3 text-sm font-medium text-rose-700 hover:bg-rose-50"
+        className="w-full rounded-full border border-error-500/30 py-3 text-sm font-medium text-error-600 hover:bg-error-50"
       >
         {triggerLabel}
       </button>
@@ -62,7 +62,7 @@ export function RejectForm({
   return (
     <form
       onSubmit={handleReject}
-      className="flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50/40 p-4"
+      className="flex flex-col gap-2 rounded-2xl border border-error-500/20 bg-error-50/60 p-4"
     >
       <label htmlFor="reason" className="text-sm font-medium text-charcoal">
         {reasonLabel}

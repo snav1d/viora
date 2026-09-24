@@ -50,7 +50,7 @@ export function ActiveToggle({
         disabled={pending}
         className={cn(
           "flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors disabled:opacity-50",
-          isActive ? "justify-end bg-gold-500" : "justify-start bg-border",
+          isActive ? "justify-end bg-charcoal" : "justify-start bg-border",
         )}
       >
         <span className="h-5 w-5 rounded-full bg-surface shadow" />

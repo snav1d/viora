@@ -4,7 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 
-export function TicketReplyForm({ endpoint }: { endpoint: string }) {
+export function TicketReplyForm({
+  endpoint,
+  onSuccess,
+}: {
+  endpoint: string;
+  /// Called after a reply is saved, in addition to the router.refresh() below - the admin
+  /// floating support drawer (components/admin/SupportChatDrawer.tsx) needs this to re-fetch its
+  /// own client-side ticket state, which a server-component refresh alone doesn't touch.
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +37,7 @@ export function TicketReplyForm({ endpoint }: { endpoint: string }) {
       }
       setBody("");
       router.refresh();
+      onSuccess?.();
     } catch {
       setError("ارتباط با سرور برقرار نشد.");
     } finally {
@@ -49,7 +59,7 @@ export function TicketReplyForm({ endpoint }: { endpoint: string }) {
           type="submit"
           disabled={submitting || !body.trim()}
           aria-label="ارسال"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-500 text-charcoal disabled:opacity-40"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-charcoal text-warm-white disabled:opacity-40"
         >
           <Send className="h-4 w-4" strokeWidth={1.75} />
         </button>

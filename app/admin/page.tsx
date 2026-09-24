@@ -28,7 +28,7 @@ export default async function AdminDashboardPage() {
     <main className="flex flex-1 flex-col gap-6 px-4 py-5">
       <TopBar title="پنل ادمین" />
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="rounded-2xl border border-border bg-surface p-4 text-center">
           <p className="text-2xl font-semibold text-charcoal">
             {stats.pendingSellers.toLocaleString("fa-IR")}
@@ -77,7 +77,7 @@ export default async function AdminDashboardPage() {
         </div>
         <Link
           href="/admin/tickets?type=RETURN_REQUEST"
-          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+          className="rounded-2xl border border-border bg-surface p-4 text-center transition-colors hover:border-charcoal/25"
         >
           <p className="text-2xl font-semibold text-charcoal">
             {stats.pendingReturns.toLocaleString("fa-IR")}
@@ -86,7 +86,7 @@ export default async function AdminDashboardPage() {
         </Link>
         <Link
           href="/admin/products"
-          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+          className="rounded-2xl border border-border bg-surface p-4 text-center transition-colors hover:border-charcoal/25"
         >
           <p className="text-2xl font-semibold text-charcoal">
             {stats.pendingProducts.toLocaleString("fa-IR")}
@@ -95,7 +95,7 @@ export default async function AdminDashboardPage() {
         </Link>
         <Link
           href="/admin/reviews"
-          className="rounded-2xl border border-border bg-surface p-4 text-center hover:border-rose-300"
+          className="rounded-2xl border border-border bg-surface p-4 text-center transition-colors hover:border-charcoal/25"
         >
           <p className="text-2xl font-semibold text-charcoal">
             {stats.pendingReviews.toLocaleString("fa-IR")}
@@ -104,47 +104,61 @@ export default async function AdminDashboardPage() {
         </Link>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <ButtonLink href="/admin/sellers" size="lg" className="w-full gap-2">
-          <UserCheck className="h-4 w-4" strokeWidth={1.75} />
-          تایید فروشنده‌ها
-        </ButtonLink>
-        <ButtonLink href="/admin/providers" variant="secondary" size="lg" className="w-full gap-2">
-          <Printer className="h-4 w-4" strokeWidth={1.75} />
-          تایید پارتنرهای خدماتی
-        </ButtonLink>
-        <ButtonLink href="/admin/tickets" variant="secondary" size="lg" className="w-full gap-2">
-          <Headset className="h-4 w-4" strokeWidth={1.75} />
-          تیکت‌های پشتیبانی
-        </ButtonLink>
-        <ButtonLink href="/admin/coupons" variant="secondary" size="lg" className="w-full gap-2">
-          <Ticket className="h-4 w-4" strokeWidth={1.75} />
-          کدهای تخفیف
-        </ButtonLink>
-        <ButtonLink href="/admin/hub" variant="secondary" size="lg" className="w-full gap-2">
-          <Boxes className="h-4 w-4" strokeWidth={1.75} />
-          مرکز پردازش ویورا
-        </ButtonLink>
-        <ButtonLink href="/admin/products" variant="secondary" size="lg" className="w-full gap-2">
-          <PackageSearch className="h-4 w-4" strokeWidth={1.75} />
-          بررسی محصولات جدید
-        </ButtonLink>
-        <ButtonLink href="/admin/reviews" variant="secondary" size="lg" className="w-full gap-2">
-          <MessageSquareWarning className="h-4 w-4" strokeWidth={1.75} />
-          نظرات در انتظار تایید
-        </ButtonLink>
-        <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
-          <Palette className="h-4 w-4" strokeWidth={1.75} />
-          تم فصلی/مناسبتی
-        </ButtonLink>
-        <ButtonLink href="/admin/banners" variant="secondary" size="lg" className="w-full gap-2">
-          <ImageIcon className="h-4 w-4" strokeWidth={1.75} />
-          مدیریت بنر
-        </ButtonLink>
-        <ButtonLink href="/admin/catalog" variant="secondary" size="lg" className="w-full gap-2">
-          <Settings2 className="h-4 w-4" strokeWidth={1.75} />
-          مدیریت شهر و دسته‌بندی
-        </ButtonLink>
+      {/* docs/design-system.md §7: below `lg` this replaces the old flat stack of 10 buttons with
+          the same 3 groups the desktop sidebar uses, as section headings - hidden entirely at
+          `lg`+, where AdminShell's own sidebar already covers this same navigation. */}
+      <section className="flex flex-col gap-5 lg:hidden">
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-charcoal">تاییدها</h2>
+          <ButtonLink href="/admin/sellers" size="lg" className="w-full gap-2">
+            <UserCheck className="h-4 w-4" strokeWidth={1.5} />
+            تایید فروشنده‌ها
+          </ButtonLink>
+          <ButtonLink href="/admin/providers" variant="secondary" size="lg" className="w-full gap-2">
+            <Printer className="h-4 w-4" strokeWidth={1.5} />
+            تایید پارتنرهای خدماتی
+          </ButtonLink>
+          <ButtonLink href="/admin/products" variant="secondary" size="lg" className="w-full gap-2">
+            <PackageSearch className="h-4 w-4" strokeWidth={1.5} />
+            بررسی محصولات جدید
+          </ButtonLink>
+          <ButtonLink href="/admin/reviews" variant="secondary" size="lg" className="w-full gap-2">
+            <MessageSquareWarning className="h-4 w-4" strokeWidth={1.5} />
+            نظرات در انتظار تایید
+          </ButtonLink>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-charcoal">تجاری</h2>
+          <ButtonLink href="/admin/coupons" variant="secondary" size="lg" className="w-full gap-2">
+            <Ticket className="h-4 w-4" strokeWidth={1.5} />
+            کدهای تخفیف
+          </ButtonLink>
+          <ButtonLink href="/admin/banners" variant="secondary" size="lg" className="w-full gap-2">
+            <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
+            مدیریت بنر
+          </ButtonLink>
+          <ButtonLink href="/admin/themes" variant="secondary" size="lg" className="w-full gap-2">
+            <Palette className="h-4 w-4" strokeWidth={1.5} />
+            تم فصلی/مناسبتی
+          </ButtonLink>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-charcoal">عملیات</h2>
+          <ButtonLink href="/admin/hub" variant="secondary" size="lg" className="w-full gap-2">
+            <Boxes className="h-4 w-4" strokeWidth={1.5} />
+            مرکز پردازش ویورا
+          </ButtonLink>
+          <ButtonLink href="/admin/catalog" variant="secondary" size="lg" className="w-full gap-2">
+            <Settings2 className="h-4 w-4" strokeWidth={1.5} />
+            مدیریت شهر و دسته‌بندی
+          </ButtonLink>
+          <ButtonLink href="/admin/tickets" variant="secondary" size="lg" className="w-full gap-2">
+            <Headset className="h-4 w-4" strokeWidth={1.5} />
+            تیکت‌های پشتیبانی
+          </ButtonLink>
+        </div>
       </section>
     </main>
   );

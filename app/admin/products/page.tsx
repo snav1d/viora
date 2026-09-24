@@ -45,8 +45,8 @@ export default async function AdminProductsPage({ searchParams }: Props) {
             className={cn(
               "rounded-full border px-4 py-2 text-sm transition-colors",
               filterStatus === tab.value
-                ? "border-gold-500 bg-gold-100 text-charcoal"
-                : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
+                : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
             )}
           >
             {tab.label}
@@ -65,7 +65,7 @@ export default async function AdminProductsPage({ searchParams }: Props) {
             <li key={product.id}>
               <Link
                 href={`/admin/products/${product.id}`}
-                className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
+                className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
               >
                 <p className="font-medium text-charcoal">{product.title}</p>
                 <p className="text-charcoal-muted">

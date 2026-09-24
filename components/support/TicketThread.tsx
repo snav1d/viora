@@ -5,7 +5,9 @@ type Message = {
   isFromStaff: boolean;
   body: string;
   imageUrl?: string | null;
-  createdAt: Date;
+  /// Date, or an ISO string when this came from a client-side JSON fetch (e.g. the admin
+  /// SupportChatDrawer) rather than a server component's own Prisma result.
+  createdAt: Date | string;
 };
 
 // Shared by the ticket owner's own page and the admin ticket page - classified by the message's
@@ -28,7 +30,7 @@ export function TicketThread({
             <div
               className={cn(
                 "max-w-[85%] space-y-2 rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap",
-                fromOwner ? "border border-border bg-surface text-charcoal" : "bg-gold-100 text-charcoal",
+                fromOwner ? "border border-border bg-surface text-charcoal" : "bg-charcoal text-warm-white",
               )}
             >
               {message.imageUrl ? (

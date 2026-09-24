@@ -50,8 +50,8 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
             className={cn(
               "shrink-0 rounded-full border px-4 py-2 text-sm transition-colors",
               filterStatus === tab.value
-                ? "border-gold-500 bg-gold-100 text-charcoal"
-                : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
+                : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
             )}
           >
             {tab.label}
@@ -65,8 +65,8 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
           className={cn(
             "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
             !filterCategory
-              ? "border-rose-400 bg-rose-50 text-rose-700"
-              : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+              ? "border-charcoal bg-charcoal/5 text-charcoal"
+              : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
           )}
         >
           همه‌ی دسته‌ها
@@ -78,8 +78,8 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors",
               filterCategory === cat.slug
-                ? "border-rose-400 bg-rose-50 text-rose-700"
-                : "border-border bg-surface text-charcoal-muted hover:border-rose-300",
+                ? "border-charcoal bg-charcoal/5 text-charcoal"
+                : "border-border bg-surface text-charcoal-muted hover:border-charcoal/25",
             )}
           >
             {cat.name}
@@ -101,7 +101,7 @@ export default async function AdminProvidersPage({ searchParams }: Props) {
               <li key={provider.id}>
                 <Link
                   href={`/admin/providers/${provider.id}`}
-                  className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm hover:shadow-md"
+                  className="flex flex-col gap-1 rounded-2xl border border-border bg-surface p-4 text-sm transition-colors hover:border-charcoal/25"
                 >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium text-charcoal">{provider.businessName}</p>

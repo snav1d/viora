@@ -145,13 +145,13 @@ export default async function AdminSellerDetailPage({ params }: Props) {
         <section
           className={cn(
             "space-y-2 rounded-2xl border p-4 text-sm",
-            returnRateOverThreshold ? "border-rose-300 bg-rose-50/60" : "border-border bg-surface",
+            returnRateOverThreshold ? "border-error-500/20 bg-error-50" : "border-border bg-surface",
           )}
         >
           <div className="flex items-center justify-between">
             <p className="font-medium text-charcoal">نرخ مرجوعی تاییدشده</p>
             {returnRateOverThreshold ? (
-              <span className="flex items-center gap-1 text-xs font-medium text-rose-700">
+              <span className="flex items-center gap-1 text-xs font-medium text-error-600">
                 <AlertTriangle className="h-3.5 w-3.5" strokeWidth={1.75} />
                 بالاتر از آستانه‌ی هشدار
               </span>

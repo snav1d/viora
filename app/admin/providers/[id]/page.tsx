@@ -187,7 +187,7 @@ export default async function AdminProviderDetailPage({ params }: Props) {
                 className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3 text-sm"
               >
                 <span className="text-charcoal">{offering.title}</span>
-                <span className="font-medium text-rose-700">
+                <span className="font-medium text-charcoal">
                   {toNumber(offering.basePrice).toLocaleString("fa-IR")} تومان
                 </span>
               </li>
