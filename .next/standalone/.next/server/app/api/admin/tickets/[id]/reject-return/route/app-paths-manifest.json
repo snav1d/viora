@@ -1,0 +1,3 @@
+{
+  "/api/admin/tickets/[id]/reject-return/route": "app/api/admin/tickets/[id]/reject-return/route.js"
+}

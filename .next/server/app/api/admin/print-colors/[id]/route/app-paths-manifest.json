@@ -1,0 +1,3 @@
+{
+  "/api/admin/print-colors/[id]/route": "app/api/admin/print-colors/[id]/route.js"
+}

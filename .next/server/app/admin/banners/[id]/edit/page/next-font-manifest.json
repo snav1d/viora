@@ -1,0 +1,13 @@
+{
+  "pages": {},
+  "app": {
+    "[project]/app/admin/banners/[id]/edit/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pagesUsingSizeAdjust": false
+}

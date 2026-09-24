@@ -1,0 +1,3 @@
+{
+  "/api/admin/providers/[id]/toggle-verified/route": "app/api/admin/providers/[id]/toggle-verified/route.js"
+}

@@ -1,0 +1,361 @@
+{
+  "app": {
+    "[project]/app/(main)/cart/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/home/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/orders/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/print/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/print/partners/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/profile/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/services/[category]/[providerId]/book/[offeringId]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/services/[category]/[providerId]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/services/[category]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/services/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/shop/[categorySlug]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/shop/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/shop/product/[slug]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/support/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/support/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/support/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/(main)/wizard/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/_not-found/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/banners/[id]/edit/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/banners/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/banners/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/catalog/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/coupons/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/coupons/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/hub/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/products/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/products/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/providers/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/providers/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/reviews/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/sellers/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/sellers/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/themes/[id]/edit/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/themes/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/themes/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/tickets/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/admin/tickets/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/auth/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/auth/verify/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/legal/seller-terms/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/available-orders/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/offering/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/orders/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/orders/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/portfolio/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/services/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/services/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/(panel)/services/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/register/[category]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/provider/register/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/(panel)/orders/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/(panel)/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/[id]/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/new/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/(panel)/products/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ],
+    "[project]/app/seller/register/page": [
+      "static/media/Kalameh_Regular-s.p.1-6dyr3nbieo-.woff2",
+      "static/media/Kalameh_Medium-s.p.1co095_wx9sqr.woff2",
+      "static/media/Kalameh_SemiBold-s.p.27q40dz28bhql.woff2",
+      "static/media/Kalameh_Bold-s.p.2k_2l87k8lp9e.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/admin/birthday-campaign/route.js")
+R.c("server/chunks/[externals]__01y-_ou._.js")
+R.c("server/chunks/_19xtul_._.js")
+R.c("server/chunks/[root-of-the-server]__00v7scf._.js")
+R.c("server/chunks/node_modules_zod_v4_classic_external_1-pw2v2.js")
+R.c("server/chunks/[root-of-the-server]__0l3yhx4._.js")
+R.c("server/chunks/_1ct0-x3._.js")
+R.c("server/chunks/_next-internal_server_app_api_admin_birthday-campaign_route_actions_05k3qm-.js")
+R.m(65382)
+module.exports=R.m(65382).exports

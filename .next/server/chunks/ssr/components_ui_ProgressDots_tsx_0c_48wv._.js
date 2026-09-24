@@ -1,0 +1,3 @@
+module.exports=[2006,a=>{"use strict";var b=a.i(87924),c=a.i(69767);a.s(["ProgressDots",0,function({total:a,current:d}){return(0,b.jsx)("div",{className:"flex items-center justify-center gap-2",role:"progressbar","aria-valuemin":1,"aria-valuemax":a,"aria-valuenow":d,children:Array.from({length:a}).map((a,e)=>(0,b.jsx)("span",{className:(0,c.cn)("h-2 rounded-full transition-all",e===d-1?"w-6 bg-charcoal":"w-2 bg-rose-100")},e))})}])}];
+
+//# sourceMappingURL=components_ui_ProgressDots_tsx_0c_48wv._.js.map

@@ -1,0 +1,3 @@
+{
+  "/api/admin/hub-items/[itemId]/finalize/route": "app/api/admin/hub-items/[itemId]/finalize/route.js"
+}

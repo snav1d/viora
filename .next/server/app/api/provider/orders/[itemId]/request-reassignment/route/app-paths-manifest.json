@@ -1,0 +1,3 @@
+{
+  "/api/provider/orders/[itemId]/request-reassignment/route": "app/api/provider/orders/[itemId]/request-reassignment/route.js"
+}
